@@ -106,7 +106,10 @@ const errorVectors: unknown[] = [
   { profileId: "hrc32-v1", input: "000-000-0", error: "INVALID_CHECKSUM" },
   { profileId: "hrc32-v1", input: "000-00", error: "INVALID_LENGTH" },
   { profileId: "hrc32-v1", input: "000-0@0-X", error: "INVALID_CHARACTER" },
-  { profileId: "hrc32-v1", input: "0000PD", error: "INVALID_LENGTH" }
+  { profileId: "hrc32-v1", input: "0000PD", error: "INVALID_LENGTH" },
+  // U exists only in the checksum alphabet; placed in the body region it must
+  // fail as INVALID_CHARACTER (spec 9), not crash and not pass through.
+  { profileId: "hrc32-v1", input: "U00000A", error: "INVALID_CHARACTER" }
 ];
 // checksum-failing code built deterministically from a real body
 {
@@ -121,20 +124,35 @@ const errorVectors: unknown[] = [
 }
 
 // Correction vectors (frozen case from the spec's ambiguity analysis, modulus 26).
+// Checksums must be computed under the exact profile the vectors name:
+// hrc32-noperm-test, whose profileId is part of the checksum domain.
 const correctionVectors: unknown[] = (() => {
   const base = hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
-  const prepared = prepareProfile({ ...base, permutation: { enabled: false } });
+  const noPerm: HrcProfile = { ...base, profileId: "hrc32-noperm-test", permutation: { enabled: false } };
+  const prepared = prepareProfile(noPerm);
   const uniqueCheck = calculateChecksum(prepared, "0000PB");
   const ambCheck = calculateChecksum(prepared, "0000BP");
+  const h = new Hrc(noPerm);
+  // The unique vector must decode to a body; the ambiguous one must abstain.
+  const unique = h.decode("0000TB" + uniqueCheck, { tryCorrection: true, confusionProfile: "light" });
+  let ambThrew = false;
+  try {
+    h.decode("0000BT" + ambCheck, { tryCorrection: true, confusionProfile: "light" });
+  } catch (e) {
+    ambThrew = e instanceof Error && (e as { code?: string }).code === "AMBIGUOUS_INPUT";
+  }
+  if (!unique.corrected || !ambThrew) throw new Error("correction vector generation broke");
   return [
     {
       profileId: "hrc32-noperm-test",
+      confusionProfile: "light",
       input: "0000TB" + uniqueCheck,
       expectedBody: "0000PB",
       corrected: true
     },
     {
       profileId: "hrc32-noperm-test",
+      confusionProfile: "light",
       input: "0000BT" + ambCheck,
       error: "AMBIGUOUS_INPUT"
     }

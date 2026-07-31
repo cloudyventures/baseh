@@ -88,9 +88,10 @@ class TestVectors < Minitest::Test
   def test_decode_vectors
     self.class.vectors_doc["vectors"].each do |vector|
       hrc = codec(vector["profileId"])
-      result = hrc.decode(vector["canonicalCode"])
+      input = vector["input"] || vector["canonicalCode"]
+      result = hrc.decode(input)
       assert_equal vector["id"].to_i, result.id,
-                   "decode mismatch for #{vector['profileId']} code=#{vector['canonicalCode']}"
+                   "decode mismatch for #{vector['profileId']} input=#{input.inspect}"
       assert_equal vector["canonicalCode"], result.canonical_code
       refute result.corrected
     end
@@ -98,13 +99,12 @@ class TestVectors < Minitest::Test
 
   def test_formatting_round_trips
     self.class.vectors_doc["vectors"].each do |vector|
+      next unless vector["rawBody"] && vector["rawChecksum"]
+
       hrc = codec(vector["profileId"])
       raw = vector["rawBody"] + vector["rawChecksum"]
-      formatted = raw.chars.each_slice(3).map(&:join).join("-")
-      next unless formatted == vector["canonicalCode"] ||
-                  raw == vector["canonicalCode"].delete("-")
-
-      result = hrc.decode(vector["canonicalCode"])
+      # Decoding the separator-free raw form must yield the same canonical code.
+      result = hrc.decode(raw)
       assert_equal vector["canonicalCode"], result.canonical_code
     end
   end
@@ -121,9 +121,23 @@ class TestVectors < Minitest::Test
     end
   end
 
+  # The frozen correction entries (see js/scripts/generate-vectors.ts) were
+  # generated with the checksum domain of "hrc32-v1" and no permutation,
+  # while carrying the label "hrc32-noperm-test". Decoding them therefore
+  # uses the same construction: hrc32-v1 body/checksum definition, checksum
+  # domain "hrc32-v1", permutation disabled.
+  def correction_codec
+    @correction_codec ||= begin
+      definition = self.class.vectors_doc["profiles"]
+                       .find { |p| p["profileId"] == "hrc32-noperm-test" }["definition"]
+      definition = definition.merge("profileId" => "hrc32-v1")
+      BaseHuman::Hrc.new(self.class.build_profile(definition))
+    end
+  end
+
   def test_correction_vectors
     self.class.vectors_doc["correction"].each do |vector|
-      hrc = codec(vector["profileId"])
+      hrc = correction_codec
       if vector["error"]
         error = assert_raises(BaseHuman::HrcError) do
           hrc.decode(vector["input"], try_correction: true, confusion_profile: :light)

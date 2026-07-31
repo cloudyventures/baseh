@@ -352,6 +352,11 @@ function decode(input, profile, options):
     body = raw[0:profile.bodyLength]
     suppliedChecksum = raw[profile.bodyLength:]
 
+    if body contains a symbol outside the body alphabet:
+        error INVALID_CHARACTER
+    # Such a symbol can reach this point because normalization checks
+    # membership in the union of both alphabets (step 6 in 3.1).
+
     if not checksumMatches(body, suppliedChecksum, profile):
         if not options.tryCorrection:
             error INVALID_CHECKSUM

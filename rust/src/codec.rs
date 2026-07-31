@@ -14,9 +14,10 @@ use crate::profile::{prepare_profile, Permutation, PreparedProfile, Profile};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConfusionProfile {
     /// No candidates: correction always fails with INVALID_CHECKSUM.
+    /// This is the default, matching the reference decoder.
+    #[default]
     None,
     /// B/D and P/T.
-    #[default]
     Light,
     /// Light plus M/N and V/W.
     Medium,
@@ -249,7 +250,7 @@ impl Hrc {
         }
         let body = encode_base_n(&value, &self.profile.body_alphabet_norm, p.body_length);
         let body_chars: Vec<char> = body.chars().collect();
-        let checksum = calculate_checksum(&self.profile, &body_chars);
+        let checksum = calculate_checksum(&self.profile, &body_chars)?;
         let mut raw = body_chars;
         raw.extend(checksum.chars());
         Ok(format_raw(&raw, &self.profile))
@@ -262,27 +263,13 @@ impl Hrc {
         let mut body: Vec<char> = raw[..p.body_length].to_vec();
         let supplied_checksum: Vec<char> = raw[p.body_length..].to_vec();
 
-        let body_allowed: HashSet<char> = self.profile.body_alphabet_norm.iter().copied().collect();
-        for ch in &body {
-            if !body_allowed.contains(ch) {
-                return Err(HrcError::customer(
-                    ErrorCode::InvalidCharacter,
-                    format!("Symbol {ch:?} cannot appear in the body"),
-                ));
-            }
-        }
-        let checksum_allowed: HashSet<char> =
-            self.profile.checksum_alphabet_norm.iter().copied().collect();
-        for ch in &supplied_checksum {
-            if !checksum_allowed.contains(ch) {
-                return Err(HrcError::customer(
-                    ErrorCode::InvalidCharacter,
-                    format!("Symbol {ch:?} cannot appear in the checksum"),
-                ));
-            }
-        }
-
-        if calculate_checksum(&self.profile, &body)
+        // Spec 3.1 step 6 checks the union of both alphabets (in normalize)
+        // and spec 9 adds no partition-specific checks. A body position
+        // holding a checksum-only symbol fails as INVALID_CHARACTER inside
+        // calculate_checksum; a checksum position holding a body-only symbol
+        // simply mismatches below and fails as INVALID_CHECKSUM. This
+        // ordering is pinned by the frozen error vectors.
+        if calculate_checksum(&self.profile, &body)?
             != supplied_checksum.iter().collect::<String>()
         {
             if !options.try_correction || options.max_corrections == 0 {
@@ -295,7 +282,7 @@ impl Hrc {
                 generate_candidates(&body, options.confusion_profile.map(), options.max_corrections)?;
             let mut valid: HashSet<Vec<char>> = HashSet::new();
             for candidate in candidates {
-                let candidate_checksum = calculate_checksum(&self.profile, &candidate);
+                let candidate_checksum = calculate_checksum(&self.profile, &candidate)?;
                 if candidate_checksum == supplied_checksum.iter().collect::<String>() {
                     valid.insert(candidate);
                 }

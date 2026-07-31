@@ -205,20 +205,27 @@ fn error_vectors() {
 #[test]
 fn correction_vectors() {
     let fixture = Fixture::load();
-    let options = DecodeOptions {
-        accept_spaces: false,
-        try_correction: true,
-        confusion_profile: ConfusionProfile::Light,
-        max_corrections: 1,
-    };
     for v in fixture.root["correction"].as_array().unwrap() {
         let hrc = fixture.get(v["profileId"].as_str().unwrap());
         let input = v["input"].as_str().unwrap();
-        let body_len = hrc.profile().body_length;
+        let confusion = match v["confusionProfile"].as_str().unwrap_or("light") {
+            "none" => ConfusionProfile::None,
+            "light" => ConfusionProfile::Light,
+            "medium" => ConfusionProfile::Medium,
+            "heavy" => ConfusionProfile::Heavy,
+            other => panic!("unknown confusion profile {other}"),
+        };
+        let options = DecodeOptions {
+            accept_spaces: false,
+            try_correction: true,
+            confusion_profile: confusion,
+            max_corrections: 1,
+        };
         if let Some(expected_body) = v.get("expectedBody") {
             let result = hrc
                 .decode(input, &options)
-                .expect(&format!("correction of {input:?} must succeed"));
+                .unwrap_or_else(|e| panic!("correction of {input:?} must succeed: {e}"));
+            let body_len = hrc.profile().body_length;
             let raw: String = result
                 .canonical_code
                 .chars()
@@ -231,7 +238,7 @@ fn correction_vectors() {
             let err = hrc
                 .decode(input, &options)
                 .expect_err(&format!("correction of {input:?} must fail with {expected}"));
-            assert_eq!(err.code, expected);
+            assert_eq!(err.code, expected, "correction of {input:?}");
         }
     }
 }

@@ -8,14 +8,14 @@ type ErrorCode string
 
 // Error codes defined by the HRC codec specification.
 const (
-	INVALID_PROFILE      ErrorCode = "INVALID_PROFILE"
-	OUT_OF_RANGE         ErrorCode = "OUT_OF_RANGE"
-	PERMUTATION_FAILURE  ErrorCode = "PERMUTATION_FAILURE"
-	INVALID_LENGTH       ErrorCode = "INVALID_LENGTH"
-	INVALID_CHARACTER    ErrorCode = "INVALID_CHARACTER"
-	INVALID_CHECKSUM     ErrorCode = "INVALID_CHECKSUM"
-	AMBIGUOUS_INPUT      ErrorCode = "AMBIGUOUS_INPUT"
-	TOO_MANY_CANDIDATES  ErrorCode = "TOO_MANY_CANDIDATES"
+	INVALID_PROFILE     ErrorCode = "INVALID_PROFILE"
+	OUT_OF_RANGE        ErrorCode = "OUT_OF_RANGE"
+	PERMUTATION_FAILURE ErrorCode = "PERMUTATION_FAILURE"
+	INVALID_LENGTH      ErrorCode = "INVALID_LENGTH"
+	INVALID_CHARACTER   ErrorCode = "INVALID_CHARACTER"
+	INVALID_CHECKSUM    ErrorCode = "INVALID_CHECKSUM"
+	AMBIGUOUS_INPUT     ErrorCode = "AMBIGUOUS_INPUT"
+	TOO_MANY_CANDIDATES ErrorCode = "TOO_MANY_CANDIDATES"
 )
 
 // Error is the single error type returned by this package. Retrieve it with

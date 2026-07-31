@@ -146,7 +146,9 @@ class TestRoundTrip(unittest.TestCase):
         alias_input = canonical.replace("0", "O")
         result = self.codec.decode(alias_input)
         self.assertEqual(result.id, value)
-        self.assertTrue(result.corrected)
+        # Aliases are canonicalized during normalization, so the corrected
+        # flag stays false; only confusion-map correction sets it.
+        self.assertFalse(result.corrected)
         self.assertEqual(result.canonical_code, canonical)
 
     def test_validate_never_raises(self):

@@ -170,7 +170,7 @@ describe("correction", () => {
     const body = "0000PB";
     const check = calculateChecksum(prepared, body);
     const wrong = "0000TB" + check; // one T->P flip away from 0000PB
-    const result = h.decode(wrong, { tryCorrection: true });
+    const result = h.decode(wrong, { tryCorrection: true, confusionProfile: "light" });
     assert.equal(result.corrected, true);
     assert.equal(result.canonicalCode.replaceAll("-", ""), body + check);
   });
@@ -178,7 +178,7 @@ describe("correction", () => {
     // 0000BT is one mapped flip from 0000BP (T->P) and from 0000DT (B->D);
     // checksum delta 4*37^0 + 2*37^1 = 78 == 0 mod 26, so both pass.
     const check = calculateChecksum(prepared, "0000BP");
-    assert.throws(() => h.decode("0000BT" + check, { tryCorrection: true }), (e: unknown) =>
+    assert.throws(() => h.decode("0000BT" + check, { tryCorrection: true, confusionProfile: "light" }), (e: unknown) =>
       e instanceof HrcError && e.code === "AMBIGUOUS_INPUT" && !("id" in (e as object)));
   });
   it("INVALID_CHECKSUM when correction cannot help", () => {

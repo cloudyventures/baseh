@@ -61,19 +61,17 @@ func normString(caseSensitive bool, s string) string {
 
 // prepared holds validated profile data precomputed once at construction.
 type prepared struct {
-	profile          Profile
-	bodyNorm         string
-	checksumNorm     string
-	aliasesNorm      map[byte]byte
-	bodyIndex        map[byte]int64
-	checksumIndex    map[byte]int64
-	checksumModulus  *big.Int
-	capacity         *big.Int
-	permutationKey   feistelKey
-	allowedByte      [128]bool
-	inBodyAlphabet   [128]bool
-	inChecksumAlpha  [128]bool
-	rawLength        int
+	profile         Profile
+	bodyNorm        string
+	checksumNorm    string
+	aliasesNorm     map[byte]byte
+	bodyIndex       map[byte]int64
+	checksumModulus *big.Int
+	capacity        *big.Int
+	permutationKey  feistelKey
+	allowedByte     [128]bool
+	inBodyAlphabet  [128]bool
+	rawLength       int
 }
 
 // prepareProfile validates a profile per spec section 2.2 and returns it with
@@ -182,11 +180,11 @@ func prepareProfile(p Profile) (*prepared, error) {
 	}
 
 	prep := &prepared{
-		profile:     p,
-		bodyNorm:    bodyNorm,
+		profile:      p,
+		bodyNorm:     bodyNorm,
 		checksumNorm: checksumNorm,
-		aliasesNorm: aliasesNorm,
-		rawLength:   p.BodyLength + p.ChecksumLength,
+		aliasesNorm:  aliasesNorm,
+		rawLength:    p.BodyLength + p.ChecksumLength,
 	}
 
 	prep.bodyIndex = make(map[byte]int64, len(bodyNorm))
@@ -195,10 +193,7 @@ func prepareProfile(p Profile) (*prepared, error) {
 		prep.inBodyAlphabet[bodyNorm[i]] = true
 		prep.allowedByte[bodyNorm[i]] = true
 	}
-	prep.checksumIndex = make(map[byte]int64, len(checksumNorm))
 	for i := 0; i < len(checksumNorm); i++ {
-		prep.checksumIndex[checksumNorm[i]] = int64(i)
-		prep.inChecksumAlpha[checksumNorm[i]] = true
 		prep.allowedByte[checksumNorm[i]] = true
 	}
 
