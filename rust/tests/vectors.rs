@@ -4,9 +4,7 @@
 
 use std::collections::HashMap;
 
-use base_human::{
-    feistel, ConfusionProfile, DecodeOptions, ErrorCode, Hrc, Permutation, Profile,
-};
+use base_human::{feistel, ConfusionProfile, DecodeOptions, ErrorCode, Hrc, Permutation, Profile};
 use num_bigint::BigUint;
 use serde_json::Value;
 
@@ -35,7 +33,11 @@ fn profile_from_definition(def: &Value) -> Profile {
         .map(|(k, v)| {
             (
                 k.chars().next().expect("alias source"),
-                v.as_str().expect("alias target").chars().next().expect("alias target char"),
+                v.as_str()
+                    .expect("alias target")
+                    .chars()
+                    .next()
+                    .expect("alias target char"),
             )
         })
         .collect();
@@ -118,9 +120,9 @@ fn encode_vectors() {
     for v in fixture.root["vectors"].as_array().unwrap() {
         let hrc = fixture.get(v["profileId"].as_str().unwrap());
         let id = big(&v["id"]);
-        let code = hrc.encode(&id).unwrap_or_else(|e| {
-            panic!("encode {} for {} failed: {}", v["id"], v["profileId"], e)
-        });
+        let code = hrc
+            .encode(&id)
+            .unwrap_or_else(|e| panic!("encode {} for {} failed: {}", v["id"], v["profileId"], e));
         assert_eq!(
             code,
             v["canonicalCode"].as_str().unwrap(),
@@ -137,10 +139,12 @@ fn decode_vectors() {
     let options = DecodeOptions::default();
     for v in fixture.root["vectors"].as_array().unwrap() {
         let hrc = fixture.get(v["profileId"].as_str().unwrap());
-        let input = v["input"].as_str().unwrap_or_else(|| v["canonicalCode"].as_str().unwrap());
-        let result = hrc.decode(input, &options).unwrap_or_else(|e| {
-            panic!("decode {input:?} for {} failed: {e}", v["profileId"])
-        });
+        let input = v["input"]
+            .as_str()
+            .unwrap_or_else(|| v["canonicalCode"].as_str().unwrap());
+        let result = hrc
+            .decode(input, &options)
+            .unwrap_or_else(|e| panic!("decode {input:?} for {} failed: {e}", v["profileId"]));
         assert_eq!(
             result.id,
             big(&v["id"]),
@@ -156,7 +160,11 @@ fn decode_vectors() {
         // Canonical inputs report corrected=false; the aliased, spaced and
         // lowercase vector inputs are checked explicitly in tests/codec.rs.
         if v.get("input").is_none() {
-            assert!(!result.corrected, "canonical input corrected ({})", v["profileId"]);
+            assert!(
+                !result.corrected,
+                "canonical input corrected ({})",
+                v["profileId"]
+            );
         }
     }
 }
@@ -188,10 +196,15 @@ fn error_vectors() {
     for v in fixture.root["errors"].as_array().unwrap() {
         let hrc = fixture.get(v["profileId"].as_str().unwrap());
         let input = v["input"].as_str().unwrap();
-        let expected: ErrorCode = v["error"].as_str().unwrap().parse().expect("known error code");
-        let err = hrc
-            .decode(input, &options)
-            .expect_err(&format!("decode {input:?} must fail with {expected}"));
+        let expected: ErrorCode = v["error"]
+            .as_str()
+            .unwrap()
+            .parse()
+            .expect("known error code");
+        let err = match hrc.decode(input, &options) {
+            Ok(_) => panic!("decode {input:?} must fail with {expected}"),
+            Err(err) => err,
+        };
         assert_eq!(err.code, expected, "decode {input:?}");
         // Per spec 13 the failure must not leak a candidate internal ID; the
         // error type carries no id by construction.
@@ -235,9 +248,10 @@ fn correction_vectors() {
             assert!(result.corrected, "correction of {input:?} flags corrected");
         } else {
             let expected: ErrorCode = v["error"].as_str().unwrap().parse().unwrap();
-            let err = hrc
-                .decode(input, &options)
-                .expect_err(&format!("correction of {input:?} must fail with {expected}"));
+            let err = match hrc.decode(input, &options) {
+                Ok(_) => panic!("correction of {input:?} must fail with {expected}"),
+                Err(err) => err,
+            };
             assert_eq!(err.code, expected, "correction of {input:?}");
         }
     }
@@ -254,7 +268,7 @@ fn feistel_vectors() {
         let input = big(&v["input"]);
         let permuted = big(&v["permuted"]);
         let got = feistel::permute(&input, &capacity, profile_id, &key_bytes, rounds)
-            .expect(&format!("permute {} within {}", v["input"], v["capacity"]));
+            .unwrap_or_else(|_| panic!("permute {} within {}", v["input"], v["capacity"]));
         assert_eq!(
             got, permuted,
             "permute {} (capacity {} rounds {})",

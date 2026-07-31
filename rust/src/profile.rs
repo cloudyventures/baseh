@@ -113,9 +113,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
         return Err(fail("bodyLength must be an integer from 1 through 32"));
     }
     if profile.checksum_length > 8 {
-        return Err(fail(
-            "checksumLength must be an integer from 0 through 8",
-        ));
+        return Err(fail("checksumLength must be an integer from 0 through 8"));
     }
 
     if profile.checksum_length > 0 {
@@ -165,9 +163,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
             return Err(fail("alias target is not a canonical symbol"));
         }
         if aliases_norm.contains_key(&s_norm) {
-            return Err(fail(
-                "duplicate alias source after case normalization",
-            ));
+            return Err(fail("duplicate alias source after case normalization"));
         }
         // Alias chains (and therefore cycles) are forbidden: no target may
         // itself be a source. Checked against the full list, so detection
@@ -182,22 +178,22 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
         aliases_norm.insert(s_norm, t_norm);
     }
 
-    let total = profile.grouping.iter().try_fold(0usize, |acc, g| {
-        if *g == 0 {
-            None
-        } else {
-            acc.checked_add(*g)
-        }
-    });
+    let total =
+        profile.grouping.iter().try_fold(
+            0usize,
+            |acc, g| {
+                if *g == 0 {
+                    None
+                } else {
+                    acc.checked_add(*g)
+                }
+            },
+        );
     let Some(total) = total else {
-        return Err(fail(
-            "group sizes must sum to bodyLength + checksumLength",
-        ));
+        return Err(fail("group sizes must sum to bodyLength + checksumLength"));
     };
     if total != profile.body_length + profile.checksum_length {
-        return Err(fail(
-            "group sizes must sum to bodyLength + checksumLength",
-        ));
+        return Err(fail("group sizes must sum to bodyLength + checksumLength"));
     }
 
     if let Permutation::FeistelV1 {
@@ -213,7 +209,9 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
             return Err(fail("permutation requires key material"));
         }
         if !(4..=16).contains(rounds) || rounds % 2 != 0 {
-            return Err(fail("Feistel rounds must be an even integer from 4 through 16"));
+            return Err(fail(
+                "Feistel rounds must be an even integer from 4 through 16",
+            ));
         }
     }
 
@@ -230,10 +228,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
 
     Ok(PreparedProfile {
         checksum_modulus: pow_biguint(modulus_base, profile.checksum_length),
-        capacity: pow_biguint(
-            BigUint::from(body_norm.len() as u64),
-            profile.body_length,
-        ),
+        capacity: pow_biguint(BigUint::from(body_norm.len() as u64), profile.body_length),
         body_alphabet_norm: body_norm,
         checksum_alphabet_norm: checksum_norm,
         aliases_norm,

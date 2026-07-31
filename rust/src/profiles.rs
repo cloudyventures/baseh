@@ -8,7 +8,13 @@ const DEFAULT_ROUNDS: u32 = 8;
 
 const ALIASES: &[(char, char)] = &[('O', '0'), ('I', '1'), ('L', '1')];
 
-fn frozen(profile_id: &str, checksum_length: usize, grouping: Vec<usize>, key_bytes: &[u8], key_id: &str) -> Profile {
+fn frozen(
+    profile_id: &str,
+    checksum_length: usize,
+    grouping: Vec<usize>,
+    key_bytes: &[u8],
+    key_id: &str,
+) -> Profile {
     Profile {
         profile_id: profile_id.to_string(),
         body_alphabet: BODY_ALPHABET.to_string(),

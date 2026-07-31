@@ -29,7 +29,9 @@ impl ConfusionProfile {
     fn map(self) -> &'static [(char, &'static [char])] {
         match self {
             ConfusionProfile::None => &[],
-            ConfusionProfile::Light => &[('B', &['D']), ('D', &['B']), ('P', &['T']), ('T', &['P'])],
+            ConfusionProfile::Light => {
+                &[('B', &['D']), ('D', &['B']), ('P', &['T']), ('T', &['P'])]
+            }
             ConfusionProfile::Medium => &[
                 ('B', &['D']),
                 ('D', &['B']),
@@ -269,8 +271,7 @@ impl Hrc {
         // calculate_checksum; a checksum position holding a body-only symbol
         // simply mismatches below and fails as INVALID_CHECKSUM. This
         // ordering is pinned by the frozen error vectors.
-        if calculate_checksum(&self.profile, &body)?
-            != supplied_checksum.iter().collect::<String>()
+        if calculate_checksum(&self.profile, &body)? != supplied_checksum.iter().collect::<String>()
         {
             if !options.try_correction || options.max_corrections == 0 {
                 return Err(HrcError::customer(
@@ -278,8 +279,11 @@ impl Hrc {
                     "The reference code did not pass validation",
                 ));
             }
-            let candidates =
-                generate_candidates(&body, options.confusion_profile.map(), options.max_corrections)?;
+            let candidates = generate_candidates(
+                &body,
+                options.confusion_profile.map(),
+                options.max_corrections,
+            )?;
             let mut valid: HashSet<Vec<char>> = HashSet::new();
             for candidate in candidates {
                 let candidate_checksum = calculate_checksum(&self.profile, &candidate)?;
@@ -300,7 +304,10 @@ impl Hrc {
                     false,
                 ));
             }
-            body = valid.into_iter().next().expect("exactly one valid candidate");
+            body = valid
+                .into_iter()
+                .next()
+                .expect("exactly one valid candidate");
         }
 
         let mut value = decode_base_n(
