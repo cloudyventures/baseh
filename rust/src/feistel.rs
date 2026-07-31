@@ -1,7 +1,7 @@
 //! Feistel-v1 reversible permutation (spec section 7.3).
 //!
 //! Balanced Feistel network with alternating half widths, an HMAC-SHA-256
-//! round function truncated to the low N bits, and cycle walking to keep
+//! round function truncated to the low N bits and cycle walking to keep
 //! outputs inside `0 .. capacity - 1`.
 
 use hmac::{Hmac, Mac};
@@ -81,7 +81,7 @@ fn round_f(key: &Key<'_>, round: u32, value: &BigUint, wr: usize, wl: usize) -> 
 }
 
 fn widths(i: u32, w0: usize, w1: usize) -> (usize, usize) {
-    if i % 2 == 0 {
+    if i.is_multiple_of(2) {
         (w1, w0)
     } else {
         (w0, w1)
@@ -89,7 +89,10 @@ fn widths(i: u32, w0: usize, w1: usize) -> (usize, usize) {
 }
 
 fn run_rounds(h: Halves, key: &Key<'_>, w0: usize, w1: usize) -> Halves {
-    let Halves { mut left, mut right } = h;
+    let Halves {
+        mut left,
+        mut right,
+    } = h;
     for i in 0..key.rounds {
         let (wr, wl) = widths(i, w0, w1);
         let f = round_f(key, i, &right, wr, wl);
@@ -102,7 +105,10 @@ fn run_rounds(h: Halves, key: &Key<'_>, w0: usize, w1: usize) -> Halves {
 }
 
 fn run_inverse(h: Halves, key: &Key<'_>, w0: usize, w1: usize) -> Halves {
-    let Halves { mut left, mut right } = h;
+    let Halves {
+        mut left,
+        mut right,
+    } = h;
     for i in (0..key.rounds).rev() {
         let (wr, wl) = widths(i, w0, w1);
         let f = round_f(key, i, &left, wr, wl);
@@ -166,7 +172,16 @@ pub fn permute(
     key_bytes: &[u8],
     rounds: u32,
 ) -> Result<BigUint, HrcError> {
-    walk(value, capacity, &Key { profile_id, key_bytes, rounds }, true)
+    walk(
+        value,
+        capacity,
+        &Key {
+            profile_id,
+            key_bytes,
+            rounds,
+        },
+        true,
+    )
 }
 
 /// Spec 7.3 inverse permutation with cycle walking.
@@ -177,5 +192,14 @@ pub fn inverse_permute(
     key_bytes: &[u8],
     rounds: u32,
 ) -> Result<BigUint, HrcError> {
-    walk(value, capacity, &Key { profile_id, key_bytes, rounds }, false)
+    walk(
+        value,
+        capacity,
+        &Key {
+            profile_id,
+            key_bytes,
+            rounds,
+        },
+        false,
+    )
 }
