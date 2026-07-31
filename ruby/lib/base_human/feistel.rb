@@ -1,0 +1,118 @@
+# frozen_string_literal: true
+
+require "openssl"
+
+module BaseHuman
+  # Balanced Feistel network with cycle walking, spec section 7.3.
+  # HMAC-SHA-256 comes from OpenSSL; HMAC and SHA-256 are never implemented
+  # by hand (section 7.5).
+  module Feistel
+    TAG = "HRC-FEISTEL-V1".b
+    MAX_WALKS = 1000
+
+    module_function
+
+    # ceil(log2(capacity)); capacity >= 2 so bits >= 1.
+    def bit_length(capacity)
+      (capacity - 1).bit_length
+    end
+
+    # Low n bits of the HMAC-SHA-256 digest: first ceil(n / 8) bytes read as
+    # a big-endian integer and masked with 2^n - 1.
+    def low_bits(digest, n)
+      byte_count = (n + 7) / 8
+      v = digest.byteslice(0, byte_count).unpack1("C*").inject(0) { |acc, b| (acc << 8) | b }
+      v & ((1 << n) - 1)
+    end
+
+    def to_be(value, byte_count)
+      return "".b if byte_count.zero?
+
+      bytes = Array.new(byte_count)
+      v = value
+      (byte_count - 1).downto(0) do |i|
+        bytes[i] = v & 0xff
+        v >>= 8
+      end
+      bytes.pack("C*")
+    end
+
+    # Normative round message, spec 7.3 step 4.
+    def round_message(profile_id, round, right, wr)
+      "".b
+        .concat(TAG)
+        .concat(0.chr(Encoding::BINARY))
+        .concat(profile_id)
+        .concat(0.chr(Encoding::BINARY))
+        .concat(round.chr(Encoding::BINARY))
+        .concat(to_be(right, (wr + 7) / 8))
+    end
+
+    def hmac(key_bytes, message)
+      OpenSSL::HMAC.digest(OpenSSL::Digest.new("sha256"), key_bytes, message)
+    end
+
+    def run_rounds(left, right, profile_id, key_bytes, rounds, w0, w1)
+      rounds.times do |i|
+        even = i.even?
+        wr = even ? w1 : w0
+        wl = even ? w0 : w1
+        f = low_bits(hmac(key_bytes, round_message(profile_id, i, right, wr)), wl)
+        new_left = right
+        new_right = left ^ f
+        left = new_left
+        right = new_right
+      end
+      [left, right]
+    end
+
+    def run_inverse(left, right, profile_id, key_bytes, rounds, w0, w1)
+      (rounds - 1).downto(0) do |i|
+        even = i.even?
+        wr = even ? w1 : w0
+        wl = even ? w0 : w1
+        f = low_bits(hmac(key_bytes, round_message(profile_id, i, left, wr)), wl)
+        prev_right = left
+        prev_left = right ^ f
+        left = prev_left
+        right = prev_right
+      end
+      [left, right]
+    end
+
+    # Forward permutation with cycle walking.
+    def permute(value, capacity, profile_id:, key_bytes:, rounds:)
+      walk(value, capacity, profile_id, key_bytes, rounds) do |left, right, w0, w1|
+        run_rounds(left, right, profile_id, key_bytes, rounds, w0, w1)
+      end
+    end
+
+    # Inverse permutation with cycle walking.
+    def inverse_permute(value, capacity, profile_id:, key_bytes:, rounds:)
+      walk(value, capacity, profile_id, key_bytes, rounds) do |left, right, w0, w1|
+        run_inverse(left, right, profile_id, key_bytes, rounds, w0, w1)
+      end
+    end
+
+    def walk(value, capacity, profile_id, key_bytes, rounds)
+      bits = bit_length(capacity)
+      w1 = bits / 2
+      w0 = bits - w1
+      v = value
+      MAX_WALKS.times do
+        left = v >> w1
+        right = v & ((1 << w1) - 1)
+        out_left, out_right = yield(left, right, w0, w1)
+        combined = (out_left << w1) | out_right
+        return combined if combined < capacity
+
+        v = combined
+      end
+      raise HrcError.new(
+        "PERMUTATION_FAILURE",
+        "Feistel cycle walking exceeded 1000 iterations",
+        safe_for_customer: false
+      )
+    end
+  end
+end

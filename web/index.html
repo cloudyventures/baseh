@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>base-human capacity calculator</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header>
+    <h1>base-human capacity calculator</h1>
+    <p class="sub">Parameters in, exact capacity out. <a href="./designer.html">Go to the code designer</a>.</p>
+  </header>
+  <main class="cols">
+    <section aria-labelledby="cfg">
+      <h2 id="cfg">Configuration</h2>
+      <div class="field">
+        <label for="preset">Preset</label>
+        <select id="preset">
+          <option value="">Custom</option>
+          <option value="compact-numeric">Compact numeric (10^6)</option>
+          <option value="safe-alnum" selected>Safe alphanumeric (32^6)</option>
+          <option value="short-support">Short support (32^5)</option>
+          <option value="high-validation">High validation (32^6 + 2 check)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="namespace">Namespace label (optional)</label>
+        <input id="namespace" type="text" placeholder="support tickets" />
+      </div>
+      <div class="field">
+        <label for="alphabet-mode">Base alphabet</label>
+        <select id="alphabet-mode">
+          <option value="digits">Digits only</option>
+          <option value="upper">Uppercase letters only</option>
+          <option value="alnum" selected>Alphanumeric</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="field" id="custom-alpha-row" hidden>
+        <label for="custom-alphabet">Custom alphabet</label>
+        <input id="custom-alphabet" type="text" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="visual-safety">Visual safety</label>
+        <select id="visual-safety">
+          <option value="none">None</option>
+          <option value="light" selected>Light (drop O, I, L)</option>
+          <option value="medium">Medium (also drop B, S)</option>
+          <option value="heavy">Heavy (safe 32 alphabet)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="spoken-safety">Spoken safety</label>
+        <select id="spoken-safety">
+          <option value="none">None</option>
+          <option value="light" selected>Light</option>
+          <option value="medium">Medium</option>
+          <option value="heavy">Heavy</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="body-length">Body length <output id="body-length-out">6</output></label>
+        <input id="body-length" type="range" min="1" max="10" value="6" />
+      </div>
+      <div class="field">
+        <label for="checksum-length">Checksum length</label>
+        <select id="checksum-length">
+          <option value="0">0 (no detection)</option>
+          <option value="1" selected>1 (assisted support)</option>
+          <option value="2">2 (self-service)</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <fieldset class="field">
+        <legend>Permutation</legend>
+        <label class="check"><input id="permutation" type="checkbox" checked /> On (presentation only)</label>
+        <p class="warn">Permutation hides obvious sequence but does not provide access control. Preview uses the published demo key; a real application generates its own key and never shares it with a browser.</p>
+      </fieldset>
+      <div class="field">
+        <label for="separator">Separator</label>
+        <input id="separator" type="text" value="-" maxlength="2" />
+      </div>
+    </section>
+
+    <section aria-labelledby="live" aria-live="polite">
+      <h2 id="live">Live preview</h2>
+      <div id="summary" class="card"></div>
+      <h3>Alphabet (<span id="alpha-size"></span> symbols)</h3>
+      <code id="alpha-view" class="block"></code>
+      <h3>Deterministic examples</h3>
+      <table id="examples">
+        <thead><tr><th>ID</th><th>Code</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section aria-labelledby="fit">
+      <h2 id="fit">Operational fit</h2>
+      <div class="field">
+        <label for="records">New records per day</label>
+        <input id="records" type="number" min="0" placeholder="1000" />
+      </div>
+      <div class="field">
+        <label for="retention">Retention period in days</label>
+        <input id="retention" type="number" min="0" placeholder="3650" />
+      </div>
+      <div class="field">
+        <label for="peak">Peak multiplier</label>
+        <input id="peak" type="number" step="0.05" value="1.25" />
+      </div>
+      <div class="field">
+        <label for="margin">Safety margin</label>
+        <input id="margin" type="number" step="0.1" value="2.0" />
+      </div>
+      <div id="fit-out" class="card"></div>
+      <div id="problems" role="alert"></div>
+      <h3>Share</h3>
+      <div class="row">
+        <button id="copy-json" type="button">Copy profile JSON</button>
+        <button id="copy-url" type="button">Copy URL</button>
+        <button id="reset" type="button">Reset to preset</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/src/calculator.ts"></script>
+</body>
+</html>
