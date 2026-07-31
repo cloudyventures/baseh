@@ -173,10 +173,10 @@ fn formatted_code_carries_expected_raw_parts() {
             .collect();
         let body_len = hrc.profile().body_length;
         if let Some(expected_body) = v.get("rawBody") {
-            assert_eq!(raw[..body_len], expected_body.as_str().unwrap());
+            assert_eq!(&raw[..body_len], expected_body.as_str().unwrap());
         }
         if let Some(expected_checksum) = v.get("rawChecksum") {
-            assert_eq!(raw[body_len..], expected_checksum.as_str().unwrap());
+            assert_eq!(&raw[body_len..], expected_checksum.as_str().unwrap());
         }
     }
 }
@@ -224,7 +224,7 @@ fn correction_vectors() {
                 .chars()
                 .filter(|c| !hrc.profile().separator.contains(*c))
                 .collect();
-            assert_eq!(raw[..body_len], expected_body.as_str().unwrap());
+            assert_eq!(&raw[..body_len], expected_body.as_str().unwrap());
             assert!(result.corrected, "correction of {input:?} flags corrected");
         } else {
             let expected: ErrorCode = v["error"].as_str().unwrap().parse().unwrap();

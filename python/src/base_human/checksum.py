@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .basen import alphabet_index, encode_base_n
+from .errors import INVALID_CHARACTER, HrcError
 from .profile import PreparedProfile
 
 _INITIAL_STATE = 17
@@ -17,7 +18,12 @@ def checksum_value(profile: PreparedProfile, body: str, body_index: dict) -> int
         state = (state * _MULTIPLIER + byte + 1) % modulus
     state = (state * _MULTIPLIER) % modulus
     for pos, ch in enumerate(body):
-        state = (state * _MULTIPLIER + body_index[ch] + pos + 1) % modulus
+        value = body_index.get(ch)
+        if value is None:
+            raise HrcError(
+                INVALID_CHARACTER, f"Symbol {ch!r} is not in the body alphabet"
+            )
+        state = (state * _MULTIPLIER + value + pos + 1) % modulus
     return state
 
 
