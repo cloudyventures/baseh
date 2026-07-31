@@ -121,31 +121,18 @@ class TestVectors < Minitest::Test
     end
   end
 
-  # The frozen correction entries (see js/scripts/generate-vectors.ts) were
-  # generated with the checksum domain of "hrc32-v1" and no permutation,
-  # while carrying the label "hrc32-noperm-test". Decoding them therefore
-  # uses the same construction: hrc32-v1 body/checksum definition, checksum
-  # domain "hrc32-v1", permutation disabled.
-  def correction_codec
-    @correction_codec ||= begin
-      definition = self.class.vectors_doc["profiles"]
-                       .find { |p| p["profileId"] == "hrc32-noperm-test" }["definition"]
-      definition = definition.merge("profileId" => "hrc32-v1")
-      BaseHuman::Hrc.new(self.class.build_profile(definition))
-    end
-  end
-
   def test_correction_vectors
     self.class.vectors_doc["correction"].each do |vector|
-      hrc = correction_codec
+      hrc = codec(vector["profileId"])
+      confusion = (vector["confusionProfile"] || "light").to_sym
       if vector["error"]
         error = assert_raises(BaseHuman::HrcError) do
-          hrc.decode(vector["input"], try_correction: true, confusion_profile: :light)
+          hrc.decode(vector["input"], try_correction: true, confusion_profile: confusion)
         end
         assert_equal vector["error"], error.code
       else
         result = hrc.decode(vector["input"],
-                            try_correction: true, confusion_profile: :light)
+                            try_correction: true, confusion_profile: confusion)
         expected_checksum = vector["input"].delete("-")[6..]
         raw = vector["expectedBody"] + expected_checksum
         assert_equal vector["expectedBody"],
