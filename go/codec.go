@@ -121,14 +121,13 @@ func (h *Hrc) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 	body := raw[:h.prep.profile.BodyLength]
 	suppliedChecksum := raw[h.prep.profile.BodyLength:]
 
+	// A checksum-only symbol in a body position is INVALID_CHARACTER. A
+	// body-only symbol in a checksum position instead flows through to a
+	// checksum mismatch (INVALID_CHECKSUM): the frozen error vector
+	// "000-000-0" -> INVALID_CHECKSUM fixes this precedence.
 	for i := 0; i < len(body); i++ {
-		if body[i] > 0x7f || !h.prep.inBodyAlphabet[body[i]] {
+		if !h.prep.inBodyAlphabet[body[i]] {
 			return nil, newError(INVALID_CHARACTER, fmt.Sprintf("symbol %q cannot appear in the body", string(body[i])), true)
-		}
-	}
-	for i := 0; i < len(suppliedChecksum); i++ {
-		if suppliedChecksum[i] > 0x7f || !h.prep.inChecksumAlpha[suppliedChecksum[i]] {
-			return nil, newError(INVALID_CHARACTER, fmt.Sprintf("symbol %q cannot appear in the checksum", string(suppliedChecksum[i])), true)
 		}
 	}
 

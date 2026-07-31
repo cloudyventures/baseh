@@ -94,20 +94,18 @@ module BaseHuman
       body = raw.slice(0, @profile.body_length)
       supplied_checksum = raw.slice(@profile.body_length..) || ""
 
+      # normalize validates every symbol against the union of the body and
+      # checksum alphabets (spec 3.1 step 6). Body positions are stricter:
+      # a checksum-only symbol in a body slot is INVALID_CHARACTER. A
+      # body-only symbol in the checksum slot survives to the checksum
+      # comparison and fails as INVALID_CHECKSUM; the frozen error vectors
+      # require that exact outcome.
       body.each_char do |ch|
-        next if @profile.body_alphabet.include?(ch)
+        next if @body_index.key?(ch)
 
         raise HrcError.new(
           "INVALID_CHARACTER",
           "Symbol #{ch.inspect} cannot appear in the body"
-        )
-      end
-      supplied_checksum.each_char do |ch|
-        next if @profile.checksum_alphabet.include?(ch)
-
-        raise HrcError.new(
-          "INVALID_CHARACTER",
-          "Symbol #{ch.inspect} cannot appear in the checksum"
         )
       end
 

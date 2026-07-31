@@ -136,24 +136,16 @@ export class Hrc {
     let body = raw.slice(0, this.profile.bodyLength);
     const suppliedChecksum = raw.slice(this.profile.bodyLength);
 
-    const bodyAllowed = new Set(this.profile.bodyAlphabetNorm);
-    for (const ch of body) {
-      if (!bodyAllowed.has(ch)) {
-        throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} cannot appear in the body`);
-      }
-    }
-    const checksumAllowed = new Set(this.profile.checksumAlphabetNorm);
-    for (const ch of suppliedChecksum) {
-      if (!checksumAllowed.has(ch)) {
-        throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} cannot appear in the checksum`);
-      }
-    }
+    // Spec 3.1 validates union membership before the split. There is no
+    // per-region membership check: a checksum-region symbol outside the
+    // checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
+    // outside the body alphabet fails later in decodeBaseN as INVALID_CHARACTER.
 
     if (calculateChecksum(this.profile, body) !== suppliedChecksum) {
       if (!options.tryCorrection || (options.maxCorrections ?? 1) === 0) {
         throw new HrcError("INVALID_CHECKSUM", "The reference code did not pass validation");
       }
-      const mapName = options.confusionProfile ?? "light";
+      const mapName = options.confusionProfile ?? "none";
       const map = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
       const valid = new Set<string>();
       for (const candidate of generateCandidates(body, map, options.maxCorrections ?? 1)) {

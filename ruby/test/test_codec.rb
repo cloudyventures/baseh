@@ -65,7 +65,8 @@ class TestCodec < Minitest::Test
   end
 
   def test_rejects_case_collision_in_body
-    alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".sub("H", "h").sub("E", "e")
+    # "e" and existing "E" collide once case-normalized.
+    alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".sub("Y", "e")
     assert_invalid_profile(base_profile.merge(body_alphabet: alphabet))
   end
 
@@ -266,11 +267,12 @@ class TestCodec < Minitest::Test
   end
 
   def test_checksum_changes_with_body_symbol
+    body_alphabet = noperm_codec.profile.body_alphabet
     body = raw_body(noperm_codec, 123_456)
-    index = BaseHuman::BaseN.alphabet_index(noperm_codec.body_alphabet)
+    index = BaseHuman::BaseN.alphabet_index(body_alphabet)
     original = BaseHuman::Checksum.calculate_checksum(noperm_codec.profile, body)
     changed = body.dup
-    changed[3] = noperm_codec.body_alphabet[(index[body[3]] + 1) % 32]
+    changed[3] = body_alphabet[(index[body[3]] + 1) % 32]
     altered = BaseHuman::Checksum.calculate_checksum(noperm_codec.profile, changed)
     # hrc32 has known structured misses, so only check same-position swaps
     # with delta 1 (always detected since 1 is not a multiple of 26).

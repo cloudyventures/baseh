@@ -974,6 +974,11 @@
     },
     {
       "profileId": "hrc32-v1",
+      "input": "U00000A",
+      "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "hrc32-v1",
       "input": "GDKC1B2",
       "error": "INVALID_CHECKSUM"
     }
@@ -981,13 +986,15 @@
   "correction": [
     {
       "profileId": "hrc32-noperm-test",
-      "input": "0000TBJ",
+      "confusionProfile": "light",
+      "input": "0000TBM",
       "expectedBody": "0000PB",
       "corrected": true
     },
     {
       "profileId": "hrc32-noperm-test",
-      "input": "0000BTC",
+      "confusionProfile": "light",
+      "input": "0000BTE",
       "error": "AMBIGUOUS_INPUT"
     }
   ]

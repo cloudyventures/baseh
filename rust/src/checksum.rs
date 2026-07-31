@@ -5,16 +5,26 @@ use std::collections::HashMap;
 use num_bigint::BigUint;
 
 use crate::basen::encode_base_n;
+use crate::error::{ErrorCode, HrcError};
 use crate::profile::PreparedProfile;
 
-/// Compute the expected checksum string for a normalized body.
-pub(crate) fn calculate_checksum(profile: &PreparedProfile, body: &[char]) -> String {
+/// Compute the expected checksum string for a normalized body. A body
+/// symbol outside the body alphabet fails as INVALID_CHARACTER here, before
+/// any checksum comparison in the decode flow (matches the frozen vectors).
+pub(crate) fn calculate_checksum(
+    profile: &PreparedProfile,
+    body: &[char],
+) -> Result<String, HrcError> {
     let p = &profile.profile;
     if p.checksum_length == 0 {
-        return String::new();
+        return Ok(String::new());
     }
-    let value = checksum_value(profile, body, &profile.body_index);
-    encode_base_n(&value, &profile.checksum_alphabet_norm, p.checksum_length)
+    let value = checksum_value(profile, body, &profile.body_index)?;
+    Ok(encode_base_n(
+        &value,
+        &profile.checksum_alphabet_norm,
+        p.checksum_length,
+    ))
 }
 
 /// Spec 6.2. Rolling polynomial over symbol values, domain-separated by the
@@ -23,7 +33,7 @@ fn checksum_value(
     profile: &PreparedProfile,
     body: &[char],
     body_index: &HashMap<char, u32>,
-) -> BigUint {
+) -> Result<BigUint, HrcError> {
     let modulus = &profile.checksum_modulus;
     let thirty_seven = BigUint::from(37u64);
     let mut state = BigUint::from(17u64);
@@ -32,8 +42,14 @@ fn checksum_value(
     }
     state = (state * &thirty_seven) % modulus;
     for (pos, ch) in body.iter().enumerate() {
-        let sym_value = BigUint::from(*body_index.get(ch).unwrap_or(&0));
-        state = (state * &thirty_seven + sym_value + BigUint::from(pos as u64 + 1)) % modulus;
+        let sym_value = *body_index.get(ch).ok_or_else(|| {
+            HrcError::customer(
+                ErrorCode::InvalidCharacter,
+                format!("Body symbol {ch:?} is not in the body alphabet"),
+            )
+        })?;
+        state = (state * &thirty_seven + BigUint::from(sym_value) + BigUint::from(pos as u64 + 1))
+            % modulus;
     }
-    state
+    Ok(state)
 }

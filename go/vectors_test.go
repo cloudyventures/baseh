@@ -28,11 +28,12 @@ type vectorFile struct {
 		Error     string `json:"error"`
 	} `json:"errors"`
 	Correction []struct {
-		ProfileID    string `json:"profileId"`
-		Input        string `json:"input"`
-		ExpectedBody string `json:"expectedBody"`
-		Corrected    bool   `json:"corrected"`
-		Error        string `json:"error"`
+		ProfileID        string `json:"profileId"`
+		ConfusionProfile string `json:"confusionProfile"`
+		Input            string `json:"input"`
+		ExpectedBody     string `json:"expectedBody"`
+		Corrected        bool   `json:"corrected"`
+		Error            string `json:"error"`
 	} `json:"correction"`
 }
 
@@ -92,7 +93,7 @@ func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Hrc {
 
 func TestConformanceVectors(t *testing.T) {
 	var vf vectorFile
-	loadJSON(t, "../../vectors/vectors.json", &vf)
+	loadJSON(t, "../vectors/vectors.json", &vf)
 	codecs := buildVectorProfiles(t, vf)
 
 	for _, v := range vf.Vectors {
@@ -142,7 +143,7 @@ func TestConformanceVectors(t *testing.T) {
 
 func TestConformanceErrors(t *testing.T) {
 	var vf vectorFile
-	loadJSON(t, "../../vectors/vectors.json", &vf)
+	loadJSON(t, "../vectors/vectors.json", &vf)
 	codecs := buildVectorProfiles(t, vf)
 
 	for _, e := range vf.Errors {
@@ -164,12 +165,16 @@ func TestConformanceErrors(t *testing.T) {
 
 func TestConformanceCorrection(t *testing.T) {
 	var vf vectorFile
-	loadJSON(t, "../../vectors/vectors.json", &vf)
+	loadJSON(t, "../vectors/vectors.json", &vf)
 	codecs := buildVectorProfiles(t, vf)
-	opts := &DecodeOptions{TryCorrection: true, ConfusionProfile: "light", MaxCorrections: 1}
 
 	for _, c := range vf.Correction {
 		t.Run(c.ProfileID+"/"+c.Input, func(t *testing.T) {
+			confusion := c.ConfusionProfile
+			if confusion == "" {
+				confusion = "light"
+			}
+			opts := &DecodeOptions{TryCorrection: true, ConfusionProfile: confusion, MaxCorrections: 1}
 			res, err := codecs[c.ProfileID].Decode(c.Input, opts)
 			if c.Error != "" {
 				if err == nil {
@@ -202,7 +207,7 @@ func TestConformanceCorrection(t *testing.T) {
 
 func TestFeistelVectors(t *testing.T) {
 	var ff feistelVectorFile
-	loadJSON(t, "../../vectors/feistel-vectors.json", &ff)
+	loadJSON(t, "../vectors/feistel-vectors.json", &ff)
 
 	for _, v := range ff.Vectors {
 		t.Run(v.ProfileID+"/"+v.Capacity+"/"+v.Input, func(t *testing.T) {
