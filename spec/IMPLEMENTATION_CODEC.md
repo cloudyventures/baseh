@@ -182,7 +182,7 @@ The checksum must:
 - Be simple enough to implement consistently.
 - Use only the configured safe checksum alphabet.
 
-Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. `hrc32-v1` (`M = 25`) is in the second category; `hrc32s-v1` (`M = 625`) is in the first.
+Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. `hrc32-v1` (`M = 26`) is in the second category; `hrc32s-v1` (`M = 676`) is in the first.
 
 ### 6.2 Version 1 checksum
 
@@ -229,8 +229,8 @@ A checksum is error detection, not guaranteed correction. With modulus `M`, a ra
 
 For the version 1 checksum, a single substitution at body position `p` changes the checksum value by `delta * 37^k mod M`, where `k` is the number of body positions after `p` and `delta` is the symbol-value change. Since `gcd(37, M) = 1` for both frozen profiles, the substitution evades detection exactly when `delta` is a multiple of `M`.
 
-- `hrc32-v1` (`M = 25`): deltas of `25` modulo 25 evade detection. That is 14 undetected cases out of `32 * 31 = 992` possible single-substitution errors per position, a structured miss rate of about 1.4 percent, plus the random `1/25` rate for other errors. Suitable for assisted support where a human can request the code again.
-- `hrc32s-v1` (`M = 625`): the maximum possible `|delta|` is 31, which is below 625, so detection of single substitutions is total. Adjacent transpositions change the checksum by `36 * (a - b) * 37^k mod 625` and are likewise always detected. Random false acceptance is about 0.16 percent. Suitable for unattended self-service lookup.
+- `hrc32-v1` (`M = 26`): deltas of `26` modulo 26 evade detection. That is 12 undetected cases out of `32 * 31 = 992` possible single-substitution errors per position, a structured miss rate of about 1.2 percent, plus the random `1/26` rate for other errors. Adjacent transpositions evade detection when the swapped values differ by a multiple of 13. Suitable for assisted support where a human can request the code again.
+- `hrc32s-v1` (`M = 676`): the maximum possible `|delta|` is 31, which is below 676, so detection of single substitutions is total. Adjacent transpositions change the checksum by `36 * (a - b) * 37^k mod 676`; since that is zero only when `a = b` for values below 32, adjacent transpositions are likewise always detected. Random false acceptance is about 0.15 percent. Suitable for unattended self-service lookup.
 
 ### 6.4 Recommended production choice
 

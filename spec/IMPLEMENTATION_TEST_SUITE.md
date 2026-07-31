@@ -131,7 +131,7 @@ Required test categories:
 - Checksum characters outside alphabet fail.
 - Zero checksum length skips checksum work.
 
-Exhaustive single-substitution test for the default profile:
+Sampled single-substitution detection test for `hrc32s-v1` (must be total):
 
 ```text
 For at least 100,000 sampled bodies:
@@ -141,7 +141,7 @@ For at least 100,000 sampled bodies:
             Assert checksum failure.
 ```
 
-If the checksum does not guarantee this, document the exact measured detection rate and adjust the algorithm before freezing version 1.
+For `hrc32-v1`, run the same sweep but measure and publish the detection rate instead of asserting totality. The structured misses (symbol-value deltas that are multiples of 26) must match the spec section 6.3 analysis exactly: 12 undetected cases per 992 per position.
 
 ## 7. Alias tests
 
