@@ -21,7 +21,7 @@ module BaseHuman
     # a big-endian integer and masked with 2^n - 1.
     def low_bits(digest, n)
       byte_count = (n + 7) / 8
-      v = digest.byteslice(0, byte_count).unpack1("C*").inject(0) { |acc, b| (acc << 8) | b }
+      v = digest.byteslice(0, byte_count).unpack("C*").inject(0) { |acc, b| (acc << 8) | b }
       v & ((1 << n) - 1)
     end
 
