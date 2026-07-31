@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>base-human code designer</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header>
+    <h1>base-human code designer</h1>
+    <p class="sub">Required capacity in, shortest valid configuration out. <a href="./index.html">Go to the capacity calculator</a>.</p>
+  </header>
+  <main class="cols">
+    <section aria-labelledby="req">
+      <h2 id="req">Requirements</h2>
+      <div class="field">
+        <label for="required">Required unique identifiers</label>
+        <input id="required" type="text" inputmode="numeric" value="60000000" />
+      </div>
+      <details>
+        <summary>Or derive from operational demand</summary>
+        <div class="field">
+          <label for="d-records">New records per day</label>
+          <input id="d-records" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="d-retention">Retention days</label>
+          <input id="d-retention" type="number" min="0" />
+        </div>
+      </details>
+      <div class="field">
+        <label for="max-len">Maximum displayed length</label>
+        <input id="max-len" type="number" min="3" max="20" value="9" />
+      </div>
+      <div class="field">
+        <label for="min-check">Minimum checksum length</label>
+        <select id="min-check">
+          <option value="0">0</option>
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="max-util">Maximum utilization</label>
+        <select id="max-util">
+          <option value="0.5" selected>50%</option>
+          <option value="0.7">70%</option>
+          <option value="0.8">80%</option>
+          <option value="0.9">90%</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="d-visual">Visual safety</label>
+        <select id="d-visual">
+          <option value="none">None</option>
+          <option value="light" selected>Light</option>
+          <option value="medium">Medium</option>
+          <option value="heavy">Heavy</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="d-spoken">Spoken safety</label>
+        <select id="d-spoken">
+          <option value="none">None</option>
+          <option value="light" selected>Light</option>
+          <option value="medium">Medium</option>
+          <option value="heavy">Heavy</option>
+        </select>
+      </div>
+      <fieldset class="field">
+        <legend>Allowed alphabets</legend>
+        <label class="check"><input id="allow-alnum" type="checkbox" checked /> Alphanumeric</label>
+        <label class="check"><input id="allow-upper" type="checkbox" checked /> Letters only</label>
+        <label class="check"><input id="allow-digits" type="checkbox" checked /> Digits only</label>
+      </fieldset>
+    </section>
+
+    <section aria-labelledby="result" aria-live="polite">
+      <h2 id="result">Recommendation</h2>
+      <div id="recommended" class="card"></div>
+      <div id="repair" role="alert"></div>
+      <h3>Alternatives</h3>
+      <div id="alternatives"></div>
+    </section>
+
+    <section aria-labelledby="compare">
+      <h2 id="compare">Comparison</h2>
+      <table id="candidates">
+        <thead>
+          <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>Reason</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="row">
+        <button id="d-export" type="button">Copy export JSON</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/src/designer.ts"></script>
+</body>
+</html>
