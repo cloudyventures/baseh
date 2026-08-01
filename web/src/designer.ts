@@ -1,5 +1,7 @@
-import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, friendlyError, parseRequired, powBigInt, sampleCodes, spokenPairsThrough, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
-import { Baseh } from "@cloudyventures/baseh";
+import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, friendlyError, parseRequired, powBigInt, sampleCodes, spokenDropsExplainer, trySuggestions, visualDropsExplainer } from "./core.js";
+import { renderTryList } from "./try-list.js";
+import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
+import type { DesignerInput, ProfanityMode, SafetyLevel, Candidate } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -12,6 +14,7 @@ const els = {
   minCheck: $<HTMLSelectElement>("min-check"),
   maxUtil: $<HTMLSelectElement>("max-util"),
   visual: $<HTMLSelectElement>("d-visual"),
+  visualDrops: $("d-visual-drops"),
   spoken: $<HTMLSelectElement>("d-spoken"),
   spokenDrops: $("d-spoken-drops"),
   profanity: $<HTMLSelectElement>("d-profanity"),
@@ -23,6 +26,7 @@ const els = {
   convIdOut: $("d-conv-id-out"),
   convCode: $<HTMLInputElement>("d-conv-code"),
   convCodeOut: $("d-conv-code-out"),
+  convTry: $("d-conv-try"),
   recommended: $("recommended"),
   repair: $("repair"),
   alternatives: $("alternatives"),
@@ -130,20 +134,18 @@ function render() {
     els.tbody.innerHTML = "";
     els.convIdOut.textContent = "";
     els.convCodeOut.textContent = "";
+    els.convTry.textContent = "";
     return;
   }
   const result = design(input);
-  // Tell the user exactly which letters spoken safety removes, for the
-  // alphanumeric alphabet under the current visual safety setting; other
-  // alphabets drop the same letters when they contain them.
+  // Tell the user exactly which letters the safety levels remove, for the
+  // alphanumeric alphabet; other candidate alphabets drop the same letters
+  // when they contain them.
   {
-    const preSpoken = deriveAlphabet("alnum", "", input.visualSafety, "none", input.profanity);
-    const pairs = spokenPairsThrough(input.spokenSafety).filter(([keep]) => preSpoken.includes(keep));
-    els.spokenDrops.textContent = input.spokenSafety === "none"
-      ? ""
-      : pairs.length === 0
-        ? "No spoken drops apply with the current safety settings."
-        : `Removes from the alphabet: ${pairs.map(([keep, drop]) => `${drop} (read as ${keep})`).join(", ")}.`;
+    const beforeVisual = deriveAlphabet("alnum", "", "none", "none", input.profanity);
+    const afterVisual = deriveAlphabet("alnum", "", input.visualSafety, "none", input.profanity);
+    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual);
+    els.spokenDrops.textContent = spokenDropsExplainer(afterVisual, input.spokenSafety);
   }
   els.recommended.innerHTML = result.recommended
     ? card(result.recommended, input.permutation, "Recommended")
@@ -170,11 +172,14 @@ function render() {
 
   // Live conversion against the recommended candidate's profile.
   let h: Baseh | null = null;
+  let convProfile: BasehProfile | null = null;
   if (result.recommended) {
     try {
-      h = new Baseh(candidateProfile(result.recommended, input.permutation));
+      convProfile = candidateProfile(result.recommended, input.permutation);
+      h = new Baseh(convProfile);
     } catch {
       h = null;
+      convProfile = null;
     }
   }
   const idRaw = els.convId.value.trim();
@@ -220,6 +225,20 @@ function render() {
       els.convCodeOut.textContent = friendlyError(e);
     }
   }
+
+  // Pertinent things to try against the Code converter, rebuilt from the
+  // recommended design; the sample is its highest identifier's code, so
+  // every chip lands on a real issued code.
+  const convSample = result.recommended
+    ? sampleCodes(result.recommended.alphabet, result.recommended.bodyLength, result.recommended.checksumLength,
+        result.recommended.capacity, result.recommended.spoken, result.recommended.separator,
+        result.recommended.profanity, input.permutation)
+        .reverse().find((s) => !s.blocked && s.code)?.code ?? null
+    : null;
+  renderTryList(els.convTry, convProfile ? trySuggestions(convProfile, convSample) : [], (code) => {
+    els.convCode.value = code;
+    els.convCode.dispatchEvent(new Event("input", { bubbles: true }));
+  });
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
   } catch {

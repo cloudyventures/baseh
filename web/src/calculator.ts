@@ -1,5 +1,6 @@
-import { calculate, calculatorProfile, friendlyError, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel, deriveChecksumAlphabet } from "./core.js";
-import { Baseh } from "@cloudyventures/baseh";
+import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, friendlyError, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel } from "./core.js";
+import { renderTryList } from "./try-list.js";
+import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -10,7 +11,9 @@ const els = {
   customRow: $("custom-alpha-row"),
   customAlpha: $<HTMLInputElement>("custom-alphabet"),
   visual: $<HTMLSelectElement>("visual-safety"),
+  visualDrops: $("visual-drops"),
   spoken: $<HTMLSelectElement>("spoken-safety"),
+  spokenDrops: $("spoken-drops"),
   profanity: $<HTMLSelectElement>("profanity-mode"),
   bodyLen: $<HTMLInputElement>("body-length"),
   bodyLenOut: $("body-length-out"),
@@ -29,6 +32,7 @@ const els = {
   convIdOut: $("conv-id-out"),
   convCode: $<HTMLInputElement>("conv-code"),
   convCodeOut: $("conv-code-out"),
+  convTry: $("conv-try"),
   fitOut: $("fit-out"),
   problems: $("problems"),
   copyJson: $<HTMLButtonElement>("copy-json"),
@@ -102,6 +106,12 @@ function render() {
   const input = readInput();
   els.customRow.hidden = input.alphabetMode !== "custom" && input.visualSafety !== "none";
   els.bodyLenOut.textContent = String(input.bodyLength);
+  {
+    const beforeVisual = deriveAlphabet(input.alphabetMode, input.customAlphabet, "none", "none", input.profanity);
+    const afterVisual = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, "none", input.profanity);
+    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual);
+    els.spokenDrops.textContent = spokenDropsExplainer(afterVisual, input.spokenSafety);
+  }
   const r = calculate(input);
 
   els.alphaSize.textContent = String(r.alphabet.length);
@@ -146,10 +156,11 @@ function render() {
 
   // Live conversion against the same preview profile the examples use.
   let h: Baseh | null = null;
+  let previewProfile: BasehProfile | null = null;
   if (r.valid) {
     try {
-      const profile = calculatorProfile(input);
-      h = profile ? new Baseh(profile) : null;
+      previewProfile = calculatorProfile(input);
+      h = previewProfile ? new Baseh(previewProfile) : null;
     } catch {
       h = null;
     }
@@ -183,6 +194,15 @@ function render() {
       els.convCodeOut.textContent = friendlyError(e);
     }
   }
+
+  // Pertinent things to try against the Code converter, rebuilt from the
+  // current configuration; the sample is the largest deterministic example,
+  // so every chip lands on a real issued code.
+  const sample = [...r.examples].reverse().find((e) => !e.blocked && e.code)?.code ?? null;
+  renderTryList(els.convTry, previewProfile ? trySuggestions(previewProfile, sample) : [], (code) => {
+    els.convCode.value = code;
+    els.convCode.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 els.copyJson.addEventListener("click", async () => {

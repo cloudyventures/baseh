@@ -156,6 +156,83 @@ export function spokenAliases(bodyAlphabet: string, spoken: SafetyLevel): Record
   return out;
 }
 
+/**
+ * One-line explanation of what a visual safety level removes, comparing the
+ * alphabet before and after the drops. Removed symbols that survive as
+ * typed aliases are shown with what they read as; removed symbols with no
+ * surviving twin are listed plain.
+ */
+export function visualDropsExplainer(before: string, after: string): string {
+  const removed = [...before].filter((c) => !after.includes(c));
+  if (removed.length === 0) return "No visual drops apply with the current alphabet.";
+  const aliases = baseAliases(after);
+  return `Removes from the alphabet: ${removed.map((c) => (aliases[c] ? `${c} (read as ${aliases[c]})` : c)).join(", ")}.`;
+}
+
+/**
+ * One-line explanation of what a spoken safety level removes, given the
+ * alphabet before the spoken drops. Returns "" when the level is "none".
+ */
+export function spokenDropsExplainer(preSpoken: string, spoken: SafetyLevel): string {
+  if (spoken === "none") return "";
+  const pairs = spokenPairsFor(preSpoken, spoken);
+  if (pairs.length === 0) return "No spoken drops apply with the current safety settings.";
+  return `Removes from the alphabet: ${pairs.map(([keep, drop]) => `${drop} (read as ${keep})`).join(", ")}.`;
+}
+
+export interface TryItem {
+  /** What to try, in words ("substitute Ts for Ps"). */
+  label: string;
+  /** The sample code mutated accordingly; absent for prose-only items. */
+  code?: string;
+}
+
+/**
+ * Suggestions for poking at a Code converter under the current profile:
+ * every alias substitution a tired typist or a phone caller can produce,
+ * the formatting laxities the decoder accepts (case, stray spaces, a
+ * missing delimiter, leading zero body symbols) and one guaranteed
+ * checksum failure, each labelled with the direction a human would make
+ * the mistake. When a sample code is supplied, items carry it mutated and
+ * ready to paste.
+ */
+export function trySuggestions(profile: BasehProfile, sample: string | null): TryItem[] {
+  const items: TryItem[] = [];
+  for (const [src, tgt] of Object.entries(profile.aliases ?? {})) {
+    if (sample && sample.includes(tgt)) {
+      items.push({ label: `substitute ${src}s for ${tgt}s`, code: sample.replace(tgt, src) });
+    } else {
+      // Vowel-sounding symbol names read with "an", the rest with "a".
+      const article = "AEFHILMNORSX8".includes(tgt) ? "an" : "a";
+      items.push({ label: `substitute ${src}s for ${tgt}s (when ${article} ${tgt} appears in the code)` });
+    }
+  }
+  if (!sample) return items;
+  items.push({ label: "use lowercase", code: sample.toLowerCase() });
+  if (profile.separator && sample.includes(profile.separator)) {
+    items.push({ label: `drop the "${profile.separator}"`, code: sample.replaceAll(profile.separator, "") });
+  }
+  const cut = Math.max(1, Math.floor(sample.length / 2));
+  items.push({ label: "add a stray space", code: `${sample.slice(0, cut)} ${sample.slice(cut)}` });
+  const zero = profile.bodyAlphabet[0]!;
+  if (sample.startsWith(zero)) {
+    const stripped = sample.replace(new RegExp(`^${zero}+`), "");
+    if (stripped.length >= Math.max(profile.checksumLength, 1)) {
+      items.push({ label: `strip the leading ${zero} body symbols`, code: stripped });
+    }
+  }
+  if (profile.checksumLength > 0) {
+    const last = sample[sample.length - 1];
+    const replacement = [...profile.checksumAlphabet].find((c) => c !== last);
+    if (replacement) {
+      items.push({ label: "change the last symbol (breaks the checksum)", code: sample.slice(0, -1) + replacement });
+    }
+  } else {
+    items.push({ label: "no checksum here: a typo silently decodes to a different identifier" });
+  }
+  return items;
+}
+
 export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel, spoken: SafetyLevel = "none", profanity: ProfanityMode = "none"): string {
   if (visual === "heavy") return applyProfanity(applySpoken(SAFE_BODY, spoken), profanity);
   let base: string;
