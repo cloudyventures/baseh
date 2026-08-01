@@ -91,3 +91,26 @@ show(
     "decode(...) round trip",
     lambda: tickets.decode(tickets.encode(123456789)).id,
 )
+
+# 6. A view helper: one shared codec built at import time, records rendered
+# as codes at the edge. Register baseh_code as a template filter in Django
+# ({{ order.id|baseh_code }}); here it is exercised framework-free with a
+# plain class. The matching decode-side pattern is in docs/cookbook.md
+# ("Framework view helpers").
+print("== view helper ==")
+codec = Baseh(baseh_expandable_v1())
+
+
+def baseh_code(record):
+    return codec.encode(record.id)
+
+
+class Order:
+    def __init__(self, id):
+        self.id = id
+
+
+order = Order(123456)
+print(f"{{{{ order.id|baseh_code }}}} -> {baseh_code(order)}")
+show("decode round trip", lambda: codec.decode(baseh_code(order)).id)
+show("decode (bogus code)", lambda: codec.decode("ZZZZ-ZZZZ").id)

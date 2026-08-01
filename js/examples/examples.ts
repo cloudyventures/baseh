@@ -101,3 +101,19 @@ show("decode round trip", () => {
   const code = invoices.encode(42n);
   return invoices.decode(code).id;
 });
+
+// 6. A view helper for route handlers: one shared codec built at module
+// scope, records rendered as codes at the edge. In Express, pass the string
+// to the template (res.render("order", { code: basehCode(order) })) or
+// register it as a view helper; here it is exercised framework-free with a
+// plain object. The matching decode-side pattern is in docs/cookbook.md
+// ("Framework view helpers").
+console.log("== view helper ==");
+const codec = new Baseh(basehExpandableV1());
+function basehCode(record: { id: bigint }): string {
+  return codec.encode(record.id);
+}
+const order = { id: 123456n };
+console.log(`basehCode(order) -> ${JSON.stringify(basehCode(order))}`);
+show("decode round trip", () => codec.decode(basehCode(order)).id);
+show("decode (bogus code)", () => codec.decode("ZZZZ-ZZZZ").id);

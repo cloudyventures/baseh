@@ -6,6 +6,12 @@ Three usage patterns for each implementation:
 2. **Frozen preset**: load `baseh-medium-v1` and use the full codec.
 3. **Customized**: load a preset, modify it and build a codec from the result.
 
+Every language section also closes with a framework **view helper**
+(rendering codes at the edge in Express, Django, html/template, ERB, or a
+plain handler), and the Ruby section adds **issuing codes**: a shared codec
+wrapping a single issuance counter. Both patterns are covered in depth in
+`docs/cookbook.md`.
+
 Each language section also leads with the new **expandable** mode
 (`baseh-expandable-v1`): codes start at 4 characters and grow automatically
 as the id sequence climbs. Expandable mode is documented ahead of its
@@ -126,6 +132,25 @@ correction needs a profile that keeps both partners canonical, which is why
 the demo uses a custom profile. Every language's `examples/` file prints a
 working demonstration of this case.
 
+### View helper
+
+```typescript
+// A view helper for route handlers: one shared codec built at module
+// scope, records rendered as codes at the edge. In Express, pass the string
+// to the template (res.render("order", { code: basehCode(order) })) or
+// register it as a view helper; here it is exercised framework-free with a
+// plain object. The matching decode-side pattern is in docs/cookbook.md
+// ("Framework view helpers").
+const codec = new Baseh(basehExpandableV1());
+function basehCode(record: { id: bigint }): string {
+  return codec.encode(record.id);
+}
+const order = { id: 123456n };
+basehCode(order);                    // code to pass to the template
+codec.decode(basehCode(order)).id;   // 123456n (round trip)
+codec.decode("ZZZZ-ZZZZ");           // throws BasehError [INVALID_CHECKSUM]
+```
+
 ## Python
 
 ```bash
@@ -203,6 +228,32 @@ orders.encode(123456789)                      # "ZC8VR-EMJY"
 orders.decode(orders.encode(123456789)).id    # 123456789
 orders.decode("ZC8VR-EMJX")   # raises BasehError [INVALID_CHECKSUM]
 orders.capacity()            # 13492928512
+```
+
+### View helper
+
+```python
+# A view helper: one shared codec built at import time, records rendered
+# as codes at the edge. Register baseh_code as a template filter in Django
+# ({{ order.id|baseh_code }}); here it is exercised framework-free with a
+# plain class. The matching decode-side pattern is in docs/cookbook.md
+# ("Framework view helpers").
+codec = Baseh(baseh_expandable_v1())
+
+
+def baseh_code(record):
+    return codec.encode(record.id)
+
+
+class Order:
+    def __init__(self, id):
+        self.id = id
+
+
+order = Order(123456)
+baseh_code(order)                   # rendered code for the template
+codec.decode(baseh_code(order)).id  # 123456 (round trip)
+codec.decode("ZZZZ-ZZZZ")           # raises BasehError [INVALID_CHECKSUM]
 ```
 
 ## Go
@@ -286,6 +337,40 @@ orders.Decode("ZC8VR-EMJX", nil)                 // nil, *Error [INVALID_CHECKSU
 orders.Capacity()                                // 13492928512
 ```
 
+### View helper (html/template)
+
+```go
+// A view helper for html/template: one shared codec built at boot,
+// records rendered as codes at the edge via a FuncMap entry. Runs on the
+// stdlib alone; the matching decode-side pattern is in docs/cookbook.md
+// ("Framework view helpers").
+helper, err := baseh.New(baseh.ExpandableV1())
+if err != nil {
+    panic(err)
+}
+tmpl, err := template.New("order").Funcs(template.FuncMap{
+    "basehCode": func(id int64) string {
+        code, err := helper.Encode(big.NewInt(id))
+        if err != nil {
+            return ""
+        }
+        return code
+    },
+}).Parse("Order #{{ .ID }} is {{ basehCode .ID }}")
+if err != nil {
+    panic(err)
+}
+
+var buf strings.Builder
+err = tmpl.Execute(&buf, struct{ ID int64 }{123456})
+buf.String()                                     // "Order #123456 is <code>"
+
+orderCode, err := helper.Encode(big.NewInt(123456))
+result, err := helper.Decode(orderCode, nil)
+result.ID                                        // 123456 (round trip)
+helper.Decode("ZZZZ-ZZZZ", nil)                  // nil, *Error [INVALID_CHECKSUM]
+```
+
 ## Rust
 
 ```bash
@@ -367,6 +452,25 @@ orders.decode("ZC8VR-EMJX", &DecodeOptions::strict())  // Err([InvalidChecksum])
 orders.capacity()                              // 13492928512
 ```
 
+### View helper
+
+```rust
+// A view helper for handlers: one shared codec built at boot, records
+// rendered as codes at the edge. Call baseh_code in the handler and pass
+// the rendered string to the template engine; here it is exercised
+// framework-free. The matching decode-side pattern is in
+// docs/cookbook.md ("Framework view helpers").
+fn baseh_code(codec: &Baseh, id: u64) -> String {
+    codec.encode(&BigUint::from(id)).expect("in range")
+}
+
+let helper = Baseh::new(baseh_expandable_v1())?;
+let order_id = 123456u64;
+baseh_code(&helper, order_id)                              // code for the template
+helper.decode(&baseh_code(&helper, order_id), &strict)?.id // 123456 (round trip)
+helper.decode("ZZZZ-ZZZZ", &strict)                        // Err([InvalidChecksum])
+```
+
 ## Ruby
 
 ```bash
@@ -435,6 +539,62 @@ orders.encode(id: 123456789)                     # "ZC8VR-EMJY"
 orders.decode(orders.encode(id: 123456789)).id   # 123456789
 orders.decode("ZC8VR-EMJX")   # raises BasehError [INVALID_CHECKSUM]
 orders.capacity              # 13492928512
+```
+
+### View helper (ERB)
+
+```ruby
+# A view helper for ERB: one shared codec built at boot, records rendered
+# as codes at the edge. This module works as a Rails helper exactly as
+# written; here it is exercised with a plain struct. The matching
+# controller-side decode pattern is in docs/cookbook.md ("Framework view
+# helpers").
+module BasehHelper
+  CODEC = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+
+  # <%= baseh_code(@order) %>
+  def baseh_code(record)
+    CODEC.encode(id: record.id)
+  end
+end
+
+Order = Struct.new(:id)
+include BasehHelper
+order = Order.new(123456)
+baseh_code(order)                                # rendered code for the view
+BasehHelper::CODEC.decode(baseh_code(order)).id  # 123456 (controller-side decode)
+BasehHelper::CODEC.decode("ZZZZ-ZZZZ")           # raises BasehError [INVALID_CHECKSUM]
+```
+
+### Issuing codes
+
+```ruby
+# Issuing codes: the expandable issuance-counter pattern, runnable without
+# a database. One shared codec wraps a single counter; each call increments
+# and encodes, so issued codes never look sequential even though the ids
+# are. In production the ivar below is swapped for a Postgres SEQUENCE or
+# an atomically-incremented counters row — exactly one writer, and the
+# counter is backed up with the database. See docs/cookbook.md ("Issuing
+# codes").
+class Issuer
+  def initialize(codec)
+    @codec = codec
+    @next_id = 0 # production: SELECT nextval('codes_seq') or an atomic UPDATE
+  end
+
+  def issue
+    @next_id += 1
+    @codec.encode(id: @next_id)
+  end
+
+  def decode(code)
+    @codec.decode(code).id
+  end
+end
+
+issuer = Issuer.new(Baseh::Baseh.new(Baseh.baseh_expandable_v1))
+issued = Array.new(6) { issuer.issue }  # six non-sequential-looking codes
+issuer.decode(issued.first)             # 1
 ```
 
 ## Notes on error trapping
