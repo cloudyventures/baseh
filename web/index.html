@@ -15,7 +15,7 @@
     <section aria-labelledby="cfg">
       <h2 id="cfg">Configuration</h2>
       <div class="field">
-        <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads a documented configuration. Compact numeric: digits only, 6 body symbols, 1,000,000 codes. Safe alphanumeric: the reviewed 32-symbol alphabet, 6 body symbols, 1,073,741,824 codes (the frozen hrc32-v1 shape). Short support: same alphabet with a 5-symbol body, 33,554,432 codes. High validation: 6 body symbols plus 2 checksum symbols. Choose Custom to keep whatever you have set by hand.</span></span></label>
+        <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads a documented configuration. Compact numeric: digits only, 6 body symbols, 1,000,000 codes. Safe alphanumeric: the reviewed 32-symbol alphabet, 6 body symbols, 1,073,741,824 codes (the frozen baseh32-v1 shape). Short support: same alphabet with a 5-symbol body, 33,554,432 codes. High validation: 6 body symbols plus 2 checksum symbols. Choose Custom to keep whatever you have set by hand.</span></span></label>
         <select id="preset">
           <option value="">Custom</option>
           <option value="compact-numeric">Compact numeric (10^6)</option>
@@ -78,8 +78,8 @@
         <p class="warn">Permutation hides obvious sequence but does not provide access control. Preview uses the published demo key; a real application generates its own key and never shares it with a browser.</p>
       </fieldset>
       <div class="field">
-        <label for="separator">Separator</label>
-        <input id="separator" type="text" value="-" maxlength="2" />
+        <label for="separator">Separator (optional)</label>
+        <input id="separator" type="text" value="" maxlength="2" />
       </div>
     </section>
 

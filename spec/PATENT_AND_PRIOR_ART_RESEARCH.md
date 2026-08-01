@@ -1,4 +1,4 @@
-# HRC Prior Art and Patent Research
+# BaseH Prior Art and Patent Research
 
 ## 1. Scope and limitation
 
@@ -26,7 +26,7 @@ The most important engineering controls are:
 2. Use published techniques.
 3. Avoid copying proprietary code, private symbol tables or protected branding.
 4. Perform a claim-focused patent review if commercialization or litigation exposure justifies it.
-5. Treat the HRC name as provisional until trademark clearance.
+5. Treat the BaseH name as provisional until trademark clearance.
 
 ## 3. Relevant prior art
 
@@ -40,11 +40,11 @@ Relevance:
 - Fixed mapping between values and symbols.
 - Broad implementation availability.
 
-Difference from HRC:
+Difference from BaseH:
 
 - RFC 4648 encodes byte sequences.
-- HRC primarily encodes bounded non-negative integers.
-- HRC adds profile versioning, optional permutation, input aliases and configurable checksums.
+- BaseH primarily encodes bounded non-negative integers.
+- BaseH adds profile versioning, optional permutation, input aliases and configurable checksums.
 
 ### 3.2 Base32 for Humans
 
@@ -104,7 +104,7 @@ Relevance:
 
 Important limitation:
 
-Sqids states that its output is not encryption. HRC should make the same limitation explicit.
+Sqids states that its output is not encryption. BaseH should make the same limitation explicit.
 
 ### 3.6 Bech32 and Bech32m
 
@@ -118,7 +118,7 @@ Relevance:
 
 Recommendation:
 
-Do not claim that a simple one-symbol checksum offers Bech32-level detection. HRC version 1 should publish measured properties and remain conservative.
+Do not claim that a simple one-symbol checksum offers Bech32-level detection. BaseH version 1 should publish measured properties and remain conservative.
 
 ### 3.7 General check algorithms
 
@@ -167,7 +167,7 @@ jurisdictions
 assignee
 legal status
 independent claims
-claim elements mapped to HRC
+claim elements mapped to BaseH
 non-infringement position
 invalidity or prior-art notes
 risk level
@@ -249,7 +249,7 @@ The code may indirectly identify a customer record. Treat it according to the se
 
 ## 11. Security distinction
 
-| Property | HRC provides it? |
+| Property | BaseH provides it? |
 |---|---|
 | Compact representation | Yes |
 | Deterministic decoding | Yes |

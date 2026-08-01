@@ -1,8 +1,8 @@
-import { HrcError, type HrcErrorCode } from "./errors.js";
+import { BasehError, type BasehErrorCode } from "./errors.js";
 import { decodeBaseN, encodeBaseN, alphabetIndex } from "./basen.js";
 import { calculateChecksum } from "./checksum.js";
 import { inversePermute, permute } from "./feistel.js";
-import { prepareProfile, type HrcProfile, type PreparedProfile } from "./profile.js";
+import { prepareProfile, type BasehProfile, type PreparedProfile } from "./profile.js";
 
 export type ConfusionProfileName = "none" | "light" | "medium" | "heavy";
 
@@ -32,7 +32,7 @@ export interface DecodeResult {
 export interface ValidateResult {
   valid: boolean;
   canonicalCode?: string;
-  reason?: HrcErrorCode;
+  reason?: BasehErrorCode;
 }
 
 const ASCII_WS = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
@@ -54,12 +54,12 @@ export function normalize(input: string, profile: PreparedProfile, acceptSpaces 
   const allowed = new Set([...profile.bodyAlphabetNorm, ...profile.checksumAlphabetNorm]);
   for (const ch of s) {
     if (!allowed.has(ch)) {
-      throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not accepted`);
+      throw new BasehError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not accepted`);
     }
   }
   const expected = profile.bodyLength + profile.checksumLength;
   if (s.length !== expected) {
-    throw new HrcError("INVALID_LENGTH", `Expected ${expected} symbols, got ${s.length}`);
+    throw new BasehError("INVALID_LENGTH", `Expected ${expected} symbols, got ${s.length}`);
   }
   return s;
 }
@@ -91,18 +91,18 @@ export function generateCandidates(
       candidate[pos] = replacement;
       results.add(candidate.join(""));
       if (results.size > MAX_CANDIDATES) {
-        throw new HrcError("TOO_MANY_CANDIDATES", "Candidate generation exceeded 64 entries", false);
+        throw new BasehError("TOO_MANY_CANDIDATES", "Candidate generation exceeded 64 entries", false);
       }
     }
   }
   return [...results];
 }
 
-export class Hrc {
+export class Baseh {
   readonly profile: PreparedProfile;
   private readonly bodyIndex: Map<string, bigint>;
 
-  constructor(profile: HrcProfile) {
+  constructor(profile: BasehProfile) {
     this.profile = prepareProfile(profile);
     this.bodyIndex = alphabetIndex(this.profile.bodyAlphabetNorm);
   }
@@ -115,7 +115,7 @@ export class Hrc {
   encode(id: bigint | number): string {
     let value = BigInt(id);
     if (value < 0n || value >= this.profile.capacity) {
-      throw new HrcError("OUT_OF_RANGE", `ID ${value} is outside the profile capacity`);
+      throw new BasehError("OUT_OF_RANGE", `ID ${value} is outside the profile capacity`);
     }
     const perm = this.profile.permutation;
     if (perm.enabled) {
@@ -127,7 +127,17 @@ export class Hrc {
     }
     const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, this.profile.bodyLength);
     const checksum = calculateChecksum(this.profile, body);
-    return formatRaw(body + checksum, this.profile);
+    const raw = body + checksum;
+    // Spec 18.2: case-insensitive substring scan over the raw code.
+    if (this.profile.blocklist.length > 0) {
+      const upper = raw.toUpperCase();
+      for (const word of this.profile.blocklist) {
+        if (upper.includes(word)) {
+          throw new BasehError("BLOCKED_CODE", "The generated reference contains a blocked substring", false);
+        }
+      }
+    }
+    return formatRaw(raw, this.profile);
   }
 
   /** Spec 9. */
@@ -143,7 +153,7 @@ export class Hrc {
 
     if (calculateChecksum(this.profile, body) !== suppliedChecksum) {
       if (!options.tryCorrection || (options.maxCorrections ?? 1) === 0) {
-        throw new HrcError("INVALID_CHECKSUM", "The reference code did not pass validation");
+        throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
       }
       const mapName = options.confusionProfile ?? "none";
       const map = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
@@ -154,10 +164,10 @@ export class Hrc {
         }
       }
       if (valid.size === 0) {
-        throw new HrcError("INVALID_CHECKSUM", "The reference code did not pass validation");
+        throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
       }
       if (valid.size > 1) {
-        throw new HrcError("AMBIGUOUS_INPUT", "The reference code matches more than one record", false);
+        throw new BasehError("AMBIGUOUS_INPUT", "The reference code matches more than one record", false);
       }
       body = [...valid][0] as string;
     }
@@ -182,7 +192,7 @@ export class Hrc {
       const result = this.decode(input, options);
       return { valid: true, canonicalCode: result.canonicalCode };
     } catch (err) {
-      if (err instanceof HrcError) return { valid: false, reason: err.code };
+      if (err instanceof BasehError) return { valid: false, reason: err.code };
       throw err;
     }
   }

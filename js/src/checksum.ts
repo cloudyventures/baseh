@@ -1,5 +1,5 @@
 import type { PreparedProfile } from "./profile.js";
-import { HrcError } from "./errors.js";
+import { BasehError } from "./errors.js";
 import { alphabetIndex, encodeBaseN } from "./basen.js";
 
 /**
@@ -20,7 +20,7 @@ export function checksumValue(
   for (let pos = 0; pos < body.length; pos += 1) {
     const symValue = bodyIndex.get(body[pos] as string);
     if (symValue === undefined) {
-      throw new HrcError(
+      throw new BasehError(
         "INVALID_CHARACTER",
         `Body symbol ${JSON.stringify(body[pos])} is not in the body alphabet`
       );

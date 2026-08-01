@@ -1,4 +1,4 @@
-import { HrcError } from "./errors.js";
+import { BasehError } from "./errors.js";
 
 /** Spec 5.1. Fixed-length base-N encode, most significant digit first. */
 export function encodeBaseN(value: bigint, alphabet: string, length: number): string {
@@ -8,7 +8,7 @@ export function encodeBaseN(value: bigint, alphabet: string, length: number): st
   for (let pos = length - 1; pos >= 0; pos -= 1) {
     const digit = Number(v % base);
     const ch = alphabet[digit];
-    if (ch === undefined) throw new HrcError("OUT_OF_RANGE", "digit outside alphabet");
+    if (ch === undefined) throw new BasehError("OUT_OF_RANGE", "digit outside alphabet");
     out[pos] = ch;
     v = v / base;
   }
@@ -22,7 +22,7 @@ export function decodeBaseN(text: string, alphabet: string, index: Map<string, b
   for (const ch of text) {
     const digit = index.get(ch);
     if (digit === undefined) {
-      throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not in the alphabet`);
+      throw new BasehError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not in the alphabet`);
     }
     value = value * base + digit;
   }

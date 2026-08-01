@@ -1,4 +1,4 @@
-# Human Reference Code
+# BaseH
 
 ## Status
 
@@ -6,9 +6,9 @@ Implementation specification.
 
 ## Purpose
 
-Human Reference Code, abbreviated HRC, converts non-negative integers into short alphanumeric references that people can read, type and dictate. It is intended for order numbers, support tickets, cases, returns, bookings and similar records.
+BaseH is base36 reworked for humans. It converts non-negative integers into short alphanumeric references that people can read, type and dictate, using an alphabet chosen to avoid transcription confusion plus a checksum. It is intended for order numbers, support tickets, cases, returns, bookings and similar records.
 
-The encoded value is reversible. A system can convert an internal numeric identifier into an HRC and convert a valid HRC back into the same identifier.
+The encoded value is reversible. A system can convert an internal numeric identifier into a BaseH and convert a valid BaseH back into the same identifier.
 
 ## Design goals
 
@@ -33,7 +33,7 @@ The encoded value is reversible. A system can convert an internal numeric identi
 - Protection against deliberate guessing.
 - Replacement for an internal database key.
 
-An HRC is a reference alias. Access control must not depend on its secrecy.
+An BaseH is a reference alias. Access control must not depend on its secrecy.
 
 ## Documents
 
@@ -51,14 +51,14 @@ An HRC is a reference alias. Access control must not depend on its secrecy.
 The initial implementation should ship with this profile:
 
 ```yaml
-profile_id: hrc32-v1
+profile_id: baseh32-v1
 body_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 body_length: 6
 checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY"
 checksum_length: 1
 case_sensitive: false
-grouping: [3, 4]
-separator: "-"
+grouping: []
+separator: ""
 permutation:
   enabled: true
   algorithm: feistel-v1
@@ -73,12 +73,12 @@ aliases:
 Example rendered shape:
 
 ```text
-7KM-4Q2H
+7KM4Q2H
 ```
 
 This profile has `32^6 = 1,073,741,824` body combinations. The checksum adds validation but does not add identifier capacity.
 
-A second frozen profile, `hrc32s-v1`, uses two checksum characters (grouping `[3, 5]`) and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
+A second frozen profile, `baseh32s-v1`, uses two checksum characters and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
 
 Permutation key material is never part of a frozen profile. Each application assigns its own `key_id` and key and stores them in a secret manager.
 
@@ -128,7 +128,7 @@ Checksum calculation
 Formatting
     |
     v
-Displayed HRC
+Displayed BaseH
 ```
 
 Decoding performs the reverse sequence:
@@ -183,7 +183,7 @@ A reversible short code exposes a bounded identifier space. Applications must:
 7. Add the capacity calculator.
 8. Add the reverse designer.
 9. Run cross-language test vectors.
-10. Freeze `hrc32-v1`.
+10. Freeze `baseh32-v1`.
 
 ## Acceptance summary
 

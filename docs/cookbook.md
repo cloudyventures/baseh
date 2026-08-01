@@ -1,6 +1,6 @@
-# HRC Application Cookbook
+# BaseH Application Cookbook
 
-Application-level guidance for hosting an HRC lookup. These patterns are not part
+Application-level guidance for hosting a BaseH lookup. These patterns are not part
 of the library; the library is a pure, stateless codec. Moved here from the codec
 specification so the normative spec covers library behaviour only.
 

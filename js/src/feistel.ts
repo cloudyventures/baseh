@@ -1,8 +1,8 @@
 import { hmac } from "@noble/hashes/hmac";
 import { sha256 } from "@noble/hashes/sha256";
-import { HrcError } from "./errors.js";
+import { BasehError } from "./errors.js";
 
-const TAG = new TextEncoder().encode("HRC-FEISTEL-V1");
+const TAG = new TextEncoder().encode("BASEH-FEISTEL-V1");
 const MAX_WALKS = 1000;
 
 interface FeistelKey {
@@ -105,7 +105,7 @@ export function permute(value: bigint, capacity: bigint, key: FeistelKey): bigin
     if (out < capacity) return out;
     v = out;
   }
-  throw new HrcError("PERMUTATION_FAILURE", "Feistel cycle walking exceeded 1000 iterations", false);
+  throw new BasehError("PERMUTATION_FAILURE", "Feistel cycle walking exceeded 1000 iterations", false);
 }
 
 /** Spec 7.3 inverse permutation with cycle walking. */
@@ -119,5 +119,5 @@ export function inversePermute(value: bigint, capacity: bigint, key: FeistelKey)
     if (out < capacity) return out;
     v = out;
   }
-  throw new HrcError("PERMUTATION_FAILURE", "Feistel cycle walking exceeded 1000 iterations", false);
+  throw new BasehError("PERMUTATION_FAILURE", "Feistel cycle walking exceeded 1000 iterations", false);
 }

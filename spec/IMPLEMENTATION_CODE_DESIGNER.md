@@ -1,4 +1,4 @@
-# HRC Code Designer
+# BaseH Code Designer
 
 ## 1. Purpose
 
@@ -285,7 +285,7 @@ Recommended: 6 body + 1 check
 Capacity: 1,073,741,824
 Required: 60,000,000
 Utilization: 5.6%
-Displayed shape: XXX-XXX-X
+Displayed shape: XXXXXXX
 ```
 
 ## 15. Comparison table

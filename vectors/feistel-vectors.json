@@ -7,7 +7,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "0",
-      "permuted": "31573"
+      "permuted": "12216"
     },
     {
       "profileId": "feistel-test",
@@ -15,7 +15,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "1",
-      "permuted": "1822"
+      "permuted": "83634"
     },
     {
       "profileId": "feistel-test",
@@ -23,7 +23,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "2772",
-      "permuted": "27905"
+      "permuted": "52481"
     },
     {
       "profileId": "feistel-test",
@@ -31,7 +31,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "7677",
-      "permuted": "78814"
+      "permuted": "60468"
     },
     {
       "profileId": "feistel-test",
@@ -39,7 +39,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "35183",
-      "permuted": "40321"
+      "permuted": "91512"
     },
     {
       "profileId": "feistel-test",
@@ -47,7 +47,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "36595",
-      "permuted": "64307"
+      "permuted": "10477"
     },
     {
       "profileId": "feistel-test",
@@ -55,7 +55,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "47186",
-      "permuted": "42442"
+      "permuted": "92925"
     },
     {
       "profileId": "feistel-test",
@@ -63,7 +63,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "47360",
-      "permuted": "34876"
+      "permuted": "23869"
     },
     {
       "profileId": "feistel-test",
@@ -71,7 +71,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "80121",
-      "permuted": "54118"
+      "permuted": "99733"
     },
     {
       "profileId": "feistel-test",
@@ -79,7 +79,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "82822",
-      "permuted": "91803"
+      "permuted": "77334"
     },
     {
       "profileId": "feistel-test",
@@ -87,7 +87,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "87208",
-      "permuted": "82421"
+      "permuted": "63191"
     },
     {
       "profileId": "feistel-test",
@@ -95,7 +95,7 @@
       "capacity": "100000",
       "rounds": 8,
       "input": "99999",
-      "permuted": "64545"
+      "permuted": "45624"
     },
     {
       "profileId": "feistel-test",
@@ -103,7 +103,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "0",
-      "permuted": "108249482"
+      "permuted": "655464450"
     },
     {
       "profileId": "feistel-test",
@@ -111,7 +111,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "1",
-      "permuted": "668288053"
+      "permuted": "812339186"
     },
     {
       "profileId": "feistel-test",
@@ -119,7 +119,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "230006016",
-      "permuted": "623522144"
+      "permuted": "9686106"
     },
     {
       "profileId": "feistel-test",
@@ -127,7 +127,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "439818831",
-      "permuted": "92517177"
+      "permuted": "569088970"
     },
     {
       "profileId": "feistel-test",
@@ -135,7 +135,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "460991238",
-      "permuted": "237100831"
+      "permuted": "767594507"
     },
     {
       "profileId": "feistel-test",
@@ -143,7 +143,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "481691316",
-      "permuted": "525930357"
+      "permuted": "876965666"
     },
     {
       "profileId": "feistel-test",
@@ -151,7 +151,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "516538905",
-      "permuted": "322422177"
+      "permuted": "50743808"
     },
     {
       "profileId": "feistel-test",
@@ -159,7 +159,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "609788840",
-      "permuted": "581086019"
+      "permuted": "948464582"
     },
     {
       "profileId": "feistel-test",
@@ -167,7 +167,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "662567667",
-      "permuted": "590798946"
+      "permuted": "138418170"
     },
     {
       "profileId": "feistel-test",
@@ -175,7 +175,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "757027378",
-      "permuted": "222386138"
+      "permuted": "212671238"
     },
     {
       "profileId": "feistel-test",
@@ -183,7 +183,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "968297309",
-      "permuted": "318220386"
+      "permuted": "780751"
     },
     {
       "profileId": "feistel-test",
@@ -191,7 +191,7 @@
       "capacity": "1073741824",
       "rounds": 8,
       "input": "1073741823",
-      "permuted": "1004613114"
+      "permuted": "66219385"
     },
     {
       "profileId": "feistel-test",
@@ -199,7 +199,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "0",
-      "permuted": "23"
+      "permuted": "8"
     },
     {
       "profileId": "feistel-test",
@@ -207,7 +207,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "1",
-      "permuted": "28"
+      "permuted": "13"
     },
     {
       "profileId": "feistel-test",
@@ -223,7 +223,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "6",
-      "permuted": "3"
+      "permuted": "11"
     },
     {
       "profileId": "feistel-test",
@@ -231,7 +231,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "7",
-      "permuted": "33"
+      "permuted": "18"
     },
     {
       "profileId": "feistel-test",
@@ -239,7 +239,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "17",
-      "permuted": "19"
+      "permuted": "17"
     },
     {
       "profileId": "feistel-test",
@@ -247,7 +247,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "18",
-      "permuted": "6"
+      "permuted": "10"
     },
     {
       "profileId": "feistel-test",
@@ -255,22 +255,6 @@
       "capacity": "36",
       "rounds": 4,
       "input": "19",
-      "permuted": "27"
-    },
-    {
-      "profileId": "feistel-test",
-      "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
-      "capacity": "36",
-      "rounds": 4,
-      "input": "28",
-      "permuted": "29"
-    },
-    {
-      "profileId": "feistel-test",
-      "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
-      "capacity": "36",
-      "rounds": 4,
-      "input": "30",
       "permuted": "16"
     },
     {
@@ -278,8 +262,24 @@
       "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
       "capacity": "36",
       "rounds": 4,
+      "input": "28",
+      "permuted": "32"
+    },
+    {
+      "profileId": "feistel-test",
+      "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
+      "capacity": "36",
+      "rounds": 4,
+      "input": "30",
+      "permuted": "7"
+    },
+    {
+      "profileId": "feistel-test",
+      "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
+      "capacity": "36",
+      "rounds": 4,
       "input": "32",
-      "permuted": "21"
+      "permuted": "1"
     },
     {
       "profileId": "feistel-test",
@@ -287,7 +287,7 @@
       "capacity": "36",
       "rounds": 4,
       "input": "35",
-      "permuted": "5"
+      "permuted": "9"
     }
   ]
 }
