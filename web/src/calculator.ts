@@ -14,7 +14,6 @@ const els = {
   bodyLen: $<HTMLInputElement>("body-length"),
   bodyLenOut: $("body-length-out"),
   checksumLen: $<HTMLSelectElement>("checksum-length"),
-  permutation: $<HTMLInputElement>("permutation"),
   separator: $<HTMLInputElement>("separator"),
   records: $<HTMLInputElement>("records"),
   retention: $<HTMLInputElement>("retention"),
@@ -32,10 +31,10 @@ const els = {
 };
 
 const PRESETS: Record<string, Partial<typeof state>> = {
-  "compact-numeric": { mode: "digits", visual: "none", bodyLength: 6, checksumLength: 1, permutation: false },
-  "safe-alnum": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 1, permutation: true },
-  "short-support": { mode: "alnum", visual: "heavy", bodyLength: 5, checksumLength: 1, permutation: true },
-  "high-validation": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 2, permutation: true }
+  "compact-numeric": { mode: "digits", visual: "none", bodyLength: 6, checksumLength: 1 },
+  "safe-alnum": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 1 },
+  "short-support": { mode: "alnum", visual: "heavy", bodyLength: 5, checksumLength: 1 },
+  "high-validation": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 2 }
 };
 
 const state = {
@@ -43,8 +42,7 @@ const state = {
   visual: "light" as SafetyLevel,
   spoken: "light" as SafetyLevel,
   bodyLength: 6,
-  checksumLength: 1,
-  permutation: true
+  checksumLength: 1
 };
 
 function fmt(n: bigint): string {
@@ -63,7 +61,6 @@ function readInput(): CalculatorInput {
     profanity: els.profanity.value as ProfanityMode,
     bodyLength: Number(els.bodyLen.value),
     checksumLength: Number(els.checksumLen.value),
-    permutation: els.permutation.checked,
     separator: els.separator.value,
     prefix: "",
     suffix: "",
@@ -82,7 +79,6 @@ function applyPreset(name: string) {
   els.visual.value = state.visual;
   els.bodyLen.value = String(state.bodyLength);
   els.checksumLen.value = String(state.checksumLength);
-  els.permutation.checked = state.permutation;
   render();
 }
 
@@ -122,7 +118,6 @@ function render() {
     fit += `<div>Lifetime at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}</div>`;
   }
   if (input.checksumLength === 0) fit += `<div class="warn">No checksum: typing errors cannot be detected reliably.</div>`;
-  if (!input.permutation) fit += `<div class="warn">Permutation is off: adjacent IDs will appear adjacent.</div>`;
   els.fitOut.innerHTML = fit || "<div>Enter demand figures to see utilization and lifetime.</div>";
 
   els.problems.innerHTML = r.problems.map((p) => `<p>${p}</p>`).join("");
@@ -141,7 +136,7 @@ els.copyJson.addEventListener("click", async () => {
     caseSensitive: false,
     separator: input.separator,
     profanity: input.profanity === "none" ? undefined : { mode: input.profanity },
-    permutation: { enabled: input.permutation, note: "key material is never exported" }
+    permutation: { enabled: false }
   }, null, 2));
   els.copyJson.textContent = "Copied";
   setTimeout(() => (els.copyJson.textContent = "Copy profile JSON"), 1200);
@@ -153,8 +148,7 @@ els.copyUrl.addEventListener("click", async () => {
     mode: input.alphabetMode,
     visual: input.visualSafety,
     body: String(input.bodyLength),
-    check: String(input.checksumLength),
-    perm: input.permutation ? "1" : "0"
+    check: String(input.checksumLength)
   });
   await navigator.clipboard.writeText(`${location.origin}${location.pathname}?${params}`);
   els.copyUrl.textContent = "Copied";
@@ -164,7 +158,7 @@ els.copyUrl.addEventListener("click", async () => {
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "safe-alnum"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin]) {
+  els.checksumLen, els.separator, els.records, els.retention, els.peak, els.margin]) {
   el.addEventListener("input", render);
 }
 
@@ -175,6 +169,5 @@ for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spok
   if (q.get("visual")) els.visual.value = q.get("visual") as string;
   if (q.get("body")) els.bodyLen.value = q.get("body") as string;
   if (q.get("check")) els.checksumLen.value = q.get("check") as string;
-  if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
 }
 applyPreset(els.preset.value);

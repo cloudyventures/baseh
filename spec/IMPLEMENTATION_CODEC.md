@@ -590,17 +590,14 @@ Frozen profile for assisted-support references, `baseh32-v1`:
     "L": "1"
   },
   "permutation": {
-    "enabled": true,
-    "algorithm": "feistel-v1",
-    "keyId": "<application-key-id>",
-    "rounds": 8
+    "enabled": false
   }
 }
 ```
 
 Frozen profile for unattended self-service lookup, `baseh32s-v1`. Identical to `baseh32-v1` except `checksumLength` is 2 and the checksum modulus is 676, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
 
-Application-specific permutation keys are never part of the frozen profile; each application assigns its own `keyId` and key material. Freeze both profiles' checksum and Feistel test vectors before production use.
+Both frozen profiles ship with permutation off. An application opts into Feistel-v1 (section 7) by passing its own key to the frozen-profile constructor; application-specific permutation keys are never part of the frozen profile and each application assigns its own `keyId` and key material. Freeze both profiles' checksum and Feistel test vectors before production use.
 
 ## 18. Profanity safety
 

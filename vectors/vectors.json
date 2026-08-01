@@ -18,11 +18,7 @@
           "L": "1"
         },
         "permutation": {
-          "enabled": true,
-          "algorithm": "feistel-v1",
-          "keyId": "test-01",
-          "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
-          "rounds": 8
+          "enabled": false
         }
       },
       "capacity": "1073741824"
@@ -44,11 +40,7 @@
           "L": "1"
         },
         "permutation": {
-          "enabled": true,
-          "algorithm": "feistel-v1",
-          "keyId": "test-01",
-          "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
-          "rounds": 8
+          "enabled": false
         }
       },
       "capacity": "1073741824"
@@ -71,6 +63,32 @@
         },
         "permutation": {
           "enabled": false
+        }
+      },
+      "capacity": "1073741824"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "definition": {
+        "profileId": "baseh32-perm-test",
+        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "",
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1"
+        },
+        "permutation": {
+          "enabled": true,
+          "algorithm": "feistel-v1",
+          "keyId": "test-01",
+          "keyBytesHex": "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031",
+          "rounds": 8
         }
       },
       "capacity": "1073741824"
@@ -186,562 +204,562 @@
     {
       "profileId": "baseh32-v1",
       "id": "0",
-      "canonicalCode": "HH4WGJD",
-      "rawBody": "HH4WGJ",
-      "rawChecksum": "D"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "1",
-      "canonicalCode": "EKWF71F",
-      "rawBody": "EKWF71",
-      "rawChecksum": "F"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "2",
-      "canonicalCode": "4KAADJ7",
-      "rawBody": "4KAADJ",
-      "rawChecksum": "7"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "31",
-      "canonicalCode": "HZHV9MW",
-      "rawBody": "HZHV9M",
-      "rawChecksum": "W"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "32",
-      "canonicalCode": "84NPWFQ",
-      "rawBody": "84NPWF",
-      "rawChecksum": "Q"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "33",
-      "canonicalCode": "Z8QVF8A",
-      "rawBody": "Z8QVF8",
+      "canonicalCode": "000000A",
+      "rawBody": "000000",
       "rawChecksum": "A"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "30550058",
-      "canonicalCode": "HYJB6YN",
-      "rawBody": "HYJB6Y",
-      "rawChecksum": "N"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "35072091",
-      "canonicalCode": "HT8B4VC",
-      "rawBody": "HT8B4V",
+      "id": "1",
+      "canonicalCode": "000001C",
+      "rawBody": "000001",
       "rawChecksum": "C"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "82542923",
-      "canonicalCode": "50AN0AN",
-      "rawBody": "50AN0A",
-      "rawChecksum": "N"
+      "id": "2",
+      "canonicalCode": "000002D",
+      "rawBody": "000002",
+      "rawChecksum": "D"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "98563552",
-      "canonicalCode": "2ZKNP6C",
-      "rawBody": "2ZKNP6",
-      "rawChecksum": "C"
+      "id": "31",
+      "canonicalCode": "00000ZG",
+      "rawBody": "00000Z",
+      "rawChecksum": "G"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "112757436",
-      "canonicalCode": "JYDX9NN",
-      "rawBody": "JYDX9N",
-      "rawChecksum": "N"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "165378184",
-      "canonicalCode": "XHZFZAC",
-      "rawBody": "XHZFZA",
-      "rawChecksum": "C"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "194731372",
-      "canonicalCode": "BN5P2MM",
-      "rawBody": "BN5P2M",
-      "rawChecksum": "M"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "195109933",
-      "canonicalCode": "Q3EAXAP",
-      "rawBody": "Q3EAXA",
+      "id": "32",
+      "canonicalCode": "000010P",
+      "rawBody": "000010",
       "rawChecksum": "P"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "326483534",
-      "canonicalCode": "X2KPRDY",
-      "rawBody": "X2KPRD",
-      "rawChecksum": "Y"
+      "id": "33",
+      "canonicalCode": "000011Q",
+      "rawBody": "000011",
+      "rawChecksum": "Q"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "362008697",
-      "canonicalCode": "HFC8EX6",
-      "rawBody": "HFC8EX",
-      "rawChecksum": "6"
+      "id": "30550058",
+      "canonicalCode": "0X4A1AQ",
+      "rawBody": "0X4A1A",
+      "rawChecksum": "Q"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "423374228",
-      "canonicalCode": "Y731AQH",
-      "rawBody": "Y731AQ",
+      "id": "35072091",
+      "canonicalCode": "11EA2VR",
+      "rawBody": "11EA2V",
+      "rawChecksum": "R"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "82542923",
+      "canonicalCode": "2EQ0ABH",
+      "rawBody": "2EQ0AB",
       "rawChecksum": "H"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "451881271",
-      "canonicalCode": "8ZVQPRG",
-      "rawBody": "8ZVQPR",
-      "rawChecksum": "G"
+      "id": "98563552",
+      "canonicalCode": "2XZXF0F",
+      "rawBody": "2XZXF0",
+      "rawChecksum": "F"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "465790729",
-      "canonicalCode": "YAYGWF6",
-      "rawBody": "YAYGWF",
-      "rawChecksum": "6"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "501100600",
-      "canonicalCode": "WD8MXWA",
-      "rawBody": "WD8MXW",
-      "rawChecksum": "A"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "525056835",
-      "canonicalCode": "939TEFA",
-      "rawBody": "939TEF",
-      "rawChecksum": "A"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "570016551",
-      "canonicalCode": "FJNW16E",
-      "rawBody": "FJNW16",
-      "rawChecksum": "E"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "599221937",
-      "canonicalCode": "GW21TST",
-      "rawBody": "GW21TS",
-      "rawChecksum": "T"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "603593537",
-      "canonicalCode": "XJ5YP9E",
-      "rawBody": "XJ5YP9",
-      "rawChecksum": "E"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "669786338",
-      "canonicalCode": "CYERXB2",
-      "rawBody": "CYERXB",
-      "rawChecksum": "2"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "672225328",
-      "canonicalCode": "EPVPK7G",
-      "rawBody": "EPVPK7",
-      "rawChecksum": "G"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "693619061",
-      "canonicalCode": "2PQG96A",
-      "rawBody": "2PQG96",
-      "rawChecksum": "A"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "703006970",
-      "canonicalCode": "40NXG04",
-      "rawBody": "40NXG0",
-      "rawChecksum": "4"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "731687190",
-      "canonicalCode": "SS566EU",
-      "rawBody": "SS566E",
-      "rawChecksum": "U"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "756749540",
-      "canonicalCode": "22RDE6C",
-      "rawBody": "22RDE6",
-      "rawChecksum": "C"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "781742206",
-      "canonicalCode": "XZ0TKE9",
-      "rawBody": "XZ0TKE",
-      "rawChecksum": "9"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "786011666",
-      "canonicalCode": "1AXD3PV",
-      "rawBody": "1AXD3P",
+      "id": "112757436",
+      "canonicalCode": "3BH2NWV",
+      "rawBody": "3BH2NW",
       "rawChecksum": "V"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "821619942",
-      "canonicalCode": "MSY6E8G",
-      "rawBody": "MSY6E8",
-      "rawChecksum": "G"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "824431039",
-      "canonicalCode": "3EEH0MA",
-      "rawBody": "3EEH0M",
-      "rawChecksum": "A"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "908057007",
-      "canonicalCode": "47R9RDC",
-      "rawBody": "47R9RD",
-      "rawChecksum": "C"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "937993989",
-      "canonicalCode": "0ZZ736V",
-      "rawBody": "0ZZ736",
-      "rawChecksum": "V"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "951840851",
-      "canonicalCode": "2EW2MSJ",
-      "rawBody": "2EW2MS",
+      "id": "165378184",
+      "canonicalCode": "4XPY48J",
+      "rawBody": "4XPY48",
       "rawChecksum": "J"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "982335421",
-      "canonicalCode": "VMZZV2K",
-      "rawBody": "VMZZV2",
-      "rawChecksum": "K"
+      "id": "194731372",
+      "canonicalCode": "5SPQBCV",
+      "rawBody": "5SPQBC",
+      "rawChecksum": "V"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "1073741822",
-      "canonicalCode": "256KNDD",
-      "rawBody": "256KND",
+      "id": "195109933",
+      "canonicalCode": "5T291DT",
+      "rawBody": "5T291D",
+      "rawChecksum": "T"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "326483534",
+      "canonicalCode": "9QBFJEF",
+      "rawBody": "9QBFJE",
+      "rawChecksum": "F"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "362008697",
+      "canonicalCode": "AS7M3SH",
+      "rawBody": "AS7M3S",
+      "rawChecksum": "H"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "423374228",
+      "canonicalCode": "CKRBCMD",
+      "rawBody": "CKRBCM",
       "rawChecksum": "D"
     },
     {
       "profileId": "baseh32-v1",
-      "id": "1073741823",
-      "canonicalCode": "XSSXEXR",
-      "rawBody": "XSSXEX",
+      "id": "451881271",
+      "canonicalCode": "DEYA9QE",
+      "rawBody": "DEYA9Q",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "465790729",
+      "canonicalCode": "DW6SR9Y",
+      "rawBody": "DW6SR9",
+      "rawChecksum": "Y"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "501100600",
+      "canonicalCode": "EXWC1RX",
+      "rawBody": "EXWC1R",
+      "rawChecksum": "X"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "525056835",
+      "canonicalCode": "FMQET3C",
+      "rawBody": "FMQET3",
+      "rawChecksum": "C"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "570016551",
+      "canonicalCode": "GZKGS74",
+      "rawBody": "GZKGS7",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "599221937",
+      "canonicalCode": "HVESNHJ",
+      "rawBody": "HVESNH",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "603593537",
+      "canonicalCode": "HZM6T19",
+      "rawBody": "HZM6T1",
+      "rawChecksum": "9"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "669786338",
+      "canonicalCode": "KYR872Q",
+      "rawBody": "KYR872",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "672225328",
+      "canonicalCode": "M12P1GK",
+      "rawBody": "M12P1G",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "693619061",
+      "canonicalCode": "MNFJBN7",
+      "rawBody": "MNFJBN",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "703006970",
+      "canonicalCode": "MYE27T3",
+      "rawBody": "MYE27T",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "731687190",
+      "canonicalCode": "NSSA8PE",
+      "rawBody": "NSSA8P",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "756749540",
+      "canonicalCode": "PHP574R",
+      "rawBody": "PHP574",
       "rawChecksum": "R"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "781742206",
+      "canonicalCode": "Q9GW3YC",
+      "rawBody": "Q9GW3Y",
+      "rawChecksum": "C"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "786011666",
+      "canonicalCode": "QDK5GJD",
+      "rawBody": "QDK5GJ",
+      "rawChecksum": "D"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "821619942",
+      "canonicalCode": "RFHV76K",
+      "rawBody": "RFHV76",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "824431039",
+      "canonicalCode": "RJ7MDZW",
+      "rawBody": "RJ7MDZ",
+      "rawChecksum": "W"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "908057007",
+      "canonicalCode": "V1ZPDF3",
+      "rawBody": "V1ZPDF",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "937993989",
+      "canonicalCode": "VYH9R5H",
+      "rawBody": "VYH9R5",
+      "rawChecksum": "H"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "951840851",
+      "canonicalCode": "WBQW2KE",
+      "rawBody": "WBQW2K",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "982335421",
+      "canonicalCode": "X8TFXX7",
+      "rawBody": "X8TFXX",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "1073741822",
+      "canonicalCode": "ZZZZZYP",
+      "rawBody": "ZZZZZY",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh32-v1",
+      "id": "1073741823",
+      "canonicalCode": "ZZZZZZQ",
+      "rawBody": "ZZZZZZ",
+      "rawChecksum": "Q"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "0",
-      "canonicalCode": "YKEJDQVY",
-      "rawBody": "YKEJDQ",
-      "rawChecksum": "VY"
+      "canonicalCode": "000000YV",
+      "rawBody": "000000",
+      "rawChecksum": "YV"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "1",
-      "canonicalCode": "7A8760XK",
-      "rawBody": "7A8760",
-      "rawChecksum": "XK"
+      "canonicalCode": "000001YW",
+      "rawBody": "000001",
+      "rawChecksum": "YW"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "2",
-      "canonicalCode": "2FVQM6V3",
-      "rawBody": "2FVQM6",
-      "rawChecksum": "V3"
+      "canonicalCode": "000002YX",
+      "rawBody": "000002",
+      "rawChecksum": "YX"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "31",
-      "canonicalCode": "K5A7JZ7V",
-      "rawBody": "K5A7JZ",
-      "rawChecksum": "7V"
+      "canonicalCode": "00000Z33",
+      "rawBody": "00000Z",
+      "rawChecksum": "33"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "32",
-      "canonicalCode": "H27YGKX6",
-      "rawBody": "H27YGK",
-      "rawChecksum": "X6"
+      "canonicalCode": "0000103C",
+      "rawBody": "000010",
+      "rawChecksum": "3C"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "33",
-      "canonicalCode": "QBQ80P6U",
-      "rawBody": "QBQ80P",
-      "rawChecksum": "6U"
+      "canonicalCode": "0000113D",
+      "rawBody": "000011",
+      "rawChecksum": "3D"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "30550058",
-      "canonicalCode": "S8MJMB32",
-      "rawBody": "S8MJMB",
-      "rawChecksum": "32"
+      "canonicalCode": "0X4A1AGD",
+      "rawBody": "0X4A1A",
+      "rawChecksum": "GD"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "35072091",
-      "canonicalCode": "0ZFT2BYM",
-      "rawBody": "0ZFT2B",
-      "rawChecksum": "YM"
+      "canonicalCode": "11EA2VPE",
+      "rawBody": "11EA2V",
+      "rawChecksum": "PE"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "82542923",
-      "canonicalCode": "HPYSVVEK",
-      "rawBody": "HPYSVV",
-      "rawChecksum": "EK"
+      "canonicalCode": "2EQ0ABM4",
+      "rawBody": "2EQ0AB",
+      "rawChecksum": "M4"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "98563552",
-      "canonicalCode": "G8TVFN9W",
-      "rawBody": "G8TVFN",
-      "rawChecksum": "9W"
+      "canonicalCode": "2XZXF0G2",
+      "rawBody": "2XZXF0",
+      "rawChecksum": "G2"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "112757436",
-      "canonicalCode": "07VFQVTG",
-      "rawBody": "07VFQV",
-      "rawChecksum": "TG"
+      "canonicalCode": "3BH2NW9H",
+      "rawBody": "3BH2NW",
+      "rawChecksum": "9H"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "165378184",
-      "canonicalCode": "04VHN9FV",
-      "rawBody": "04VHN9",
-      "rawChecksum": "FV"
+      "canonicalCode": "4XPY4866",
+      "rawBody": "4XPY48",
+      "rawChecksum": "66"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "194731372",
-      "canonicalCode": "3VJTMTJQ",
-      "rawBody": "3VJTMT",
-      "rawChecksum": "JQ"
+      "canonicalCode": "5SPQBCGH",
+      "rawBody": "5SPQBC",
+      "rawChecksum": "GH"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "195109933",
-      "canonicalCode": "TF6MRH4N",
-      "rawBody": "TF6MRH",
-      "rawChecksum": "4N"
+      "canonicalCode": "5T291DEF",
+      "rawBody": "5T291D",
+      "rawChecksum": "EF"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "326483534",
-      "canonicalCode": "WFC51TQ6",
-      "rawBody": "WFC51T",
-      "rawChecksum": "Q6"
+      "canonicalCode": "9QBFJEU2",
+      "rawBody": "9QBFJE",
+      "rawChecksum": "U2"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "362008697",
-      "canonicalCode": "9M6P1T6K",
-      "rawBody": "9M6P1T",
-      "rawChecksum": "6K"
+      "canonicalCode": "AS7M3S44",
+      "rawBody": "AS7M3S",
+      "rawChecksum": "44"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "423374228",
-      "canonicalCode": "QWQPZHGV",
-      "rawBody": "QWQPZH",
-      "rawChecksum": "GV"
+      "canonicalCode": "CKRBCM9X",
+      "rawBody": "CKRBCM",
+      "rawChecksum": "9X"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "451881271",
-      "canonicalCode": "20GRTZME",
-      "rawBody": "20GRTZ",
-      "rawChecksum": "ME"
+      "canonicalCode": "DEYA9QCY",
+      "rawBody": "DEYA9Q",
+      "rawChecksum": "CY"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "465790729",
-      "canonicalCode": "B7BM5526",
-      "rawBody": "B7BM55",
-      "rawChecksum": "26"
+      "canonicalCode": "DW6SR96M",
+      "rawBody": "DW6SR9",
+      "rawChecksum": "6M"
     },
     {
       "profileId": "baseh32s-v1",
       "id": "501100600",
-      "canonicalCode": "ZT6CVCV4",
-      "rawBody": "ZT6CVC",
-      "rawChecksum": "V4"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "525056835",
-      "canonicalCode": "QRPNAWP4",
-      "rawBody": "QRPNAW",
-      "rawChecksum": "P4"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "570016551",
-      "canonicalCode": "51144YTY",
-      "rawBody": "51144Y",
-      "rawChecksum": "TY"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "599221937",
-      "canonicalCode": "7VRBQ76P",
-      "rawBody": "7VRBQ7",
-      "rawChecksum": "6P"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "603593537",
-      "canonicalCode": "R732BE49",
-      "rawBody": "R732BE",
-      "rawChecksum": "49"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "669786338",
-      "canonicalCode": "HS59KZKF",
-      "rawBody": "HS59KZ",
-      "rawChecksum": "KF"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "672225328",
-      "canonicalCode": "9WW3PZQE",
-      "rawBody": "9WW3PZ",
-      "rawChecksum": "QE"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "693619061",
-      "canonicalCode": "H062FKEY",
-      "rawBody": "H062FK",
-      "rawChecksum": "EY"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "703006970",
-      "canonicalCode": "H9D960FF",
-      "rawBody": "H9D960",
-      "rawChecksum": "FF"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "731687190",
-      "canonicalCode": "ABGC3XC6",
-      "rawBody": "ABGC3X",
-      "rawChecksum": "C6"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "756749540",
-      "canonicalCode": "N9CABB3H",
-      "rawBody": "N9CABB",
-      "rawChecksum": "3H"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "781742206",
-      "canonicalCode": "G64R2Q63",
-      "rawBody": "G64R2Q",
-      "rawChecksum": "63"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "786011666",
-      "canonicalCode": "HN750TKH",
-      "rawBody": "HN750T",
-      "rawChecksum": "KH"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "821619942",
-      "canonicalCode": "6QTTE5EA",
-      "rawBody": "6QTTE5",
-      "rawChecksum": "EA"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "824431039",
-      "canonicalCode": "VPYRGXX2",
-      "rawBody": "VPYRGX",
-      "rawChecksum": "X2"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "908057007",
-      "canonicalCode": "F2Q9X3DU",
-      "rawBody": "F2Q9X3",
-      "rawChecksum": "DU"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "937993989",
-      "canonicalCode": "V5DPQP77",
-      "rawBody": "V5DPQP",
-      "rawChecksum": "77"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "951840851",
-      "canonicalCode": "9ZNVGWRF",
-      "rawBody": "9ZNVGW",
-      "rawChecksum": "RF"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "982335421",
-      "canonicalCode": "17RZBTKH",
-      "rawBody": "17RZBT",
-      "rawChecksum": "KH"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "1073741822",
-      "canonicalCode": "73BS7VCK",
-      "rawBody": "73BS7V",
+      "canonicalCode": "EXWC1RCK",
+      "rawBody": "EXWC1R",
       "rawChecksum": "CK"
     },
     {
       "profileId": "baseh32s-v1",
+      "id": "525056835",
+      "canonicalCode": "FMQET3YW",
+      "rawBody": "FMQET3",
+      "rawChecksum": "YW"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "570016551",
+      "canonicalCode": "GZKGS7TQ",
+      "rawBody": "GZKGS7",
+      "rawChecksum": "TQ"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "599221937",
+      "canonicalCode": "HVESNHC6",
+      "rawBody": "HVESNH",
+      "rawChecksum": "C6"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "603593537",
+      "canonicalCode": "HZM6T1DU",
+      "rawBody": "HZM6T1",
+      "rawChecksum": "DU"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "669786338",
+      "canonicalCode": "KYR872CD",
+      "rawBody": "KYR872",
+      "rawChecksum": "CD"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "672225328",
+      "canonicalCode": "M12P1GC7",
+      "rawBody": "M12P1G",
+      "rawChecksum": "C7"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "693619061",
+      "canonicalCode": "MNFJBNET",
+      "rawBody": "MNFJBN",
+      "rawChecksum": "ET"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "703006970",
+      "canonicalCode": "MYE27TPP",
+      "rawBody": "MYE27T",
+      "rawChecksum": "PP"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "731687190",
+      "canonicalCode": "NSSA8PUY",
+      "rawBody": "NSSA8P",
+      "rawChecksum": "UY"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "756749540",
+      "canonicalCode": "PHP574AE",
+      "rawBody": "PHP574",
+      "rawChecksum": "AE"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "781742206",
+      "canonicalCode": "Q9GW3YGW",
+      "rawBody": "Q9GW3Y",
+      "rawChecksum": "GW"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "786011666",
+      "canonicalCode": "QDK5GJ3X",
+      "rawBody": "QDK5GJ",
+      "rawChecksum": "3X"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "821619942",
+      "canonicalCode": "RFHV76X7",
+      "rawBody": "RFHV76",
+      "rawChecksum": "X7"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "824431039",
+      "canonicalCode": "RJ7MDZ4J",
+      "rawBody": "RJ7MDZ",
+      "rawChecksum": "4J"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "908057007",
+      "canonicalCode": "V1ZPDFNP",
+      "rawBody": "V1ZPDF",
+      "rawChecksum": "NP"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "937993989",
+      "canonicalCode": "VYH9R5C4",
+      "rawBody": "VYH9R5",
+      "rawChecksum": "C4"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "951840851",
+      "canonicalCode": "WBQW2KUY",
+      "rawBody": "WBQW2K",
+      "rawChecksum": "UY"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "982335421",
+      "canonicalCode": "X8TFXXDT",
+      "rawBody": "X8TFXX",
+      "rawChecksum": "DT"
+    },
+    {
+      "profileId": "baseh32s-v1",
+      "id": "1073741822",
+      "canonicalCode": "ZZZZZYYC",
+      "rawBody": "ZZZZZY",
+      "rawChecksum": "YC"
+    },
+    {
+      "profileId": "baseh32s-v1",
       "id": "1073741823",
-      "canonicalCode": "5PKKZHEM",
-      "rawBody": "5PKKZH",
-      "rawChecksum": "EM"
+      "canonicalCode": "ZZZZZZYD",
+      "rawBody": "ZZZZZZ",
+      "rawChecksum": "YD"
     },
     {
       "profileId": "baseh32-noperm-test",
@@ -1024,24 +1042,304 @@
       "rawChecksum": "2"
     },
     {
+      "profileId": "baseh32-perm-test",
+      "id": "0",
+      "canonicalCode": "FG76JHA",
+      "rawBody": "FG76JH",
+      "rawChecksum": "A"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "1",
+      "canonicalCode": "1D6TY9T",
+      "rawBody": "1D6TY9",
+      "rawChecksum": "T"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "2",
+      "canonicalCode": "WCF968E",
+      "rawBody": "WCF968",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "31",
+      "canonicalCode": "CSX4X4K",
+      "rawBody": "CSX4X4",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "32",
+      "canonicalCode": "DMC3WXV",
+      "rawBody": "DMC3WX",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "33",
+      "canonicalCode": "HEX1RTF",
+      "rawBody": "HEX1RT",
+      "rawChecksum": "F"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "30550058",
+      "canonicalCode": "GQR7V8Q",
+      "rawBody": "GQR7V8",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "35072091",
+      "canonicalCode": "20AN10G",
+      "rawBody": "20AN10",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "82542923",
+      "canonicalCode": "WRK9W5Q",
+      "rawBody": "WRK9W5",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "98563552",
+      "canonicalCode": "RD6FFJT",
+      "rawBody": "RD6FFJ",
+      "rawChecksum": "T"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "112757436",
+      "canonicalCode": "930897W",
+      "rawBody": "930897",
+      "rawChecksum": "W"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "165378184",
+      "canonicalCode": "SCDN3BV",
+      "rawBody": "SCDN3B",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "194731372",
+      "canonicalCode": "5EVV7F7",
+      "rawBody": "5EVV7F",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "195109933",
+      "canonicalCode": "GWRZ5M6",
+      "rawBody": "GWRZ5M",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "326483534",
+      "canonicalCode": "YGNRTH6",
+      "rawBody": "YGNRTH",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "362008697",
+      "canonicalCode": "SA7EJKK",
+      "rawBody": "SA7EJK",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "423374228",
+      "canonicalCode": "EN8BNSM",
+      "rawBody": "EN8BNS",
+      "rawChecksum": "M"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "451881271",
+      "canonicalCode": "AAKNQ0T",
+      "rawBody": "AAKNQ0",
+      "rawChecksum": "T"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "465790729",
+      "canonicalCode": "48H17KG",
+      "rawBody": "48H17K",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "501100600",
+      "canonicalCode": "MX3ZMNP",
+      "rawBody": "MX3ZMN",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "525056835",
+      "canonicalCode": "VZ3E5YP",
+      "rawBody": "VZ3E5Y",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "570016551",
+      "canonicalCode": "A4QFA8R",
+      "rawBody": "A4QFA8",
+      "rawChecksum": "R"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "599221937",
+      "canonicalCode": "0F9WF44",
+      "rawBody": "0F9WF4",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "603593537",
+      "canonicalCode": "YDC602Q",
+      "rawBody": "YDC602",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "669786338",
+      "canonicalCode": "5FGYCQK",
+      "rawBody": "5FGYCQ",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "672225328",
+      "canonicalCode": "8KB78M2",
+      "rawBody": "8KB78M",
+      "rawChecksum": "2"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "693619061",
+      "canonicalCode": "47WGRC7",
+      "rawBody": "47WGRC",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "703006970",
+      "canonicalCode": "BRJP96G",
+      "rawBody": "BRJP96",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "731687190",
+      "canonicalCode": "V4CDPXT",
+      "rawBody": "V4CDPX",
+      "rawChecksum": "T"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "756749540",
+      "canonicalCode": "PYGD3HQ",
+      "rawBody": "PYGD3H",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "781742206",
+      "canonicalCode": "C4616NP",
+      "rawBody": "C4616N",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "786011666",
+      "canonicalCode": "DSHQWJ3",
+      "rawBody": "DSHQWJ",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "821619942",
+      "canonicalCode": "F4417PK",
+      "rawBody": "F4417P",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "824431039",
+      "canonicalCode": "YS9904K",
+      "rawBody": "YS9904",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "908057007",
+      "canonicalCode": "1XWS5N4",
+      "rawBody": "1XWS5N",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "937993989",
+      "canonicalCode": "4EA14B9",
+      "rawBody": "4EA14B",
+      "rawChecksum": "9"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "951840851",
+      "canonicalCode": "CNWE5MW",
+      "rawBody": "CNWE5M",
+      "rawChecksum": "W"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "982335421",
+      "canonicalCode": "45WY5RJ",
+      "rawBody": "45WY5R",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "1073741822",
+      "canonicalCode": "STJQQED",
+      "rawBody": "STJQQE",
+      "rawChecksum": "D"
+    },
+    {
+      "profileId": "baseh32-perm-test",
+      "id": "1073741823",
+      "canonicalCode": "ZES7NX7",
+      "rawBody": "ZES7NX",
+      "rawChecksum": "7"
+    },
+    {
       "profileId": "baseh32-v1",
-      "input": "gzeyhtn",
+      "input": "3nqk8nj",
       "id": "123456789",
-      "canonicalCode": "GZEYHTN",
+      "canonicalCode": "3NQK8NJ",
       "note": "lowercase"
     },
     {
       "profileId": "baseh32-v1",
-      "input": "GZEYHTN",
+      "input": "3NQK8NJ",
       "id": "123456789",
-      "canonicalCode": "GZEYHTN",
+      "canonicalCode": "3NQK8NJ",
       "note": "no separators"
     },
     {
       "profileId": "baseh32-v1",
-      "input": "  GZEYHTN ",
+      "input": "  3NQK8NJ ",
       "id": "123456789",
-      "canonicalCode": "GZEYHTN",
+      "canonicalCode": "3NQK8NJ",
       "note": "whitespace"
     },
     {
@@ -1108,7 +1406,7 @@
     },
     {
       "profileId": "baseh32-v1",
-      "input": "8HBW012",
+      "input": "00002D2",
       "error": "INVALID_CHECKSUM"
     },
     {

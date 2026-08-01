@@ -27,7 +27,6 @@ Optional:
 - Allowed alphabet types.
 - Visual safety level.
 - Spoken safety level.
-- Permutation requirement.
 - Maximum utilization.
 - Preferred grouping.
 
@@ -275,7 +274,6 @@ Each candidate card displays:
 - Visual safety level.
 - Spoken safety level.
 - Random checksum false acceptance estimate.
-- Permutation state.
 - Main tradeoff sentence.
 
 Example:
@@ -351,7 +349,6 @@ minimum_checksum_length: 1
 max_utilization: 0.50
 visual_safety: light
 spoken_safety: light
-permutation: true
 safety_margin: 2.0
 peak_multiplier: 1.25
 ```

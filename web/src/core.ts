@@ -2,7 +2,7 @@
  * Shared math for the calculator and designer. No DOM access.
  * Capacity math is exact bigint; ratios are display-only Numbers.
  */
-import { Baseh, BasehError, type BasehProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-human";
+import { Baseh, BasehError, type BasehProfile } from "base-human";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
@@ -51,7 +51,6 @@ export interface CalculatorInput {
   profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
-  permutation: boolean;
   separator: string;
   prefix: string;
   suffix: string;
@@ -241,9 +240,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         grouping: input.separator ? groupingFor(totalLen) : [],
         aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
         profanity: { mode: input.profanity },
-        permutation: input.permutation
-          ? { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
-          : { enabled: false }
+        permutation: { enabled: false }
       };
       const h = new Baseh(profile);
       const ids = [0n, 1n, BigInt(alphabet.length) - 1n, BigInt(alphabet.length), capacity - 1n];
@@ -514,7 +511,7 @@ export function sampleCodes(
       grouping: separator ? groupingFor(totalLen) : [],
       aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, spoken) },
       profanity: { mode: profanity },
-      permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
+      permutation: { enabled: false }
     };
     const h = new Baseh(profile);
     for (const id of new Set([0n, 1n, capacity - 1n])) {

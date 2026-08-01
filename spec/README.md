@@ -60,10 +60,7 @@ case_sensitive: false
 grouping: []
 separator: ""
 permutation:
-  enabled: true
-  algorithm: feistel-v1
-  key_id: <application-key-id>
-  rounds: 8
+  enabled: false
 aliases:
   O: "0"
   I: "1"
@@ -80,7 +77,7 @@ This profile has `32^6 = 1,073,741,824` body combinations. The checksum adds val
 
 A second frozen profile, `baseh32s-v1`, uses two checksum characters and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
 
-Permutation key material is never part of a frozen profile. Each application assigns its own `key_id` and key and stores them in a secret manager.
+Permutation is off in both frozen profiles. An application that wants sequence hiding opts in by passing its own key to the frozen-profile constructor; key material is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
 
 ## Terminology
 
