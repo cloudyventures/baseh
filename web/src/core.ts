@@ -700,13 +700,10 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
       const profile = calculatorProfile(input);
       if (profile === null) throw new Error("calculatorProfile returned null");
       const h = new Baseh(profile);
-      // The boundary ids show the growth: the last and first codes of the
-      // opening generations, and the first code two generations up (which
-      // carries a separator under the default separatorMinLength of 6).
-      const end1 = generations[0]!.cumulative - 1n;
-      const start2 = generations[0]!.cumulative;
-      const start3 = generations[1]!.cumulative;
-      for (const id of new Set([0n, 1n, end1, start2, start3])) {
+      // One id per order of magnitude shows the growth plainly: tiny codes
+      // stay short, and each leap is one or two characters longer. 742891 is
+      // a fixed "random under 1M" sample so the examples stay deterministic.
+      for (const id of new Set([0n, 1n, 742_891n, 1_000_000n, 1_000_000_000n, 1_000_000_000_000n, 100_000_000_000_000n])) {
         if (id < 0n) continue;
         try {
           examples.push({ id: id.toString(), code: h.encode(id) });
