@@ -1,4 +1,4 @@
-import { calculate, type CalculatorInput, type AlphabetMode, type SafetyLevel, SAFE_CHECKSUM } from "./core.js";
+import { calculate, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel, deriveChecksumAlphabet } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -10,6 +10,7 @@ const els = {
   customAlpha: $<HTMLInputElement>("custom-alphabet"),
   visual: $<HTMLSelectElement>("visual-safety"),
   spoken: $<HTMLSelectElement>("spoken-safety"),
+  profanity: $<HTMLSelectElement>("profanity-mode"),
   bodyLen: $<HTMLInputElement>("body-length"),
   bodyLenOut: $("body-length-out"),
   checksumLen: $<HTMLSelectElement>("checksum-length"),
@@ -59,6 +60,7 @@ function readInput(): CalculatorInput {
     customAlphabet: els.customAlpha.value,
     visualSafety: els.visual.value as SafetyLevel,
     spokenSafety: els.spoken.value as SafetyLevel,
+    profanity: els.profanity.value as ProfanityMode,
     bodyLength: Number(els.bodyLen.value),
     checksumLength: Number(els.checksumLen.value),
     permutation: els.permutation.checked,
@@ -105,7 +107,9 @@ function render() {
     }</div>`;
 
   els.examplesBody.innerHTML = r.examples
-    .map((e) => `<tr><td>${e.id}</td><td><code>${e.code}</code></td></tr>`)
+    .map((e) => `<tr><td>${e.id}</td><td>${e.blocked
+        ? `<span class="muted">blocked: spells a bad word, never issued</span>`
+        : `<code>${e.code}</code>`}</td></tr>`)
     .join("");
 
   let fit = "";
@@ -132,10 +136,11 @@ els.copyJson.addEventListener("click", async () => {
     profileId: "draft-from-calculator",
     bodyAlphabet: r.alphabet,
     bodyLength: input.bodyLength,
-    checksumAlphabet: SAFE_CHECKSUM,
+    checksumAlphabet: deriveChecksumAlphabet(r.alphabet, input.spokenSafety, input.profanity),
     checksumLength: input.checksumLength,
     caseSensitive: false,
     separator: input.separator,
+    profanity: input.profanity === "none" ? undefined : { mode: input.profanity },
     permutation: { enabled: input.permutation, note: "key material is never exported" }
   }, null, 2));
   els.copyJson.textContent = "Copied";
@@ -158,7 +163,7 @@ els.copyUrl.addEventListener("click", async () => {
 
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "safe-alnum"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
-for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.bodyLen,
+for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
   els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin]) {
   el.addEventListener("input", render);
 }

@@ -2,10 +2,11 @@
  * Shared math for the calculator and designer. No DOM access.
  * Capacity math is exact bigint; ratios are display-only Numbers.
  */
-import { Baseh, type BasehProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-human";
+import { Baseh, BasehError, type BasehProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-human";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
+export type ProfanityMode = "none" | "no-vowels" | "blocklist";
 
 /**
  * Parse a required-capacity field: plain digits, grouped digits
@@ -47,6 +48,7 @@ export interface CalculatorInput {
   customAlphabet: string;
   visualSafety: SafetyLevel;
   spokenSafety: SafetyLevel;
+  profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
   permutation: boolean;
@@ -91,9 +93,15 @@ export function applySpoken(alphabet: string, spoken: SafetyLevel): string {
 }
 
 /** Checksum alphabet with the same spoken drops, so alias sources stay non-canonical. */
-export function deriveChecksumAlphabet(bodyAlphabet: string, spoken: SafetyLevel): string {
+export function deriveChecksumAlphabet(bodyAlphabet: string, spoken: SafetyLevel, profanity: ProfanityMode = "none"): string {
   const drops = new Set(spokenPairsFor(bodyAlphabet, spoken).map(([, drop]) => drop));
-  return [...SAFE_CHECKSUM].filter((c) => !drops.has(c)).join("");
+  return applyProfanity([...SAFE_CHECKSUM].filter((c) => !drops.has(c)).join(""), profanity);
+}
+
+/** Spec 18 no-vowels mode: vowels are removed from every alphabet. */
+export function applyProfanity(alphabet: string, profanity: ProfanityMode): string {
+  if (profanity !== "no-vowels") return alphabet;
+  return [...alphabet].filter((c) => !"AEIOU".includes(c)).join("");
 }
 
 /** O/I/L aliases, keeping only those whose target exists and whose source does not. */
@@ -112,8 +120,8 @@ export function spokenAliases(bodyAlphabet: string, spoken: SafetyLevel): Record
   return out;
 }
 
-export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel, spoken: SafetyLevel = "none"): string {
-  if (visual === "heavy") return applySpoken(SAFE_BODY, spoken);
+export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel, spoken: SafetyLevel = "none", profanity: ProfanityMode = "none"): string {
+  if (visual === "heavy") return applyProfanity(applySpoken(SAFE_BODY, spoken), profanity);
   let base: string;
   if (mode === "custom") {
     base = custom.toUpperCase().replace(/\s+/g, "");
@@ -128,7 +136,7 @@ export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: Safet
   if (hasDigits && visual === "medium") {
     chars = chars.filter((c) => c !== "B" && c !== "S");
   }
-  return applySpoken(chars.join(""), spoken);
+  return applyProfanity(applySpoken(chars.join(""), spoken), profanity);
 }
 
 export function powBigInt(base: bigint, exp: number): bigint {
@@ -159,13 +167,13 @@ export interface CalculatorResult {
   checksumStates: bigint;
   falseAcceptance: string;
   displayedLength: number;
-  examples: Array<{ id: string; code: string }>;
+  examples: Array<{ id: string; code: string; blocked?: boolean }>;
 }
 
 export function calculate(input: CalculatorInput): CalculatorResult {
   const problems: string[] = [];
-  const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety);
-  const checksumAlphabet = deriveChecksumAlphabet(alphabet, input.spokenSafety);
+  const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
+  const checksumAlphabet = deriveChecksumAlphabet(alphabet, input.spokenSafety, input.profanity);
   if (alphabet.length < 2) problems.push("Alphabet needs at least two symbols.");
   if (new Set(alphabet.toUpperCase()).size !== alphabet.length) {
     problems.push("Alphabet has duplicate symbols after case normalization.");
@@ -219,7 +227,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   const displayedLength =
     totalLen + (input.separator ? Math.max(groups - 1, 0) : 0) + input.prefix.length + input.suffix.length;
 
-  const examples: Array<{ id: string; code: string }> = [];
+  const examples: Array<{ id: string; code: string; blocked?: boolean }> = [];
   if (problems.length === 0) {
     try {
       const profile: BasehProfile = {
@@ -232,6 +240,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         separator: input.separator,
         grouping: input.separator ? groupingFor(totalLen) : [],
         aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
+        profanity: { mode: input.profanity },
         permutation: input.permutation
           ? { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
           : { enabled: false }
@@ -239,7 +248,16 @@ export function calculate(input: CalculatorInput): CalculatorResult {
       const h = new Baseh(profile);
       const ids = [0n, 1n, BigInt(alphabet.length) - 1n, BigInt(alphabet.length), capacity - 1n];
       for (const id of new Set(ids)) {
-        if (id >= 0n && id < capacity) examples.push({ id: id.toString(), code: h.encode(id) });
+        if (id < 0n || id >= capacity) continue;
+        try {
+          examples.push({ id: id.toString(), code: h.encode(id) });
+        } catch (e) {
+          if (e instanceof BasehError && e.code === "BLOCKED_CODE") {
+            examples.push({ id: id.toString(), code: "", blocked: true });
+          } else {
+            throw e;
+          }
+        }
       }
     } catch {
       problems.push("Configuration could not produce example codes.");
@@ -296,6 +314,7 @@ export interface DesignerInput {
   allowAlnum: boolean;
   visualSafety: SafetyLevel;
   spokenSafety: SafetyLevel;
+  profanity: ProfanityMode;
 }
 
 interface AlphabetEntry {
@@ -311,6 +330,7 @@ export interface Candidate {
   alphabetSize: number;
   spoken: SafetyLevel;
   separator: string;
+  profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
   capacity: bigint;
@@ -332,18 +352,20 @@ function allowedAlphabets(input: DesignerInput): AlphabetEntry[] {
   const out: AlphabetEntry[] = [];
   const visual = input.visualSafety;
   const spoken = input.spokenSafety;
+  const profanity = input.profanity;
   const spTag = spoken === "none" ? "" : `-sp${spoken[0]}`;
+  const pfTag = profanity === "none" ? "" : profanity === "no-vowels" ? "-nv" : "-bl";
   if (visual === "heavy") {
-    const derived = applySpoken(SAFE_BODY, spoken);
-    return [{ id: `safe${derived.length}${spTag}`, alphabet: derived, size: derived.length, penalty: 0 }];
+    const derived = deriveAlphabet("alnum", "", visual, spoken, profanity);
+    return [{ id: `safe${derived.length}${spTag}${pfTag}`, alphabet: derived, size: derived.length, penalty: 0 }];
   }
   if (input.allowAlnum) {
-    const derived = deriveAlphabet("alnum", "", visual, spoken);
-    out.push({ id: visual === "none" && spoken === "none" ? "alnum36" : `alnum${derived.length}-${visual}${spTag}`, alphabet: derived, size: derived.length, penalty: 0 });
+    const derived = deriveAlphabet("alnum", "", visual, spoken, profanity);
+    out.push({ id: visual === "none" && spoken === "none" && profanity === "none" ? "alnum36" : `alnum${derived.length}-${visual}${spTag}${pfTag}`, alphabet: derived, size: derived.length, penalty: 0 });
   }
   if (input.allowUpper) {
-    const derived = deriveAlphabet("upper", "", visual, spoken);
-    out.push({ id: visual === "none" && spoken === "none" ? "upper26" : `upper${derived.length}-${visual}${spTag}`, alphabet: derived, size: derived.length, penalty: 10 });
+    const derived = deriveAlphabet("upper", "", visual, spoken, profanity);
+    out.push({ id: visual === "none" && spoken === "none" && profanity === "none" ? "upper26" : `upper${derived.length}-${visual}${spTag}${pfTag}`, alphabet: derived, size: derived.length, penalty: 10 });
   }
   if (input.allowDigits) {
     out.push({ id: "digits10", alphabet: DIGITS, size: 10, penalty: 10 });
@@ -372,9 +394,19 @@ export function minimumLength(alphabetSize: number, required: bigint): number {
 
 export function design(input: DesignerInput): DesignerResult {
   const required = requiredCapacity(input);
+  const sep = input.separator;
+  let separatorRejected = false;
   const candidates: Candidate[] = [];
   for (const alpha of allowedAlphabets(input)) {
     if (alpha.size < 2) continue;
+    // A delimiter that is itself an alphabet symbol makes the profile
+    // invalid (decoding could not tell delimiter from data), so every
+    // candidate on that alphabet violates a hard constraint.
+    if (sep && (alpha.alphabet.includes(sep) ||
+        deriveChecksumAlphabet(alpha.alphabet, input.spokenSafety, input.profanity).includes(sep))) {
+      separatorRejected = true;
+      continue;
+    }
     for (let bodyLength = 1; bodyLength <= 10; bodyLength += 1) {
       const capacity = powBigInt(BigInt(alpha.size), bodyLength);
       if (capacity < required) continue;
@@ -394,6 +426,7 @@ export function design(input: DesignerInput): DesignerResult {
           alphabetSize: alpha.size,
           spoken: input.spokenSafety,
           separator: input.separator,
+          profanity: input.profanity,
           bodyLength,
           checksumLength,
           capacity,
@@ -429,18 +462,29 @@ export function design(input: DesignerInput): DesignerResult {
   pick("Most growth room", (c) => c.utilization <= 0.1);
 
   let repair: string | null = null;
+  if (separatorRejected) {
+    repair = `Delimiter "${sep}" appears in one or more alphabets, so those candidates are hidden: a delimiter must never be an alphabet symbol. Try "-" or "." instead.`;
+  }
   if (withReasons.length === 0) {
-    const alphas = allowedAlphabets(input);
-    let best: string | null = null;
-    for (const alpha of alphas) {
-      const minL = minimumLength(alpha.size, required);
-      const total = minL + Math.max(input.minimumChecksumLength, 0);
-      const displayed = total + (input.separator ? groupingFor(total).length - 1 : 0);
-      if (best === null) {
-        best = `No candidate fits. The smallest option with alphabet ${alpha.id} (${alpha.size} symbols) needs a ${displayed}-character displayed code (body ${minL}${input.minimumChecksumLength > 0 ? ` + ${input.minimumChecksumLength} check` : ""}). Raise the maximum displayed length to at least ${displayed} or permit a larger alphabet.`;
+    if (separatorRejected) {
+      const sepFree = allowedAlphabets(input).filter((alpha) =>
+        !alpha.alphabet.includes(sep) && !deriveChecksumAlphabet(alpha.alphabet, input.spokenSafety, input.profanity).includes(sep));
+      repair = sepFree.length === 0
+        ? `Every allowed alphabet contains the delimiter "${sep}", so no valid candidate exists. Pick a delimiter that never appears in codes (such as "-" or ".") or remove it.`
+        : repair;
+    } else {
+      const alphas = allowedAlphabets(input);
+      let best: string | null = null;
+      for (const alpha of alphas) {
+        const minL = minimumLength(alpha.size, required);
+        const total = minL + Math.max(input.minimumChecksumLength, 0);
+        const displayed = total + (input.separator ? groupingFor(total).length - 1 : 0);
+        if (best === null) {
+          best = `No candidate fits. The smallest option with alphabet ${alpha.id} (${alpha.size} symbols) needs a ${displayed}-character displayed code (body ${minL}${input.minimumChecksumLength > 0 ? ` + ${input.minimumChecksumLength} check` : ""}). Raise the maximum displayed length to at least ${displayed} or permit a larger alphabet.`;
+        }
       }
+      repair = best;
     }
-    repair = best;
   }
 
   return { feasible: withReasons, recommended, alternatives: alternatives.slice(0, 5), repair, requiredCapacity: required };
@@ -453,26 +497,38 @@ export function sampleCodes(
   checksumLength: number,
   capacity: bigint,
   spoken: SafetyLevel = "none",
-  separator: string = ""
-): Array<{ id: string; code: string }> {
-  const out: Array<{ id: string; code: string }> = [];
+  separator: string = "",
+  profanity: ProfanityMode = "none"
+): Array<{ id: string; code: string; blocked?: boolean }> {
+  const out: Array<{ id: string; code: string; blocked?: boolean }> = [];
   try {
     const totalLen = bodyLength + checksumLength;
     const profile: BasehProfile = {
       profileId: "ui-preview",
       bodyAlphabet: alphabet,
       bodyLength,
-      checksumAlphabet: deriveChecksumAlphabet(alphabet, spoken),
+      checksumAlphabet: deriveChecksumAlphabet(alphabet, spoken, profanity),
       checksumLength,
       caseSensitive: false,
       separator,
       grouping: separator ? groupingFor(totalLen) : [],
       aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, spoken) },
+      profanity: { mode: profanity },
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
     };
     const h = new Baseh(profile);
     for (const id of new Set([0n, 1n, capacity - 1n])) {
-      if (id >= 0n && id < capacity) out.push({ id: id.toString(), code: h.encode(id) });
+      if (id < 0n || id >= capacity) continue;
+      try {
+        out.push({ id: id.toString(), code: h.encode(id) });
+      } catch (e) {
+        // Blocklist mode reserves some ids; show the gap instead of hiding it.
+        if (e instanceof BasehError && e.code === "BLOCKED_CODE") {
+          out.push({ id: id.toString(), code: "", blocked: true });
+        } else {
+          throw e;
+        }
+      }
     }
   } catch {
     // An unsamplable candidate simply shows no examples.

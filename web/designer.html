@@ -73,6 +73,14 @@
           <option value="heavy">Heavy</option>
         </select>
       </div>
+      <div class="field">
+        <label for="d-profanity">Bad words<span class="tip" tabindex="0" aria-label="Bad words details"><span class="i">i</span><span class="tip-body">Keeps codes customer-safe. Strip vowels removes A, E, I, O and U from every alphabet so no English word can ever be spelled; it shrinks the alphabet, which lowers capacity and may lengthen the body. Blocklist keeps the full alphabet but refuses to issue or accept any code containing a common English profanity; those identifiers are reserved and skipped, marked as blocked in the examples. None applies no check.</span></span></label>
+        <select id="d-profanity">
+          <option value="none" selected>None</option>
+          <option value="no-vowels">Strip vowels</option>
+          <option value="blocklist">Blocklist</option>
+        </select>
+      </div>
       <fieldset class="field">
         <legend>Allowed alphabets</legend>
         <label class="check"><input id="allow-alnum" type="checkbox" checked /> Alphanumeric</label>
@@ -97,7 +105,7 @@
     <h2 id="compare">Comparisons</h2>
     <table id="candidates">
       <thead>
-        <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>id 0</th><th>Reason</th></tr>
+        <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>Zero Renders As</th><th>Reason</th></tr>
       </thead>
       <tbody></tbody>
     </table>
