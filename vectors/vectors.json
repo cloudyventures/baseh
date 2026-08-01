@@ -2,12 +2,36 @@
   "version": "1",
   "profiles": [
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "definition": {
-        "profileId": "baseh32-v1",
-        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "profileId": "baseh-minimum-v1",
+        "bodyAlphabet": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "bodyLength": 6,
-        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumAlphabet": "",
+        "checksumLength": 0,
+        "caseSensitive": false,
+        "separator": "-",
+        "grouping": [
+          3,
+          3
+        ],
+        "aliases": {},
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "blocklist"
+        }
+      },
+      "capacity": "2176782336"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "definition": {
+        "profileId": "baseh-light-v1",
+        "bodyAlphabet": "0123456789ABCEFGHJKMNPQRSUVWXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACEFGHJKMNPQRUVWXY",
         "checksumLength": 1,
         "caseSensitive": false,
         "separator": "",
@@ -15,35 +39,77 @@
         "aliases": {
           "O": "0",
           "I": "1",
-          "L": "1"
+          "L": "1",
+          "D": "B",
+          "T": "P"
         },
         "permutation": {
           "enabled": false
+        },
+        "profanity": {
+          "mode": "blocklist"
         }
       },
-      "capacity": "1073741824"
+      "capacity": "887503681"
     },
     {
-      "profileId": "baseh32s-v1",
+      "profileId": "baseh-medium-v1",
       "definition": {
-        "profileId": "baseh32s-v1",
-        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "profileId": "baseh-medium-v1",
+        "bodyAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "bodyLength": 6,
-        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
-        "checksumLength": 2,
+        "checksumAlphabet": "234679ACDEFGHJKMPQRUVXY",
+        "checksumLength": 1,
         "caseSensitive": false,
         "separator": "",
         "grouping": [],
         "aliases": {
           "O": "0",
           "I": "1",
-          "L": "1"
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
         },
         "permutation": {
           "enabled": false
+        },
+        "profanity": {
+          "mode": "blocklist"
         }
       },
-      "capacity": "1073741824"
+      "capacity": "481890304"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "definition": {
+        "profileId": "baseh-heavy-v1",
+        "bodyAlphabet": "0123456789ABCEFHJKMPQRVXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACEFHJKMPQRUVXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "",
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "D": "B",
+          "T": "P",
+          "N": "M",
+          "W": "V",
+          "S": "F",
+          "G": "C"
+        },
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "blocklist"
+        }
+      },
+      "capacity": "308915776"
     },
     {
       "profileId": "baseh32-noperm-test",
@@ -202,564 +268,1124 @@
   ],
   "vectors": [
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "0",
-      "canonicalCode": "000000A",
+      "canonicalCode": "000-000",
       "rawBody": "000000",
-      "rawChecksum": "A"
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "1",
-      "canonicalCode": "000001C",
+      "canonicalCode": "000-001",
       "rawBody": "000001",
-      "rawChecksum": "C"
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "2",
-      "canonicalCode": "000002D",
+      "canonicalCode": "000-002",
       "rawBody": "000002",
-      "rawChecksum": "D"
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "31",
-      "canonicalCode": "00000ZG",
-      "rawBody": "00000Z",
-      "rawChecksum": "G"
+      "canonicalCode": "000-00V",
+      "rawBody": "00000V",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "32",
-      "canonicalCode": "000010P",
-      "rawBody": "000010",
-      "rawChecksum": "P"
+      "canonicalCode": "000-00W",
+      "rawBody": "00000W",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-minimum-v1",
       "id": "33",
-      "canonicalCode": "000011Q",
-      "rawBody": "000011",
-      "rawChecksum": "Q"
+      "canonicalCode": "000-00X",
+      "rawBody": "00000X",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "30550058",
-      "canonicalCode": "0X4A1AQ",
-      "rawBody": "0X4A1A",
-      "rawChecksum": "Q"
+      "profileId": "baseh-minimum-v1",
+      "id": "125361556",
+      "canonicalCode": "22M-XLG",
+      "rawBody": "22MXLG",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "35072091",
-      "canonicalCode": "11EA2VR",
-      "rawBody": "11EA2V",
-      "rawChecksum": "R"
+      "profileId": "baseh-minimum-v1",
+      "id": "195885306",
+      "canonicalCode": "38M-I2I",
+      "rawBody": "38MI2I",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "82542923",
-      "canonicalCode": "2EQ0ABH",
-      "rawBody": "2EQ0AB",
-      "rawChecksum": "H"
+      "profileId": "baseh-minimum-v1",
+      "id": "241948128",
+      "canonicalCode": "401-SDC",
+      "rawBody": "401SDC",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "98563552",
-      "canonicalCode": "2XZXF0F",
-      "rawBody": "2XZXF0",
-      "rawChecksum": "F"
+      "profileId": "baseh-minimum-v1",
+      "id": "252827739",
+      "canonicalCode": "46I-Z4R",
+      "rawBody": "46IZ4R",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "112757436",
-      "canonicalCode": "3BH2NWV",
-      "rawBody": "3BH2NW",
-      "rawChecksum": "V"
+      "profileId": "baseh-minimum-v1",
+      "id": "265004805",
+      "canonicalCode": "4DR-Z0L",
+      "rawBody": "4DRZ0L",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "165378184",
-      "canonicalCode": "4XPY48J",
-      "rawBody": "4XPY48",
-      "rawChecksum": "J"
+      "profileId": "baseh-minimum-v1",
+      "id": "359124558",
+      "canonicalCode": "5XT-AA6",
+      "rawBody": "5XTAA6",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "194731372",
-      "canonicalCode": "5SPQBCV",
-      "rawBody": "5SPQBC",
-      "rawChecksum": "V"
+      "profileId": "baseh-minimum-v1",
+      "id": "391509769",
+      "canonicalCode": "6H3-EVD",
+      "rawBody": "6H3EVD",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "195109933",
-      "canonicalCode": "5T291DT",
-      "rawBody": "5T291D",
-      "rawChecksum": "T"
+      "profileId": "baseh-minimum-v1",
+      "id": "423648067",
+      "canonicalCode": "708-8XV",
+      "rawBody": "7088XV",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "326483534",
-      "canonicalCode": "9QBFJEF",
-      "rawBody": "9QBFJE",
-      "rawChecksum": "F"
+      "profileId": "baseh-minimum-v1",
+      "id": "621949375",
+      "canonicalCode": "AAA-J7J",
+      "rawBody": "AAAJ7J",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "362008697",
-      "canonicalCode": "AS7M3SH",
-      "rawBody": "AS7M3S",
-      "rawChecksum": "H"
+      "profileId": "baseh-minimum-v1",
+      "id": "625470694",
+      "canonicalCode": "ACE-09Y",
+      "rawBody": "ACE09Y",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "423374228",
-      "canonicalCode": "CKRBCMD",
-      "rawBody": "CKRBCM",
-      "rawChecksum": "D"
+      "profileId": "baseh-minimum-v1",
+      "id": "654699884",
+      "canonicalCode": "ATS-HNW",
+      "rawBody": "ATSHNW",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "451881271",
-      "canonicalCode": "DEYA9QE",
-      "rawBody": "DEYA9Q",
-      "rawChecksum": "E"
+      "profileId": "baseh-minimum-v1",
+      "id": "899526782",
+      "canonicalCode": "EVJ-ZB2",
+      "rawBody": "EVJZB2",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "465790729",
-      "canonicalCode": "DW6SR9Y",
-      "rawBody": "DW6SR9",
-      "rawChecksum": "Y"
+      "profileId": "baseh-minimum-v1",
+      "id": "947011667",
+      "canonicalCode": "FNT-QVN",
+      "rawBody": "FNTQVN",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "501100600",
-      "canonicalCode": "EXWC1RX",
-      "rawBody": "EXWC1R",
-      "rawChecksum": "X"
+      "profileId": "baseh-minimum-v1",
+      "id": "1016638273",
+      "canonicalCode": "GTA-341",
+      "rawBody": "GTA341",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "525056835",
-      "canonicalCode": "FMQET3C",
-      "rawBody": "FMQET3",
-      "rawChecksum": "C"
+      "profileId": "baseh-minimum-v1",
+      "id": "1076786221",
+      "canonicalCode": "HT3-9KD",
+      "rawBody": "HT39KD",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "570016551",
-      "canonicalCode": "GZKGS74",
-      "rawBody": "GZKGS7",
-      "rawChecksum": "4"
+      "profileId": "baseh-minimum-v1",
+      "id": "1098664247",
+      "canonicalCode": "I64-6RB",
+      "rawBody": "I646RB",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "599221937",
-      "canonicalCode": "HVESNHJ",
-      "rawBody": "HVESNH",
-      "rawChecksum": "J"
+      "profileId": "baseh-minimum-v1",
+      "id": "1124619953",
+      "canonicalCode": "ILK-IB5",
+      "rawBody": "ILKIB5",
+      "rawChecksum": ""
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "603593537",
-      "canonicalCode": "HZM6T19",
-      "rawBody": "HZM6T1",
+      "profileId": "baseh-minimum-v1",
+      "id": "1222396277",
+      "canonicalCode": "K7S-705",
+      "rawBody": "K7S705",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1251770699",
+      "canonicalCode": "KP9-SGB",
+      "rawBody": "KP9SGB",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1314653412",
+      "canonicalCode": "LQP-L2C",
+      "rawBody": "LQPL2C",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1363056146",
+      "canonicalCode": "MJJ-0UQ",
+      "rawBody": "MJJ0UQ",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1440899193",
+      "canonicalCode": "NTV-GXL",
+      "rawBody": "NTVGXL",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1456492477",
+      "canonicalCode": "O35-OSD",
+      "rawBody": "O35OSD",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1553607087",
+      "canonicalCode": "POZ-6WF",
+      "rawBody": "POZ6WF",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1586378888",
+      "canonicalCode": "Q8H-LS8",
+      "rawBody": "Q8HLS8",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1601149628",
+      "canonicalCode": "QHA-6YK",
+      "rawBody": "QHA6YK",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1720133680",
+      "canonicalCode": "SG4-FN4",
+      "rawBody": "SG4FN4",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1745088568",
+      "canonicalCode": "SUZ-AYG",
+      "rawBody": "SUZAYG",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "1881170727",
+      "canonicalCode": "V40-0MF",
+      "rawBody": "V400MF",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "2054322218",
+      "canonicalCode": "XZ3-962",
+      "rawBody": "XZ3962",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "2120870166",
+      "canonicalCode": "Z2P-LW6",
+      "rawBody": "Z2PLW6",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "2138419426",
+      "canonicalCode": "ZD5-QZM",
+      "rawBody": "ZD5QZM",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "2176782334",
+      "canonicalCode": "ZZZ-ZZY",
+      "rawBody": "ZZZZZY",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "id": "2176782335",
+      "canonicalCode": "ZZZ-ZZZ",
+      "rawBody": "ZZZZZZ",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "0",
+      "canonicalCode": "0000007",
+      "rawBody": "000000",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "1",
+      "canonicalCode": "0000019",
+      "rawBody": "000001",
       "rawChecksum": "9"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "669786338",
-      "canonicalCode": "KYR872Q",
-      "rawBody": "KYR872",
+      "profileId": "baseh-light-v1",
+      "id": "2",
+      "canonicalCode": "000002A",
+      "rawBody": "000002",
+      "rawChecksum": "A"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "31",
+      "canonicalCode": "000010Q",
+      "rawBody": "000010",
       "rawChecksum": "Q"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "672225328",
-      "canonicalCode": "M12P1GK",
-      "rawBody": "M12P1G",
-      "rawChecksum": "K"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "693619061",
-      "canonicalCode": "MNFJBN7",
-      "rawBody": "MNFJBN",
-      "rawChecksum": "7"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "703006970",
-      "canonicalCode": "MYE27T3",
-      "rawBody": "MYE27T",
-      "rawChecksum": "3"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "731687190",
-      "canonicalCode": "NSSA8PE",
-      "rawBody": "NSSA8P",
-      "rawChecksum": "E"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "756749540",
-      "canonicalCode": "PHP574R",
-      "rawBody": "PHP574",
+      "profileId": "baseh-light-v1",
+      "id": "32",
+      "canonicalCode": "000011R",
+      "rawBody": "000011",
       "rawChecksum": "R"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "781742206",
-      "canonicalCode": "Q9GW3YC",
-      "rawBody": "Q9GW3Y",
-      "rawChecksum": "C"
+      "profileId": "baseh-light-v1",
+      "id": "33",
+      "canonicalCode": "000012U",
+      "rawBody": "000012",
+      "rawChecksum": "U"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "786011666",
-      "canonicalCode": "QDK5GJD",
-      "rawBody": "QDK5GJ",
-      "rawChecksum": "D"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "821619942",
-      "canonicalCode": "RFHV76K",
-      "rawBody": "RFHV76",
-      "rawChecksum": "K"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "824431039",
-      "canonicalCode": "RJ7MDZW",
-      "rawBody": "RJ7MDZ",
-      "rawChecksum": "W"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "908057007",
-      "canonicalCode": "V1ZPDF3",
-      "rawBody": "V1ZPDF",
-      "rawChecksum": "3"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "937993989",
-      "canonicalCode": "VYH9R5H",
-      "rawBody": "VYH9R5",
-      "rawChecksum": "H"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "951840851",
-      "canonicalCode": "WBQW2KE",
-      "rawBody": "WBQW2K",
-      "rawChecksum": "E"
-    },
-    {
-      "profileId": "baseh32-v1",
-      "id": "982335421",
-      "canonicalCode": "X8TFXX7",
-      "rawBody": "X8TFXX",
+      "profileId": "baseh-light-v1",
+      "id": "72159588",
+      "canonicalCode": "2H460N7",
+      "rawBody": "2H460N",
       "rawChecksum": "7"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "1073741822",
-      "canonicalCode": "ZZZZZYP",
-      "rawBody": "ZZZZZY",
+      "profileId": "baseh-light-v1",
+      "id": "75830398",
+      "canonicalCode": "2N3CSWE",
+      "rawBody": "2N3CSW",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "99927250",
+      "canonicalCode": "3G68JP4",
+      "rawBody": "3G68JP",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "110142152",
+      "canonicalCode": "3V850NA",
+      "rawBody": "3V850N",
+      "rawChecksum": "A"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "119602148",
+      "canonicalCode": "45GPXUR",
+      "rawBody": "45GPXU",
+      "rawChecksum": "R"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "138845813",
+      "canonicalCode": "4VANJ66",
+      "rawBody": "4VANJ6",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "170809415",
+      "canonicalCode": "5YYKA46",
+      "rawBody": "5YYKA4",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "199885656",
+      "canonicalCode": "6ZEKJC7",
+      "rawBody": "6ZEKJC",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "252843789",
+      "canonicalCode": "8US7W8U",
+      "rawBody": "8US7W8",
+      "rawChecksum": "U"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "283958697",
+      "canonicalCode": "9XFPGZ3",
+      "rawBody": "9XFPGZ",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "311003127",
+      "canonicalCode": "AVRGFYK",
+      "rawBody": "AVRGFY",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "313409773",
+      "canonicalCode": "AYB8SPY",
+      "rawBody": "AYB8SP",
+      "rawChecksum": "Y"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "329801950",
+      "canonicalCode": "BH3H6K4",
+      "rawBody": "BH3H6K",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "358170122",
+      "canonicalCode": "CGURMXA",
+      "rawBody": "CGURMX",
+      "rawChecksum": "A"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "386451602",
+      "canonicalCode": "EGF2VQJ",
+      "rawBody": "EGF2VQ",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "393269422",
+      "canonicalCode": "EQUYBCE",
+      "rawBody": "EQUYBC",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "449192920",
+      "canonicalCode": "GPC4C6M",
+      "rawBody": "GPC4C6",
+      "rawChecksum": "M"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "456398340",
+      "canonicalCode": "GY6073P",
+      "rawBody": "GY6073",
       "rawChecksum": "P"
     },
     {
-      "profileId": "baseh32-v1",
-      "id": "1073741823",
-      "canonicalCode": "ZZZZZZQ",
+      "profileId": "baseh-light-v1",
+      "id": "471992031",
+      "canonicalCode": "HG2ERC3",
+      "rawBody": "HG2ERC",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "504134564",
+      "canonicalCode": "JKWBQ9J",
+      "rawBody": "JKWBQ9",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "505818848",
+      "canonicalCode": "JNPXB1R",
+      "rawBody": "JNPXB1",
+      "rawChecksum": "R"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "530878100",
+      "canonicalCode": "KHV2K0J",
+      "rawBody": "KHV2K0",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "535524364",
+      "canonicalCode": "KPW1CGM",
+      "rawBody": "KPW1CG",
+      "rawChecksum": "M"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "547951956",
+      "canonicalCode": "M4A6AJG",
+      "rawBody": "M4A6AJ",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "610484860",
+      "canonicalCode": "PA1800V",
+      "rawBody": "PA1800",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "612162612",
+      "canonicalCode": "PBVJV1X",
+      "rawBody": "PBVJV1",
+      "rawChecksum": "X"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "643768802",
+      "canonicalCode": "QG2GPJJ",
+      "rawBody": "QG2GPJ",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "668989638",
+      "canonicalCode": "RBC31XG",
+      "rawBody": "RBC31X",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "674554602",
+      "canonicalCode": "RJCWVW7",
+      "rawBody": "RJCWVW",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "681629409",
+      "canonicalCode": "RU2BSFU",
+      "rawBody": "RU2BSF",
+      "rawChecksum": "U"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "696923068",
+      "canonicalCode": "SAMR39V",
+      "rawBody": "SAMR39",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "825529403",
+      "canonicalCode": "XUWPMR6",
+      "rawBody": "XUWPMR",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "887503679",
+      "canonicalCode": "ZZZZZYN",
+      "rawBody": "ZZZZZY",
+      "rawChecksum": "N"
+    },
+    {
+      "profileId": "baseh-light-v1",
+      "id": "887503680",
+      "canonicalCode": "ZZZZZZP",
       "rawBody": "ZZZZZZ",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "0",
+      "canonicalCode": "000000C",
+      "rawBody": "000000",
+      "rawChecksum": "C"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "1",
+      "canonicalCode": "000001D",
+      "rawBody": "000001",
+      "rawChecksum": "D"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "2",
+      "canonicalCode": "000002E",
+      "rawBody": "000002",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "31",
+      "canonicalCode": "0000133",
+      "rawBody": "000013",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "32",
+      "canonicalCode": "0000144",
+      "rawBody": "000014",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "33",
+      "canonicalCode": "0000156",
+      "rawBody": "000015",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "8071210",
+      "canonicalCode": "0E3KXFU",
+      "rawBody": "0E3KXF",
+      "rawChecksum": "U"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "11839241",
+      "canonicalCode": "0M7921D",
+      "rawBody": "0M7921",
+      "rawChecksum": "D"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "16081343",
+      "canonicalCode": "0Y4GXM7",
+      "rawBody": "0Y4GXM",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "55287014",
+      "canonicalCode": "35YG462",
+      "rawBody": "35YG46",
+      "rawChecksum": "2"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "id": "55935783",
+      "canonicalCode": "3702KGQ",
+      "rawBody": "3702KG",
       "rawChecksum": "Q"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "0",
-      "canonicalCode": "000000YV",
-      "rawBody": "000000",
-      "rawChecksum": "YV"
+      "profileId": "baseh-medium-v1",
+      "id": "65698042",
+      "canonicalCode": "3RVRFK4",
+      "rawBody": "3RVRFK",
+      "rawChecksum": "4"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "1",
-      "canonicalCode": "000001YW",
-      "rawBody": "000001",
-      "rawChecksum": "YW"
+      "profileId": "baseh-medium-v1",
+      "id": "67612898",
+      "canonicalCode": "3Y00YAC",
+      "rawBody": "3Y00YA",
+      "rawChecksum": "C"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "2",
-      "canonicalCode": "000002YX",
-      "rawBody": "000002",
-      "rawChecksum": "YX"
+      "profileId": "baseh-medium-v1",
+      "id": "73703357",
+      "canonicalCode": "47XEAQ6",
+      "rawBody": "47XEAQ",
+      "rawChecksum": "6"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "31",
-      "canonicalCode": "00000Z33",
-      "rawBody": "00000Z",
-      "rawChecksum": "33"
+      "profileId": "baseh-medium-v1",
+      "id": "77618540",
+      "canonicalCode": "4F7U6P9",
+      "rawBody": "4F7U6P",
+      "rawChecksum": "9"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "32",
-      "canonicalCode": "0000103C",
-      "rawBody": "000010",
-      "rawChecksum": "3C"
+      "profileId": "baseh-medium-v1",
+      "id": "79889938",
+      "canonicalCode": "4JZ8D26",
+      "rawBody": "4JZ8D2",
+      "rawChecksum": "6"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "33",
-      "canonicalCode": "0000113D",
-      "rawBody": "000011",
-      "rawChecksum": "3D"
+      "profileId": "baseh-medium-v1",
+      "id": "104180143",
+      "canonicalCode": "61ERUCE",
+      "rawBody": "61ERUC",
+      "rawChecksum": "E"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "30550058",
-      "canonicalCode": "0X4A1AGD",
-      "rawBody": "0X4A1A",
-      "rawChecksum": "GD"
+      "profileId": "baseh-medium-v1",
+      "id": "125827120",
+      "canonicalCode": "78MXQPF",
+      "rawBody": "78MXQP",
+      "rawChecksum": "F"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "35072091",
-      "canonicalCode": "11EA2VPE",
-      "rawBody": "11EA2V",
-      "rawChecksum": "PE"
+      "profileId": "baseh-medium-v1",
+      "id": "138454061",
+      "canonicalCode": "8173GXP",
+      "rawBody": "8173GX",
+      "rawChecksum": "P"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "82542923",
-      "canonicalCode": "2EQ0ABM4",
-      "rawBody": "2EQ0AB",
-      "rawChecksum": "M4"
+      "profileId": "baseh-medium-v1",
+      "id": "145844502",
+      "canonicalCode": "8E7R469",
+      "rawBody": "8E7R46",
+      "rawChecksum": "9"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "98563552",
-      "canonicalCode": "2XZXF0G2",
-      "rawBody": "2XZXF0",
-      "rawChecksum": "G2"
+      "profileId": "baseh-medium-v1",
+      "id": "180279607",
+      "canonicalCode": "AE8DECC",
+      "rawBody": "AE8DEC",
+      "rawChecksum": "C"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "112757436",
-      "canonicalCode": "3BH2NW9H",
-      "rawBody": "3BH2NW",
-      "rawChecksum": "9H"
+      "profileId": "baseh-medium-v1",
+      "id": "228505691",
+      "canonicalCode": "E7Q99GU",
+      "rawBody": "E7Q99G",
+      "rawChecksum": "U"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "165378184",
-      "canonicalCode": "4XPY4866",
-      "rawBody": "4XPY48",
-      "rawChecksum": "66"
+      "profileId": "baseh-medium-v1",
+      "id": "230001340",
+      "canonicalCode": "EA5E1H2",
+      "rawBody": "EA5E1H",
+      "rawChecksum": "2"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "194731372",
-      "canonicalCode": "5SPQBCGH",
-      "rawBody": "5SPQBC",
-      "rawChecksum": "GH"
+      "profileId": "baseh-medium-v1",
+      "id": "230097017",
+      "canonicalCode": "EA9U2J4",
+      "rawBody": "EA9U2J",
+      "rawChecksum": "4"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "195109933",
-      "canonicalCode": "5T291DEF",
-      "rawBody": "5T291D",
-      "rawChecksum": "EF"
+      "profileId": "baseh-medium-v1",
+      "id": "230203448",
+      "canonicalCode": "EAFKUPX",
+      "rawBody": "EAFKUP",
+      "rawChecksum": "X"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "326483534",
-      "canonicalCode": "9QBFJEU2",
-      "rawBody": "9QBFJE",
-      "rawChecksum": "U2"
+      "profileId": "baseh-medium-v1",
+      "id": "242069070",
+      "canonicalCode": "F1U5GYJ",
+      "rawBody": "F1U5GY",
+      "rawChecksum": "J"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "362008697",
-      "canonicalCode": "AS7M3S44",
-      "rawBody": "AS7M3S",
-      "rawChecksum": "44"
+      "profileId": "baseh-medium-v1",
+      "id": "242341553",
+      "canonicalCode": "F27J3ED",
+      "rawBody": "F27J3E",
+      "rawChecksum": "D"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "423374228",
-      "canonicalCode": "CKRBCM9X",
-      "rawBody": "CKRBCM",
-      "rawChecksum": "9X"
+      "profileId": "baseh-medium-v1",
+      "id": "286255477",
+      "canonicalCode": "HJP1QXM",
+      "rawBody": "HJP1QX",
+      "rawChecksum": "M"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "451881271",
-      "canonicalCode": "DEYA9QCY",
-      "rawBody": "DEYA9Q",
-      "rawChecksum": "CY"
+      "profileId": "baseh-medium-v1",
+      "id": "288590657",
+      "canonicalCode": "HQFD95F",
+      "rawBody": "HQFD95",
+      "rawChecksum": "F"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "465790729",
-      "canonicalCode": "DW6SR96M",
-      "rawBody": "DW6SR9",
-      "rawChecksum": "6M"
+      "profileId": "baseh-medium-v1",
+      "id": "295869844",
+      "canonicalCode": "J5A104F",
+      "rawBody": "J5A104",
+      "rawChecksum": "F"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "501100600",
-      "canonicalCode": "EXWC1RCK",
-      "rawBody": "EXWC1R",
-      "rawChecksum": "CK"
+      "profileId": "baseh-medium-v1",
+      "id": "339117536",
+      "canonicalCode": "MMP3VHK",
+      "rawBody": "MMP3VH",
+      "rawChecksum": "K"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "525056835",
-      "canonicalCode": "FMQET3YW",
-      "rawBody": "FMQET3",
-      "rawChecksum": "YW"
+      "profileId": "baseh-medium-v1",
+      "id": "357083971",
+      "canonicalCode": "PPYH6ZM",
+      "rawBody": "PPYH6Z",
+      "rawChecksum": "M"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "570016551",
-      "canonicalCode": "GZKGS7TQ",
-      "rawBody": "GZKGS7",
-      "rawChecksum": "TQ"
+      "profileId": "baseh-medium-v1",
+      "id": "368533587",
+      "canonicalCode": "QCH49UC",
+      "rawBody": "QCH49U",
+      "rawChecksum": "C"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "599221937",
-      "canonicalCode": "HVESNHC6",
-      "rawBody": "HVESNH",
-      "rawChecksum": "C6"
+      "profileId": "baseh-medium-v1",
+      "id": "374923390",
+      "canonicalCode": "QQZ6J2A",
+      "rawBody": "QQZ6J2",
+      "rawChecksum": "A"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "603593537",
-      "canonicalCode": "HZM6T1DU",
-      "rawBody": "HZM6T1",
-      "rawChecksum": "DU"
+      "profileId": "baseh-medium-v1",
+      "id": "402351877",
+      "canonicalCode": "UAHMXX2",
+      "rawBody": "UAHMXX",
+      "rawChecksum": "2"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "669786338",
-      "canonicalCode": "KYR872CD",
-      "rawBody": "KYR872",
-      "rawChecksum": "CD"
+      "profileId": "baseh-medium-v1",
+      "id": "445289700",
+      "canonicalCode": "XVDMGHA",
+      "rawBody": "XVDMGH",
+      "rawChecksum": "A"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "672225328",
-      "canonicalCode": "M12P1GC7",
-      "rawBody": "M12P1G",
-      "rawChecksum": "C7"
+      "profileId": "baseh-medium-v1",
+      "id": "460943691",
+      "canonicalCode": "YQXRAMQ",
+      "rawBody": "YQXRAM",
+      "rawChecksum": "Q"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "693619061",
-      "canonicalCode": "MNFJBNET",
-      "rawBody": "MNFJBN",
-      "rawChecksum": "ET"
+      "profileId": "baseh-medium-v1",
+      "id": "466913416",
+      "canonicalCode": "Z3JPU4G",
+      "rawBody": "Z3JPU4",
+      "rawChecksum": "G"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "703006970",
-      "canonicalCode": "MYE27TPP",
-      "rawBody": "MYE27T",
-      "rawChecksum": "PP"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "731687190",
-      "canonicalCode": "NSSA8PUY",
-      "rawBody": "NSSA8P",
-      "rawChecksum": "UY"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "756749540",
-      "canonicalCode": "PHP574AE",
-      "rawBody": "PHP574",
-      "rawChecksum": "AE"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "781742206",
-      "canonicalCode": "Q9GW3YGW",
-      "rawBody": "Q9GW3Y",
-      "rawChecksum": "GW"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "786011666",
-      "canonicalCode": "QDK5GJ3X",
-      "rawBody": "QDK5GJ",
-      "rawChecksum": "3X"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "821619942",
-      "canonicalCode": "RFHV76X7",
-      "rawBody": "RFHV76",
-      "rawChecksum": "X7"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "824431039",
-      "canonicalCode": "RJ7MDZ4J",
-      "rawBody": "RJ7MDZ",
-      "rawChecksum": "4J"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "908057007",
-      "canonicalCode": "V1ZPDFNP",
-      "rawBody": "V1ZPDF",
-      "rawChecksum": "NP"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "937993989",
-      "canonicalCode": "VYH9R5C4",
-      "rawBody": "VYH9R5",
-      "rawChecksum": "C4"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "951840851",
-      "canonicalCode": "WBQW2KUY",
-      "rawBody": "WBQW2K",
-      "rawChecksum": "UY"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "982335421",
-      "canonicalCode": "X8TFXXDT",
-      "rawBody": "X8TFXX",
-      "rawChecksum": "DT"
-    },
-    {
-      "profileId": "baseh32s-v1",
-      "id": "1073741822",
-      "canonicalCode": "ZZZZZYYC",
+      "profileId": "baseh-medium-v1",
+      "id": "481890302",
+      "canonicalCode": "ZZZZZYU",
       "rawBody": "ZZZZZY",
-      "rawChecksum": "YC"
+      "rawChecksum": "U"
     },
     {
-      "profileId": "baseh32s-v1",
-      "id": "1073741823",
-      "canonicalCode": "ZZZZZZYD",
+      "profileId": "baseh-medium-v1",
+      "id": "481890303",
+      "canonicalCode": "ZZZZZZV",
       "rawBody": "ZZZZZZ",
-      "rawChecksum": "YD"
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "0",
+      "canonicalCode": "0000006",
+      "rawBody": "000000",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "1",
+      "canonicalCode": "0000017",
+      "rawBody": "000001",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "2",
+      "canonicalCode": "0000029",
+      "rawBody": "000002",
+      "rawChecksum": "9"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "31",
+      "canonicalCode": "0000156",
+      "rawBody": "000015",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "32",
+      "canonicalCode": "0000167",
+      "rawBody": "000016",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "33",
+      "canonicalCode": "0000179",
+      "rawBody": "000017",
+      "rawChecksum": "9"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "11337427",
+      "canonicalCode": "0YR18XU",
+      "rawBody": "0YR18X",
+      "rawChecksum": "U"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "27823153",
+      "canonicalCode": "28X0E7Y",
+      "rawBody": "28X0E7",
+      "rawChecksum": "Y"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "34321982",
+      "canonicalCode": "2X2Q46A",
+      "rawBody": "2X2Q46",
+      "rawChecksum": "A"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "54931554",
+      "canonicalCode": "4J59M2V",
+      "rawBody": "4J59M2",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "88832441",
+      "canonicalCode": "7CA4Y9K",
+      "rawBody": "7CA4Y9",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "110284536",
+      "canonicalCode": "978MQYE",
+      "rawBody": "978MQY",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "128755172",
+      "canonicalCode": "ARPJ60K",
+      "rawBody": "ARPJ60",
+      "rawChecksum": "K"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "129176295",
+      "canonicalCode": "AVKH51C",
+      "rawBody": "AVKH51",
+      "rawChecksum": "C"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "141393468",
+      "canonicalCode": "BXAKY86",
+      "rawBody": "BXAKY8",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "148731327",
+      "canonicalCode": "CEC4PKY",
+      "rawBody": "CEC4PK",
+      "rawChecksum": "Y"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "150074770",
+      "canonicalCode": "CJAJ2FC",
+      "rawBody": "CJAJ2F",
+      "rawChecksum": "C"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "156925569",
+      "canonicalCode": "E5AAARF",
+      "rawBody": "E5AAAR",
+      "rawChecksum": "F"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "175053059",
+      "canonicalCode": "FP1Q5Z6",
+      "rawBody": "FP1Q5Z",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "184918781",
+      "canonicalCode": "HFK2CR2",
+      "rawBody": "HFK2CR",
+      "rawChecksum": "2"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "186563275",
+      "canonicalCode": "HM6K4H2",
+      "rawBody": "HM6K4H",
+      "rawChecksum": "2"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "186691222",
+      "canonicalCode": "HMEYBJ3",
+      "rawBody": "HMEYBJ",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "189524361",
+      "canonicalCode": "HYP3CEJ",
+      "rawBody": "HYP3CE",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "192345056",
+      "canonicalCode": "J4XJ2QV",
+      "rawBody": "J4XJ2Q",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "200858986",
+      "canonicalCode": "JXF0KJ4",
+      "rawBody": "JXF0KJ",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "203773933",
+      "canonicalCode": "K3XVMZV",
+      "rawBody": "K3XVMZ",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "208333286",
+      "canonicalCode": "KEX78MP",
+      "rawBody": "KEX78M",
+      "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "230022939",
+      "canonicalCode": "P998J3X",
+      "rawBody": "P998J3",
+      "rawChecksum": "X"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "230978184",
+      "canonicalCode": "PBBKM82",
+      "rawBody": "PBBKM8",
+      "rawChecksum": "2"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "231042997",
+      "canonicalCode": "PBH9H36",
+      "rawBody": "PBH9H3",
+      "rawChecksum": "6"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "239287252",
+      "canonicalCode": "Q3JB5VY",
+      "rawBody": "Q3JB5V",
+      "rawChecksum": "Y"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "248778604",
+      "canonicalCode": "QYABKVU",
+      "rawBody": "QYABKV",
+      "rawChecksum": "U"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "253098254",
+      "canonicalCode": "R7V5M6H",
+      "rawBody": "R7V5M6",
+      "rawChecksum": "H"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "255413381",
+      "canonicalCode": "RCXYBH3",
+      "rawBody": "RCXYBH",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "259582064",
+      "canonicalCode": "RV133FH",
+      "rawBody": "RV133F",
+      "rawChecksum": "H"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "266276343",
+      "canonicalCode": "VAKZXR3",
+      "rawBody": "VAKZXR",
+      "rawChecksum": "3"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "269364207",
+      "canonicalCode": "VKBKPRJ",
+      "rawBody": "VKBKPR",
+      "rawChecksum": "J"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "285685754",
+      "canonicalCode": "Y1481JQ",
+      "rawBody": "Y1481J",
+      "rawChecksum": "Q"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "308915774",
+      "canonicalCode": "ZZZZZY4",
+      "rawBody": "ZZZZZY",
+      "rawChecksum": "4"
+    },
+    {
+      "profileId": "baseh-heavy-v1",
+      "id": "308915775",
+      "canonicalCode": "ZZZZZZ6",
+      "rawBody": "ZZZZZZ",
+      "rawChecksum": "6"
     },
     {
       "profileId": "baseh32-noperm-test",
@@ -1322,24 +1948,24 @@
       "rawChecksum": "7"
     },
     {
-      "profileId": "baseh32-v1",
-      "input": "3nqk8nj",
+      "profileId": "baseh-medium-v1",
+      "input": "74uyc19",
       "id": "123456789",
-      "canonicalCode": "3NQK8NJ",
+      "canonicalCode": "74UYC19",
       "note": "lowercase"
     },
     {
-      "profileId": "baseh32-v1",
-      "input": "3NQK8NJ",
+      "profileId": "baseh-medium-v1",
+      "input": "74UYC19",
       "id": "123456789",
-      "canonicalCode": "3NQK8NJ",
+      "canonicalCode": "74UYC19",
       "note": "no separators"
     },
     {
-      "profileId": "baseh32-v1",
-      "input": "  3NQK8NJ ",
+      "profileId": "baseh-medium-v1",
+      "input": "  74UYC19 ",
       "id": "123456789",
-      "canonicalCode": "3NQK8NJ",
+      "canonicalCode": "74UYC19",
       "note": "whitespace"
     },
     {
@@ -1380,33 +2006,33 @@
   ],
   "errors": [
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-medium-v1",
       "input": "0000000",
       "error": "INVALID_CHECKSUM"
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-medium-v1",
       "input": "00000",
       "error": "INVALID_LENGTH"
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-medium-v1",
       "input": "0000@0X",
       "error": "INVALID_CHARACTER"
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-medium-v1",
       "input": "0000PD",
       "error": "INVALID_LENGTH"
     },
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-heavy-v1",
       "input": "U00000A",
       "error": "INVALID_CHARACTER"
     },
     {
-      "profileId": "baseh32-v1",
-      "input": "00002D2",
+      "profileId": "baseh-medium-v1",
+      "input": "00002Q2",
       "error": "INVALID_CHECKSUM"
     },
     {

@@ -5,7 +5,8 @@
  */
 import { writeFileSync } from "node:fs";
 import {
-  Baseh, baseh32V1, baseh32sV1, prepareProfile, calculateChecksum, permute, inversePermute
+  Baseh, basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
+  prepareProfile, calculateChecksum, permute, inversePermute
 } from "../src/index.js";
 import type { BasehProfile } from "../src/index.js";
 
@@ -26,27 +27,41 @@ interface VectorProfile {
   keyHex: string | null;
 }
 
-function profiles(): VectorProfile[] {
-  // Frozen profiles ship permutation-off, so their vectors are unpermuted.
-  const base = baseh32V1();
-  const strong = baseh32sV1();
-  const noPerm: BasehProfile = { ...base, profileId: "baseh32-noperm-test", permutation: { enabled: false } };
-  // Dedicated permuted profile keeps the full encode/decode pipeline covered
-  // cross-language with a published test key.
-  const permTest: BasehProfile = {
-    ...base,
-    profileId: "baseh32-perm-test",
-    permutation: {
-      enabled: true,
-      algorithm: "feistel-v1",
-      keyId: "test-01",
-      keyBytes: TEST_KEY,
-      rounds: 8
-    }
+/**
+ * Classic 32-symbol test profiles, kept identical to earlier vector versions
+ * so correction and permutation vectors stay stable across the tier rework.
+ */
+function alpha32TestProfile(profileId: string, permutation: BasehProfile["permutation"]): BasehProfile {
+  return {
+    profileId,
+    bodyAlphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+    bodyLength: 6,
+    checksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+    checksumLength: 1,
+    caseSensitive: false,
+    separator: "",
+    grouping: [],
+    aliases: { O: "0", I: "1", L: "1" },
+    permutation
   };
+}
+
+function profiles(): VectorProfile[] {
+  // Frozen tiers ship permutation-off; the keyed -p variants are exercised by
+  // the dedicated perm-test profile below.
+  const noPerm = alpha32TestProfile("baseh32-noperm-test", { enabled: false });
+  const permTest = alpha32TestProfile("baseh32-perm-test", {
+    enabled: true,
+    algorithm: "feistel-v1",
+    keyId: "test-01",
+    keyBytes: TEST_KEY,
+    rounds: 8
+  });
   return [
-    { profile: base, keyHex: null },
-    { profile: strong, keyHex: null },
+    { profile: basehMinimumV1(), keyHex: null },
+    { profile: basehLightV1(), keyHex: null },
+    { profile: basehMediumV1(), keyHex: null },
+    { profile: basehHeavyV1(), keyHex: null },
     { profile: noPerm, keyHex: null },
     { profile: permTest, keyHex: TEST_KEY_HEX }
   ];
@@ -61,6 +76,7 @@ function idsFor(capacity: bigint): bigint[] {
 
 const codecVectors: unknown[] = [];
 const profileEntries: unknown[] = [];
+const encodeErrors: unknown[] = [];
 
 for (const { profile, keyHex } of profiles()) {
   const h = new Baseh(profile);
@@ -85,14 +101,26 @@ for (const { profile, keyHex } of profiles()) {
             keyBytesHex: keyHex,
             rounds: profile.permutation.rounds
           }
-        : { enabled: false }
+        : { enabled: false },
+      ...(profile.profanity ? { profanity: profile.profanity } : {})
     },
     capacity: prepared.capacity.toString()
   };
   profileEntries.push(entry);
 
   for (const id of idsFor(prepared.capacity)) {
-    const canonical = h.encode(id);
+    let canonical: string;
+    try {
+      canonical = h.encode(id);
+    } catch (e) {
+      // Blocklist tiers reserve some ids; record the failure as a vector.
+      const code = (e as { code?: string }).code;
+      if (code === "BLOCKED_CODE") {
+        encodeErrors.push({ profileId: profile.profileId, id: id.toString(10), error: "BLOCKED_CODE" });
+        continue;
+      }
+      throw e;
+    }
     const raw = canonical.replaceAll("-", "");
     codecVectors.push({
       profileId: profile.profileId,
@@ -106,7 +134,7 @@ for (const { profile, keyHex } of profiles()) {
 
 // Decode-side vectors: aliases, case, separators, whitespace.
 {
-  const base = baseh32V1();
+  const base = basehMediumV1();
   const h = new Baseh(base);
   const canonical = h.encode(123456789n);
   (codecVectors as unknown[]).push(
@@ -118,17 +146,17 @@ for (const { profile, keyHex } of profiles()) {
 
 // Error vectors.
 const errorVectors: unknown[] = [
-  { profileId: "baseh32-v1", input: "0000000", error: "INVALID_CHECKSUM" },
-  { profileId: "baseh32-v1", input: "00000", error: "INVALID_LENGTH" },
-  { profileId: "baseh32-v1", input: "0000@0X", error: "INVALID_CHARACTER" },
-  { profileId: "baseh32-v1", input: "0000PD", error: "INVALID_LENGTH" },
-  // U exists only in the checksum alphabet; placed in the body region it must
-  // fail as INVALID_CHARACTER (spec 9), not crash and not pass through.
-  { profileId: "baseh32-v1", input: "U00000A", error: "INVALID_CHARACTER" }
+  { profileId: "baseh-medium-v1", input: "0000000", error: "INVALID_CHECKSUM" },
+  { profileId: "baseh-medium-v1", input: "00000", error: "INVALID_LENGTH" },
+  { profileId: "baseh-medium-v1", input: "0000@0X", error: "INVALID_CHARACTER" },
+  { profileId: "baseh-medium-v1", input: "0000PD", error: "INVALID_LENGTH" },
+  // U exists only in the heavy checksum alphabet; placed in the body region
+  // it must fail as INVALID_CHARACTER (spec 9), not crash and not pass through.
+  { profileId: "baseh-heavy-v1", input: "U00000A", error: "INVALID_CHARACTER" }
 ];
 // checksum-failing code built deterministically from a real body
 {
-  const base = baseh32V1();
+  const base = basehMediumV1();
   const h = new Baseh(base);
   const canonical = h.encode(77n);
   const raw = canonical.replaceAll("-", "");
@@ -142,8 +170,7 @@ const errorVectors: unknown[] = [
 // Checksums must be computed under the exact profile the vectors name:
 // baseh32-noperm-test, whose profileId is part of the checksum domain.
 const correctionVectors: unknown[] = (() => {
-  const base = baseh32V1();
-  const noPerm: BasehProfile = { ...base, profileId: "baseh32-noperm-test", permutation: { enabled: false } };
+  const noPerm = alpha32TestProfile("baseh32-noperm-test", { enabled: false });
   const prepared = prepareProfile(noPerm);
   const uniqueCheck = calculateChecksum(prepared, "0000PB");
   const ambCheck = calculateChecksum(prepared, "0000BP");
@@ -260,8 +287,6 @@ for (const [p, h] of [
 ] as const) {
   profileEntries.push(profileEntry(p, h, null));
 }
-
-const encodeErrors: unknown[] = [];
 
 // Default list: a CRAP-containing code is rejected.
 const idCrap = findIdWith(hBlockDefault, "CRAP");

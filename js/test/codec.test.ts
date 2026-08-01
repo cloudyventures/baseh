@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import fc from "fast-check";
 import {
   Baseh, BasehError, encodeBaseN, generateCandidates, calculateChecksum, prepareProfile,
-  baseh32V1, baseh32sV1, inversePermute, permute
+  basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
+  basehMinimumPV1, basehLightPV1, basehMediumPV1, basehHeavyPV1,
+  inversePermute, permute
 } from "../src/index.js";
 import type { BasehProfile } from "../src/index.js";
 
@@ -27,9 +29,25 @@ function profile(overrides: Partial<BasehProfile> = {}): BasehProfile {
   };
 }
 
-function frozenNoPerm(): BasehProfile {
-  const p = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
-  return { ...p, permutation: { enabled: false } };
+/**
+ * Test-local profile with the classic 32-symbol body and 26-symbol checksum
+ * alphabet (modulus 26), used so the checksum and correction suites exercise
+ * the documented modulus-26 behaviour directly. No profanity, no permutation.
+ */
+function alpha32Profile(overrides: Partial<BasehProfile> = {}): BasehProfile {
+  return {
+    profileId: "test-frozen",
+    bodyAlphabet: ALPHA32,
+    bodyLength: 6,
+    checksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+    checksumLength: 1,
+    caseSensitive: false,
+    separator: "",
+    grouping: [],
+    aliases: { O: "0", I: "1", L: "1" },
+    permutation: { enabled: false },
+    ...overrides
+  };
 }
 
 describe("profile validation", () => {
@@ -60,8 +78,23 @@ describe("profile validation", () => {
     });
   }
   it("accepts frozen profiles", () => {
-    assert.doesNotThrow(() => new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" })));
-    assert.doesNotThrow(() => new Baseh(baseh32sV1({ keyBytes: TEST_KEY, keyId: "test-01" })));
+    assert.doesNotThrow(() => new Baseh(basehMinimumV1()));
+    assert.doesNotThrow(() => new Baseh(basehLightV1()));
+    assert.doesNotThrow(() => new Baseh(basehMediumV1()));
+    assert.doesNotThrow(() => new Baseh(basehHeavyV1()));
+    assert.doesNotThrow(() => new Baseh(basehMinimumPV1({ keyBytes: TEST_KEY })));
+    assert.doesNotThrow(() => new Baseh(basehLightPV1({ keyBytes: TEST_KEY })));
+    assert.doesNotThrow(() => new Baseh(basehMediumPV1({ keyBytes: TEST_KEY })));
+    assert.doesNotThrow(() => new Baseh(basehHeavyPV1({ keyBytes: TEST_KEY })));
+  });
+  it("frozen profiles have the documented tiers and capacities", () => {
+    assert.equal(new Baseh(basehMinimumV1()).capacity(), 2_176_782_336n);
+    assert.equal(new Baseh(basehLightV1()).capacity(), 887_503_681n);
+    assert.equal(new Baseh(basehMediumV1()).capacity(), 481_890_304n);
+    assert.equal(new Baseh(basehHeavyV1()).capacity(), 308_915_776n);
+    assert.equal(basehMinimumV1().permutation.enabled, false);
+    assert.equal(basehMediumPV1({ keyBytes: TEST_KEY }).permutation.enabled, true);
+    assert.equal(basehMediumPV1({ keyBytes: TEST_KEY }).profileId, "baseh-medium-p-v1");
   });
 });
 
@@ -93,8 +126,8 @@ describe("checksum", () => {
     const h2 = new Baseh(profile({ profileId: "test-other" }));
     assert.notEqual(h1.encode(1), h2.encode(1));
   });
-  it("delta-26 substitution passes baseh32-v1 checksum (documented limit)", () => {
-    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
+  it("delta-26 substitution passes a modulus-26 checksum (documented limit)", () => {
+    const h = new Baseh(alpha32Profile());
     // Find a body containing a low-value symbol (value <= 5) so +26 stays in range.
     let mutated: string | null = null;
     let suffix = "";
@@ -116,10 +149,8 @@ describe("checksum", () => {
     // Validation succeeds silently but resolves to a different record.
     assert.notEqual(h.decode(mutated + suffix).id, baseId);
   });
-  it("baseh32s-v1 detects every single-symbol substitution (sampled exhaustive)", () => {
-    const prepared = prepareProfile(frozenNoPerm());
-    const h = new Baseh({ ...frozenNoPerm(), profileId: "baseh32s-v1", checksumLength: 2 });
-    void prepared;
+  it("two checksum symbols detect every single-symbol substitution (sampled exhaustive)", () => {
+    const h = new Baseh(alpha32Profile({ profileId: "test-strong", checksumLength: 2 }));
     // Sample bodies, then substitute every position with every wrong symbol.
     const sample = ["000000", "0000PB", "ABCDEF", "ZZZZZZ", "123ABC", "MNPQRS"];
     for (const body of sample) {
@@ -169,7 +200,7 @@ describe("aliases and normalization", () => {
 });
 
 describe("correction", () => {
-  const conf = frozenNoPerm();
+  const conf = alpha32Profile();
   const prepared = prepareProfile(conf);
   const h = new Baseh(conf);
 
@@ -231,8 +262,8 @@ describe("permutation", () => {
     assert.notEqual(a, c);
   });
   it("frozen profile round-trips with permutation on", () => {
-    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
-    for (const id of [0n, 1n, 999n, 1_073_741_823n]) {
+    const h = new Baseh(basehMediumPV1({ keyBytes: TEST_KEY, keyId: "test-01" }));
+    for (const id of [0n, 1n, 999n, 481_890_303n]) {
       assert.equal(h.decode(h.encode(id)).id, id);
     }
   });
@@ -240,9 +271,17 @@ describe("permutation", () => {
 
 describe("property tests", () => {
   it("round-trip for random ids on frozen profile", () => {
-    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
-    fc.assert(fc.property(fc.bigInt({ min: 0n, max: 1_073_741_823n }), (id) => {
-      assert.equal(h.decode(h.encode(id)).id, id);
+    const h = new Baseh(basehMediumV1());
+    fc.assert(fc.property(fc.bigInt({ min: 0n, max: 481_890_303n }), (id) => {
+      // The tier blocklist reserves some ids; skip those and round-trip the rest.
+      let code: string;
+      try {
+        code = h.encode(id);
+      } catch (e) {
+        assert.ok(e instanceof BasehError && e.code === "BLOCKED_CODE");
+        return;
+      }
+      assert.equal(h.decode(code).id, id);
     }), { numRuns: 200 });
   });
   it("canonical stability", () => {
