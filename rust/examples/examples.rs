@@ -126,4 +126,27 @@ fn main() {
     growing.separator_min_length = 7;
     let invoices = Baseh::new(growing).expect("valid profile");
     show_str("encode(123456789)", invoices.encode(&id));
+
+    // 5. A view helper for handlers: one shared codec built at boot, records
+    // rendered as codes at the edge. Call baseh_code in the handler and pass
+    // the rendered string to the template engine; here it is exercised
+    // framework-free. The matching decode-side pattern is in
+    // docs/cookbook.md ("Framework view helpers").
+    println!("== view helper ==");
+    fn baseh_code(codec: &Baseh, id: u64) -> String {
+        codec.encode(&BigUint::from(id)).expect("in range")
+    }
+    let helper = Baseh::new(baseh_expandable_v1()).expect("valid profile");
+    let order_id = 123456u64;
+    println!("baseh_code(order) -> {}", baseh_code(&helper, order_id));
+    show_id(
+        "decode(...) round trip",
+        helper
+            .decode(&baseh_code(&helper, order_id), &strict)
+            .map(|r| r.id),
+    );
+    show_id(
+        "decode(\"ZZZZ-ZZZZ\") (bogus code)",
+        helper.decode("ZZZZ-ZZZZ", &strict).map(|r| r.id),
+    );
 }

@@ -98,3 +98,32 @@ order = Order.new(123456)
 puts "<%= baseh_code(@order) %> -> #{baseh_code(order)}"
 show("controller-side decode") { BasehHelper::CODEC.decode(baseh_code(order)).id }
 show("controller-side decode (bogus code)") { BasehHelper::CODEC.decode("ZZZZ-ZZZZ").id }
+
+# 6. Issuing codes: the expandable issuance-counter pattern, runnable without
+#    a database. One shared codec wraps a single counter; each call increments
+#    and encodes, so issued codes never look sequential even though the ids
+#    are. In production the ivar below is swapped for a Postgres SEQUENCE or
+#    an atomically-incremented counters row — exactly one writer, and the
+#    counter is backed up with the database. See docs/cookbook.md ("Issuing
+#    codes").
+puts "== issuing codes =="
+class Issuer
+  def initialize(codec)
+    @codec = codec
+    @next_id = 0 # production: SELECT nextval('codes_seq') or an atomic UPDATE
+  end
+
+  def issue
+    @next_id += 1
+    @codec.encode(id: @next_id)
+  end
+
+  def decode(code)
+    @codec.decode(code).id
+  end
+end
+
+issuer = Issuer.new(Baseh::Baseh.new(Baseh.baseh_expandable_v1))
+issued = Array.new(6) { issuer.issue }
+puts "issue x6 -> #{issued.inspect}"
+show("decode(#{issued.first}) back to its id") { issuer.decode(issued.first) }

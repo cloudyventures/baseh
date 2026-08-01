@@ -5,7 +5,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"math/big"
+	"strings"
 
 	baseh "github.com/cloudyventures/baseh/go/v2"
 )
@@ -188,4 +190,50 @@ func main() {
 	if capacity, err := orders.Capacity(); err == nil {
 		fmt.Printf("Capacity -> %s\n", capacity)
 	}
+
+	// 6. A view helper for html/template: one shared codec built at boot,
+	// records rendered as codes at the edge via a FuncMap entry. Runs on the
+	// stdlib alone; the matching decode-side pattern is in docs/cookbook.md
+	// ("Framework view helpers").
+	fmt.Println("== view helper (html/template) ==")
+	helper, err := baseh.New(baseh.ExpandableV1())
+	if err != nil {
+		panic(err)
+	}
+	tmpl, err := template.New("order").Funcs(template.FuncMap{
+		"basehCode": func(id int64) string {
+			code, err := helper.Encode(big.NewInt(id))
+			if err != nil {
+				return ""
+			}
+			return code
+		},
+	}).Parse("Order #{{ .ID }} is {{ basehCode .ID }}")
+	if err != nil {
+		panic(err)
+	}
+	order := struct{ ID int64 }{123456}
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, order); err != nil {
+		panic(err)
+	}
+	fmt.Printf("template output -> %s\n", buf.String())
+	orderCode, err := helper.Encode(big.NewInt(order.ID))
+	if err != nil {
+		panic(err)
+	}
+	showID("Decode(...) round trip", func() (*big.Int, error) {
+		r, e := helper.Decode(orderCode, nil)
+		if e != nil {
+			return nil, e
+		}
+		return r.ID, nil
+	})
+	showID(`Decode("ZZZZ-ZZZZ") (bogus code)`, func() (*big.Int, error) {
+		r, e := helper.Decode("ZZZZ-ZZZZ", nil)
+		if e != nil {
+			return nil, e
+		}
+		return r.ID, nil
+	})
 }
