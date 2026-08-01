@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BaseH code designer</title>
+  <title>BaseH Code Designer</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <header>
-    <h1>BaseH code designer</h1>
+    <h1>BaseH Code Designer</h1>
     <p class="sub">Required capacity in, shortest valid configuration out. <a href="./index.html">Go to the capacity calculator</a>.</p>
   </header>
   <main class="cols designer">
@@ -92,16 +92,16 @@
       <div id="alternatives"></div>
     </section>
 
-    <section aria-labelledby="compare">
-      <h2 id="compare">Comparison</h2>
-      <table id="candidates">
-        <thead>
-          <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>id 0</th><th>Reason</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
   </main>
+  <section class="wide" aria-labelledby="compare">
+    <h2 id="compare">Comparisons</h2>
+    <table id="candidates">
+      <thead>
+        <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>id 0</th><th>Reason</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
   <script type="module" src="/src/designer.ts"></script>
 </body>
 </html>
