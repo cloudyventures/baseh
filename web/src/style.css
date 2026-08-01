@@ -40,6 +40,7 @@ fieldset legend { font-size: 0.85rem; color: var(--muted); }
   font-variant-numeric: tabular-nums;
 }
 .card .big { font-size: 1.5rem; font-weight: 700; }
+.card .big .unit { font-size: 1rem; font-weight: normal; }
 .badge { display: inline-block; font-size: 0.75rem; border-radius: 999px; padding: 0.1rem 0.6rem; margin-left: 0.4rem; vertical-align: middle; }
 .badge.green { background: #e2f2e5; color: var(--accent); }
 .badge.amber { background: #fdf0d3; color: #8a6512; }
