@@ -201,7 +201,10 @@ function render() {
     els.convCodeOut.textContent = "no feasible design to convert with";
   } else {
     try {
-      els.convCodeOut.textContent = `identifier ${h.decode(codeRaw).id}`;
+      const result = h.decode(codeRaw);
+      els.convCodeOut.textContent = result.corrected
+        ? `identifier ${result.id}, corrected to ${result.canonicalCode}`
+        : `identifier ${result.id}`;
     } catch (e) {
       els.convCodeOut.textContent = friendlyError(e);
     }
