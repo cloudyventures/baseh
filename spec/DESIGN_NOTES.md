@@ -99,6 +99,8 @@ Recommendation:
 - Self-service record lookup: two.
 - High consequence workflow: use a stronger standard and additional authentication.
 
+Version 2 settles this for the frozen tiers: Light, Medium and Heavy ship two checksum symbols and Minimum stays at zero. Version 1 shipped one; the capacity and alphabet decisions were unchanged in the swap.
+
 ## 5. Correction versus detection
 
 A checksum can validate candidate substitutions but does not, by itself, guarantee correction.
@@ -169,7 +171,7 @@ A fixed prefix does not add capacity.
 Examples:
 
 ```text
-T-7KM4Q2H
+T-C8XP-8J49
 O-1DP-8R7-C
 ```
 
@@ -219,7 +221,7 @@ Separators improve chunking but add length.
 
 Recommended grouping:
 
-- The frozen profiles use no separators. Custom profiles that add their own should keep groups of 3 or 4.
+- The frozen profiles hyphen-delimit at the midpoint: six characters become `[3, 3]` and eight become `[4, 4]`. Custom profiles should keep groups of 3 or 4.
 - Five body plus one check: `3-3`.
 - Six body plus two check: `4-4` or `3-3-2`.
 
@@ -350,8 +352,6 @@ Each extension requires a new profile or new outer protocol.
 ## 22. Decisions deferred
 
 - Final spoken candidate sets.
-- Default checksum length by product.
-- Whether sequence masking is enabled.
 - Final public product name.
 - Whether codes are stored or generated.
 - Exact correction telemetry retention.
@@ -359,11 +359,13 @@ Each extension requires a new profile or new outer protocol.
 
 ## 23. Recommended first release
 
+Version 2 of the frozen tiers shipped as:
+
 ```yaml
 profile_id: baseh-medium-v1
 alphabet: "0123456789ACDEFGHJKMPQRUVXYZ"
 body_length: 6
-checksum_length: 1
+checksum_length: 2
 case_sensitive: false
 aliases:
   O: "0"
@@ -375,10 +377,13 @@ aliases:
 correction:
   enabled: false
 permutation:
-  enabled: false
+  enabled: true
+  algorithm: feistel-v1
+  key_id: frozen
+  rounds: 8
 format:
-  grouping: []
-  separator: ""
+  grouping: [4, 4]
+  separator: "-"
 ```
 
 Enable correction only after checksum testing and customer confusion data are available.

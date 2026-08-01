@@ -15,7 +15,7 @@
     <section aria-labelledby="cfg">
       <h2 id="cfg">Configuration</h2>
       <div class="field">
-        <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads one of the four frozen tier configurations; every control stays editable afterwards, so use a preset as a starting point you can modify. Minimum: full 36-symbol alphanumeric, no checksum, hyphen grouped in threes, 2,176,782,336 codes. Light: light visual and spoken safety, 1 checksum, 887,503,681 codes. Medium: medium safety, 1 checksum, 481,890,304 codes (the documented default). Heavy: heavy safety, 1 checksum, 308,915,776 codes. All four run the profanity blocklist. Choose Custom to keep whatever you have set by hand.</span></span></label>
+        <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads one of the four frozen tier configurations; every control stays editable afterwards, so use a preset as a starting point you can modify. Minimum: full 36-symbol alphanumeric, no checksum, hyphen grouped in threes, 2,176,782,336 codes. Light: light visual and spoken safety, 2 checksums, hyphen grouped in fours, 887,503,681 codes. Medium: medium safety, 2 checksums, hyphen grouped in fours, 481,890,304 codes (the documented default). Heavy: heavy safety, 2 checksums, hyphen grouped in fours, 308,915,776 codes. All four run the profanity blocklist and ship with permutation on. Choose Custom to keep whatever you have set by hand.</span></span></label>
         <select id="preset">
           <option value="">Custom</option>
           <option value="minimum">Minimum (2.18B, no checksum)</option>
@@ -86,7 +86,7 @@
       </div>
       <fieldset class="field">
         <legend>Permutation</legend>
-        <label class="check"><input id="permutation" type="checkbox" /> On (presentation only)</label>
+        <label class="check"><input id="permutation" type="checkbox" checked /> On (presentation only)</label>
         <p class="muted">Hides obvious sequence in the preview. It is not access control: the preview key is public and a real application's key must never reach a browser. It also costs compute: with permutation off, encode is about 20x faster and decode about 13x faster (1 microsecond per code instead of tens of microseconds), so it matters for bulk encoding, not per request.</p>
       </fieldset>
     </section>

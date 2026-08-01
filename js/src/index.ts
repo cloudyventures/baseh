@@ -16,6 +16,7 @@ export { permute, inversePermute } from "./feistel.js";
 export {
   basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
   basehMinimumPV1, basehLightPV1, basehMediumPV1, basehHeavyPV1,
+  FROZEN_KEY_BYTES,
   type FrozenKeyOptions
 } from "./profiles.js";
 export { toCode, fromCode } from "./zero.js";

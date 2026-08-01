@@ -2,8 +2,8 @@
 
 TypeScript implementation of the baseH (Human Reference Code) codec. Encodes
 integer IDs as fixed-length, checksummed, human-friendly reference codes with
-an opt-in reversible feistel-v1 permutation and profanity safety. The
-normative spec is `spec/IMPLEMENTATION_CODEC.md` in the
+a feistel-v1 permutation on every tier and profanity safety. The normative
+spec is `spec/IMPLEMENTATION_CODEC.md` in the
 [monorepo](https://github.com/cloudyventures/baseh).
 
 ## Install
@@ -18,17 +18,18 @@ Zero runtime dependencies. Requires Node 18 or later (native `BigInt`).
 
 Four frozen tiers ship with the package, built from the full alphanumeric set
 with cumulative visual and spoken strips. All four encode 6 body symbols,
-are case-insensitive and run the default profanity blocklist.
+are case-insensitive, hyphen-delimit at the midpoint, run the default
+profanity blocklist and permute with the published frozen key.
 
 | Tier | Helper | Body symbols | Checksum | Format | Capacity |
 | ---- | ------ | ------------ | -------- | ------ | -------- |
 | Minimum | `basehMinimumV1` | 36 | none | `XXX-XXX` | 2,176,782,336 |
-| Light | `basehLightV1` | 31 | 1 | plain | 887,503,681 |
-| Medium | `basehMediumV1` | 28 | 1 | plain | 481,890,304 |
-| Heavy | `basehHeavyV1` | 26 | 1 | plain | 308,915,776 |
+| Light | `basehLightV1` | 31 | 2 | `XXXX-XXXX` | 887,503,681 |
+| Medium | `basehMediumV1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 |
+| Heavy | `basehHeavyV1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 |
 
-Medium is the default. Minimum keeps the full alphabet and uses a hyphen
-delimiter; the rest have no separator.
+Medium is the default. The frozen key is public by design: it hides sequence,
+not records. See the spec, section 7.5.
 
 ## Usage
 
@@ -37,7 +38,7 @@ import { Baseh, basehMediumV1 } from "@cloudyventures/baseh";
 
 const codec = new Baseh(basehMediumV1());
 
-const code = codec.encode(123456n);        // raw fixed-width code
+const code = codec.encode(123456n);        // fixed-width hyphenated code
 
 const result = codec.decode(code);
 result.id;                                 // 123456n
@@ -46,21 +47,21 @@ result.corrected;                          // true when input needed correction
 
 codec.capacity;                            // 481890304n
 
-const check = codec.validate("0000000");
+const check = codec.validate("00000000");
 check.valid;                               // false
 check.reason;                              // "INVALID_CHECKSUM"
 
 // Spoken-confusion correction
-codec.decode("TB14QDF", { tryCorrection: true, confusionProfile: "light" });
+codec.decode("TB14QDFU", { tryCorrection: true, confusionProfile: "light" });
 ```
 
 IDs are `bigint`, so every capacity and ID operation is exact at any size.
 
-## Permutation (opt-in)
+## Permutation
 
-The `P` variants opt a tier into the reversible feistel-v1 permutation.
-`keyBytes` is required; keep the key in a secret manager and never change it
-for a live profile:
+The plain tiers permute with `FROZEN_KEY_BYTES` (the published frozen key).
+The `P` variants take a caller-supplied key instead; keep that key in a
+secret manager and never change it for a live profile:
 
 ```typescript
 import { basehMediumPV1 } from "@cloudyventures/baseh";

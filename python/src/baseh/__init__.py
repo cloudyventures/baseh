@@ -2,7 +2,8 @@
 
 Public API mirrors spec section 12: the Baseh codec class, BasehError with a
 stable .code attribute and the frozen profile tier helpers (baseh_medium_v1
-is the default tier; the _p variants enable feistel-v1 permutation).
+is the default tier). The plain tiers permute with the frozen published key
+FROZEN_KEY_BYTES; the _p variants take caller-supplied key material instead.
 """
 
 from .blocklist import DEFAULT_BLOCKLIST
@@ -20,6 +21,7 @@ from .errors import (
     BasehError,
 )
 from .profiles import (
+    FROZEN_KEY_BYTES,
     baseh_heavy_p_v1,
     baseh_heavy_v1,
     baseh_light_p_v1,
@@ -38,6 +40,7 @@ __all__ = [
     "CONFUSION_MAPS",
     "DEFAULT_BLOCKLIST",
     "generate_candidates",
+    "FROZEN_KEY_BYTES",
     "baseh_minimum_v1",
     "baseh_minimum_p_v1",
     "baseh_light_v1",

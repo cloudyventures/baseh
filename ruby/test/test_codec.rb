@@ -174,15 +174,39 @@ class TestCodec < Minitest::Test
 
   # --- frozen tier helpers ---
 
-  def test_plain_helpers_disable_permutation_and_round_trip
+  def test_plain_helpers_permute_with_the_frozen_published_key
     [Baseh.baseh_minimum_v1,
      Baseh.baseh_light_v1,
      Baseh.baseh_medium_v1,
      Baseh.baseh_heavy_v1].each do |profile|
-      assert_equal({ enabled: false }, profile[:permutation])
+      permutation = profile[:permutation]
+      assert_equal true, permutation[:enabled]
+      assert_equal "feistel-v1", permutation[:algorithm]
+      assert_equal "frozen", permutation[:key_id]
+      assert_equal Baseh::FROZEN_KEY_BYTES, permutation[:key_bytes]
+      assert_equal 8, permutation[:rounds]
       codec = Baseh::Baseh.new(profile)
       assert_equal 42, codec.decode(codec.encode(id: 42)).id
     end
+  end
+
+  def test_frozen_tier_shapes
+    minimum = Baseh.baseh_minimum_v1
+    assert_equal 0, minimum[:checksum_length]
+    assert_equal "-", minimum[:separator]
+    assert_equal [3, 3], minimum[:grouping]
+    [Baseh.baseh_light_v1, Baseh.baseh_medium_v1, Baseh.baseh_heavy_v1].each do |profile|
+      assert_equal 2, profile[:checksum_length]
+      assert_equal "-", profile[:separator]
+      assert_equal [4, 4], profile[:grouping]
+    end
+  end
+
+  def test_frozen_and_private_keys_scramble_differently
+    frozen = Baseh::Baseh.new(Baseh.baseh_medium_v1)
+    privy = Baseh::Baseh.new(Baseh.baseh_medium_p_v1(key_bytes: TEST_KEY))
+    assert_equal 123_456, frozen.decode(frozen.encode(id: 123_456)).id
+    refute_equal frozen.encode(id: 123_456), privy.encode(id: 123_456)
   end
 
   def test_keyed_helpers_enable_feistel_v1
@@ -317,8 +341,8 @@ class TestCodec < Minitest::Test
   end
 
   def test_separator_chars_rejected_when_no_separator_configured
-    code = medium.encode(id: 42)
-    error = assert_raises(Baseh::BasehError) { medium.decode(code[0, 3] + "-" + code[3..]) }
+    code = noperm_codec.encode(id: 42)
+    error = assert_raises(Baseh::BasehError) { noperm_codec.decode(code[0, 3] + "-" + code[3..]) }
     assert_equal "INVALID_CHARACTER", error.code
   end
 
@@ -397,10 +421,10 @@ class TestCodec < Minitest::Test
 
   def test_checksum_fixed_width
     100.times do |i|
-      assert_equal 7, medium.encode(id: i * 1234).length
+      assert_equal 9, medium.encode(id: i * 1234).length
     end
     100.times do |i|
-      assert_equal 7, light.encode(id: i * 1234).length
+      assert_equal 9, light.encode(id: i * 1234).length
     end
   end
 

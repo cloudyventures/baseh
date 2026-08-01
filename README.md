@@ -7,16 +7,17 @@ baseH is designed to give you the best of both worlds: short, clear codes that a
 This implementation gives you total control over length, capacity, checksums and profanity, with error hardening for audio, visual or both. It was originally developed in support of new AI based customer service systems where a user might start in one channel and follow up in another, e.g. start on chat, follow up by phone, and so needed an easy to use reference number that worked both over the phone and the keyboard. 
 
 ```text
-7KM4Q2H
+C8XP-8J49
 ```
 
 - **Reversible**: an internal integer ID converts to a code and back, exactly.
 - **Checksummed**: routine transcription typos are detected on decode.
 - **Human-safe alphabet**: no `O`/`0`, `I`/`1`/`L` confusion in canonical output.
 - **Aliases**: typed `O`, `I`, `L` are accepted as `0`, `1`, `1`.
-- **Optional permutation**: off by default; an application can opt into a
-  keyed Feistel shuffle to hide sequence and volume. It is presentation only;
-  it is not encryption and not access control.
+- **Permutation always on**: every frozen tier shuffles sequence with a
+  published frozen key, so codes never read as adjacent. For a private
+  mapping the keyed `-p` tiers take your own key. Either way it is
+  presentation only; it is not encryption and not access control.
 - **Correction with abstention**: checksum-guided substitution suggestions
   that return `AMBIGUOUS_INPUT` instead of guessing.
 
@@ -35,7 +36,7 @@ Interactive, client-side only:
 |---|---|
 | JavaScript / TypeScript | `npm install @cloudyventures/baseh` |
 | Python | `pip install baseh` |
-| Go | `go get github.com/cloudyventures/baseh/go` |
+| Go | `go get github.com/cloudyventures/baseh/go/v2` |
 | Rust | `cargo add baseh` |
 | Ruby | `gem install baseh` |
 
@@ -46,12 +47,13 @@ import { Baseh, basehMediumV1 } from "@cloudyventures/baseh";
 
 const h = new Baseh(basehMediumV1());
 
-const code = h.encode(123456789n);   // e.g. "7KM4Q2H"
-const { id } = h.decode("7km 4q2 h", { acceptSpaces: true });
+const code = h.encode(123456789n);   // "C8XP-8J49"
+const { id } = h.decode("c8xp 8j49", { acceptSpaces: true });
 console.log(id === 123456789n);        // true
 ```
 
-To hide visible sequence, use a keyed `-p` tier and supply your own key:
+The frozen tiers already hide sequence with the public frozen key. For a
+private mapping, use a keyed `-p` tier and supply your own key:
 
 ```typescript
 const h = new Baseh(basehMediumPV1({ keyBytes: myKey, keyId: "prod-01" }));
@@ -64,18 +66,20 @@ fails if any implementation disagrees with them.
 ## Profiles
 
 Four frozen tiers ship with the library, all running the default profanity
-blocklist and all six characters of body:
+blocklist, all six characters of body, all hyphen-delimited and all
+permuting with the published frozen key:
 
-| Tier | Symbols | Checksum | Capacity | Use for |
-|---|---|---|---|---|
-| `baseh-minimum-v1` | 36 | none | 2,176,782,336 | Typed contexts, maximum capacity |
-| `baseh-light-v1` | 31 | 1 | 887,503,681 | Typed workflows with light safety |
-| `baseh-medium-v1` | 28 | 1 | 481,890,304 | General use; **the default** |
-| `baseh-heavy-v1` | 26 | 1 | 308,915,776 | Spoken-first workflows |
+| Tier | Symbols | Checksum | Shape | Capacity | Use for |
+|---|---|---|---|---|---|
+| `baseh-minimum-v1` | 36 | none | `XXX-XXX` | 2,176,782,336 | Typed contexts, maximum capacity |
+| `baseh-light-v1` | 31 | 2 | `XXXX-XXXX` | 887,503,681 | Typed workflows with light safety |
+| `baseh-medium-v1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 | General use; **the default** |
+| `baseh-heavy-v1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 | Spoken-first workflows |
 
-Each tier also has a keyed `-p` variant (`baseh-minimum-p-v1` through
-`baseh-heavy-p-v1`) that adds Feistel permutation; sequence-hiding keys are
-supplied by your application and never shipped in profiles or exports.
+The frozen key is public by design: it hides sequence, not records. Each
+tier also has a keyed `-p` variant (`baseh-minimum-p-v1` through
+`baseh-heavy-p-v1`) for a private mapping; those keys are supplied by your
+application and never shipped in profiles or exports.
 
 Profile helpers return a fresh profile object on every call, so you can load
 a default and modify it (longer body, custom separator, blocklist off)
@@ -99,7 +103,7 @@ Plan so it does not, and design so it does not matter if it does.
   creates a new versioned profile (`orders-v1` to `orders-v2`); codes issued
   under the old profile still decode against it forever. Keep both profiles
   registered in your lookup layer and route by length: codes are fixed width,
-  so 7 characters means the old profile and 8 means the new one. The checksum
+  so 8 characters means the old profile and 9 means the new one. The checksum
   mixes in the profile ID, so a code presented to the wrong profile fails
   validation loudly instead of silently resolving to the wrong record.
 - **Customers never mark their codes.** Length alone distinguishes old from
@@ -112,7 +116,7 @@ spec/       normative design documents
 vectors/    frozen cross-language conformance vectors
 js/         TypeScript reference implementation (npm: @cloudyventures/baseh)
 python/     Python implementation (PyPI: baseh)
-go/         Go implementation (module github.com/cloudyventures/baseh/go)
+go/         Go implementation (module github.com/cloudyventures/baseh/go/v2)
 rust/       Rust implementation (crates.io: baseh)
 ruby/       Ruby implementation (RubyGems: baseh)
 web/        calculator and designer source
@@ -132,7 +136,7 @@ of each package.
 
 ## Status and release process
 
-The codec, the four frozen tiers and the vector suite are version 1. Releases
+The codec, the four frozen tiers and the vector suite are version 2. Releases
 are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC

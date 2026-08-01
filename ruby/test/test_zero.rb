@@ -18,8 +18,9 @@ class TestZero < Minitest::Test
   def test_matches_the_frozen_medium_profile_exactly
     assert_equal medium.encode(id: 0), Baseh.to_code(0)
     assert_equal medium.encode(id: 123_456_789), Baseh.to_code(123_456_789)
-    assert_equal "ZZZZZZV", Baseh.to_code(481_890_303)
-    assert_equal "000000C", Baseh.to_code(0)
+    assert_equal "H3C9-2PEM", Baseh.to_code(481_890_303)
+    assert_equal "UJEA-4MA7", Baseh.to_code(0)
+    assert_equal "C8XP-8J49", Baseh.to_code(123_456_789)
   end
 
   def test_to_code_accepts_integer_and_decimal_string
@@ -35,8 +36,9 @@ class TestZero < Minitest::Test
 
   def test_to_code_raises_on_out_of_range_and_blocklisted_ids
     assert_baseh_error("OUT_OF_RANGE") { Baseh.to_code(481_890_304) }
-    # 1131 is reserved by the Medium blocklist.
-    assert_baseh_error("BLOCKED_CODE") { Baseh.to_code(1131) }
+    # 813 is reserved by the Medium blocklist once the frozen permutation is
+    # applied.
+    assert_baseh_error("BLOCKED_CODE") { Baseh.to_code(813) }
   end
 
   def test_from_code_returns_an_integer_and_round_trips
@@ -50,13 +52,13 @@ class TestZero < Minitest::Test
     assert_equal 123_456_789, Baseh.from_code(code.downcase)
     spaced = "  #{code[0, 3]} #{code[3, 2]}\t#{code[5..]} "
     assert_equal 123_456_789, Baseh.from_code(spaced)
-    # Typed aliases decode to canonical values.
-    assert_equal 0, Baseh.from_code("OOOOOOC")
+    # Typed aliases decode to canonical values: O reads as 0.
+    assert_equal 1, Baseh.from_code("UORY-PDCA")
   end
 
   def test_from_code_raises_on_invalid_input_with_no_correction
-    assert_baseh_error("INVALID_CHECKSUM") { Baseh.from_code("0000000") }
-    assert_baseh_error("INVALID_CHARACTER") { Baseh.from_code("!!!!!!!") }
+    assert_baseh_error("INVALID_CHECKSUM") { Baseh.from_code("00000000") }
+    assert_baseh_error("INVALID_CHARACTER") { Baseh.from_code("!!!!!!!!") }
     # B is an alias at Medium: it decodes as 8 rather than failing.
     code8 = nil
     id8 = nil

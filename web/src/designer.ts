@@ -187,9 +187,11 @@ function render() {
   } else {
     try {
       els.convIdOut.innerHTML = "";
+      const lab = document.createElement("span");
+      lab.textContent = "Code: ";
       const out = document.createElement("code");
-      out.textContent = `Code: ${h.encode(BigInt(idRaw))}`;
-      els.convIdOut.appendChild(out);
+      out.textContent = h.encode(BigInt(idRaw));
+      els.convIdOut.append(lab, out);
     } catch (e) {
       els.convIdOut.textContent = friendlyError(e);
     }
@@ -202,9 +204,18 @@ function render() {
   } else {
     try {
       const result = h.decode(codeRaw);
-      els.convCodeOut.textContent = result.corrected
-        ? `Identifier: ${result.id} - corrected to ${result.canonicalCode}`
-        : `Identifier: ${result.id}`;
+      els.convCodeOut.innerHTML = "";
+      const lab = document.createElement("span");
+      lab.textContent = "Identifier: ";
+      const val = document.createElement("code");
+      val.textContent = String(result.id);
+      if (result.corrected) {
+        const canonical = document.createElement("code");
+        canonical.textContent = result.canonicalCode;
+        els.convCodeOut.append(lab, val, " - corrected to ", canonical);
+      } else {
+        els.convCodeOut.append(lab, val);
+      }
     } catch (e) {
       els.convCodeOut.textContent = friendlyError(e);
     }

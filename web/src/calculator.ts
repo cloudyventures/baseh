@@ -50,9 +50,9 @@ interface Preset {
 // so a preset is a starting point you modify, not a locked view.
 const PRESETS: Record<string, Preset> = {
   minimum: { mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, separator: "-" },
-  light: { mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" },
-  medium: { mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" },
-  heavy: { mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" }
+  light: { mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
+  medium: { mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
+  heavy: { mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" }
 };
 
 function fmt(n: bigint): string {
@@ -92,6 +92,9 @@ function applyPreset(name: string) {
   els.bodyLen.value = String(p.bodyLength);
   els.checksumLen.value = String(p.checksumLength);
   els.separator.value = p.separator;
+  // Every frozen tier permutes with the published key, so its preset starts
+  // with the preview on to match.
+  els.permutation.checked = true;
   render();
 }
 

@@ -2,7 +2,7 @@
  * Shared math for the calculator and designer. No DOM access.
  * Capacity math is exact bigint; ratios are display-only Numbers.
  */
-import { Baseh, BasehError, type BasehProfile } from "@cloudyventures/baseh";
+import { Baseh, BasehError, FROZEN_KEY_BYTES, type BasehProfile } from "@cloudyventures/baseh";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
@@ -43,12 +43,13 @@ export const SCORING_VERSION = "1";
 export const DESIGNER_VERSION = "1";
 
 /**
- * Public preview key, used only to demonstrate permutation output in these
- * tools. A real application generates its own key and never ships it to a
- * browser.
+ * Preview key: the published frozen tier key, so the tools render exactly
+ * what the libraries produce. It is public by design (spec 7.5) and hides
+ * sequence only; a real application that wants secrecy generates its own
+ * key and never ships it to a browser.
  */
-export const PREVIEW_KEY_ID = "preview-01";
-export const PREVIEW_KEY_BYTES = new TextEncoder().encode("BASEHUMAN-PREVIEW-KEY-01");
+export const PREVIEW_KEY_ID = "frozen";
+export const PREVIEW_KEY_BYTES = FROZEN_KEY_BYTES;
 
 function previewPermutation(on: boolean): BasehProfile["permutation"] {
   if (!on) return { enabled: false };

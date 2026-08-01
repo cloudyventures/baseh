@@ -32,12 +32,12 @@ npm install @cloudyventures/baseh
 ```typescript
 import { toCode, fromCode } from "@cloudyventures/baseh";
 
-toCode(123456789n);           // "74UYC19"   (bigint, number or decimal string)
-toCode("123456789");          // "74UYC19"
-fromCode("74UYC19");          // 123456789n
-fromCode("74uyc 19");         // 123456789n  (lowercase and stray spaces accepted)
+toCode(123456789n);           // "C8XP-8J49"   (bigint, number or decimal string)
+toCode("123456789");          // "C8XP-8J49"
+fromCode("C8XP-8J49");        // 123456789n
+fromCode("c8xp 8j4 9");       // 123456789n  (lowercase and stray spaces accepted)
 
-fromCode("74UYC1X");          // throws BasehError [INVALID_CHECKSUM]
+fromCode("C8XP-8J4X");        // throws BasehError [INVALID_CHECKSUM]
 toCode(481890304n);           // throws BasehError [OUT_OF_RANGE]: id == capacity
 ```
 
@@ -48,16 +48,16 @@ import { Baseh, BasehError, basehMediumV1 } from "@cloudyventures/baseh";
 
 const medium = new Baseh(basehMediumV1());
 
-medium.encode(123456789n);    // "74UYC19"
-medium.decode("74UYC19").id;  // 123456789n
-medium.decode("OOOOOOC").id;  // 0n  (typed O aliases to 0)
+medium.encode(123456789n);    // "C8XP-8J49"
+medium.decode("C8XP-8J49").id;  // 123456789n
+medium.decode("UORY-PDCA").id;  // 1n  (typed O aliases to 0)
 medium.capacity();            // 481890304n
 
-medium.encode(1131n);         // throws BasehError [BLOCKED_CODE]
-medium.decode("742YC19");     // throws BasehError [INVALID_CHECKSUM]
+medium.encode(813n);          // throws BasehError [BLOCKED_CODE]
+medium.decode("C8XP-8JX9");   // throws BasehError [INVALID_CHECKSUM]
 
 try {
-  medium.decode("742YC19");
+  medium.decode("C8XP-8JX9");
 } catch (e) {
   if (e instanceof BasehError) {
     console.error(e.code, e.message);  // never match on the message alone
@@ -71,15 +71,30 @@ try {
 const custom = basehMediumV1();
 custom.profileId = "orders-v1";   // helpers return fresh mutable profiles
 custom.bodyLength = 7;
-custom.separator = "-";
-custom.grouping = [4, 4];
+custom.grouping = [5, 4];
 const orders = new Baseh(custom);
 
-orders.encode(123456789n);                       // "074U-YC1J"
+orders.encode(123456789n);                       // "ZC8VR-EMJY"
 orders.decode(orders.encode(123456789n)).id;     // 123456789n
-orders.decode("D4UY-C190");  // throws BasehError [INVALID_CHECKSUM]
+orders.decode("ZC8VR-EMJX");  // throws BasehError [INVALID_CHECKSUM]
 orders.capacity();           // 13492928512n
 ```
+
+### Correction (amended code)
+
+When a typo fails the checksum but one spoken-confusion swap yields exactly
+one valid code, decode returns the amended code with `corrected: true`:
+
+```typescript
+// Using the custom full-alphabet tickets-v1 profile (see js/examples/examples.ts):
+const r = tickets.decode("00000BKD", { tryCorrection: true, confusionProfile: "light" });
+// r.id === 13n, r.corrected === true, r.canonicalCode === "0000-0DKD"
+```
+
+The frozen tiers absorb the common swaps as direct aliases, so genuine
+correction needs a profile that keeps both partners canonical, which is why
+the demo uses a custom profile. Every language's `examples/` file prints a
+working demonstration of this case.
 
 ## Python
 
@@ -92,12 +107,12 @@ pip install baseh
 ```python
 from baseh import to_code, from_code
 
-to_code(123456789)            # "74UYC19"   (int or decimal string)
-to_code("123456789")          # "74UYC19"
-from_code("74UYC19")          # 123456789
-from_code("74uyc 19")         # 123456789
+to_code(123456789)            # "C8XP-8J49"   (int or decimal string)
+to_code("123456789")          # "C8XP-8J49"
+from_code("C8XP-8J49")        # 123456789
+from_code("c8xp 8j4 9")       # 123456789
 
-from_code("74UYC1X")          # raises BasehError [INVALID_CHECKSUM]
+from_code("C8XP-8J4X")        # raises BasehError [INVALID_CHECKSUM]
 to_code(481890304)            # raises BasehError [OUT_OF_RANGE]
 ```
 
@@ -108,17 +123,17 @@ from baseh import Baseh, BasehError, baseh_medium_v1
 
 medium = Baseh(baseh_medium_v1())
 
-medium.encode(123456789)      # "74UYC19"
-medium.decode("74UYC19").id   # 123456789
-medium.decode("OOOOOOC").id   # 0
+medium.encode(123456789)      # "C8XP-8J49"
+medium.decode("C8XP-8J49").id  # 123456789
+medium.decode("UORY-PDCA").id  # 1
 medium.capacity()             # 481890304
 
 try:
-    medium.decode("742YC19")
+    medium.decode("C8XP-8JX9")
 except BasehError as e:
     print(e.code, e)          # INVALID_CHECKSUM ...
 
-medium.encode(1131)           # raises BasehError [BLOCKED_CODE]
+medium.encode(813)            # raises BasehError [BLOCKED_CODE]
 ```
 
 ### Customized profile
@@ -127,31 +142,30 @@ medium.encode(1131)           # raises BasehError [BLOCKED_CODE]
 custom = baseh_medium_v1()    # fresh mutable dict per call
 custom["profileId"] = "orders-v1"
 custom["bodyLength"] = 7
-custom["separator"] = "-"
-custom["grouping"] = [4, 4]
+custom["grouping"] = [5, 4]
 orders = Baseh(custom)
 
-orders.encode(123456789)                      # "074U-YC1J"
+orders.encode(123456789)                      # "ZC8VR-EMJY"
 orders.decode(orders.encode(123456789)).id    # 123456789
-orders.decode("D4UY-C190")   # raises BasehError [INVALID_CHECKSUM]
+orders.decode("ZC8VR-EMJX")   # raises BasehError [INVALID_CHECKSUM]
 orders.capacity()            # 13492928512
 ```
 
 ## Go
 
 ```bash
-go get github.com/cloudyventures/baseh/go
+go get github.com/cloudyventures/baseh/go/v2
 ```
 
 ### Zero configuration
 
 ```go
-basehuman.ToCode(big.NewInt(123456789))   // "74UYC19", nil
-basehuman.ToCodeString("123456789")       // "74UYC19", nil
-basehuman.FromCode("74UYC19")             // 123456789, nil
-basehuman.FromCode("74uyc 19")            // 123456789, nil
+basehuman.ToCode(big.NewInt(123456789))   // "C8XP-8J49", nil
+basehuman.ToCodeString("123456789")       // "C8XP-8J49", nil
+basehuman.FromCode("C8XP-8J49")           // 123456789, nil
+basehuman.FromCode("c8xp 8j4 9")          // 123456789, nil
 
-basehuman.FromCode("74UYC1X")             // nil, *Error [INVALID_CHECKSUM]
+basehuman.FromCode("C8XP-8J4X")           // nil, *Error [INVALID_CHECKSUM]
 basehuman.ToCode(big.NewInt(481890304))   // "", *Error [OUT_OF_RANGE]
 ```
 
@@ -163,9 +177,9 @@ if err != nil {
     panic(err) // only possible if the frozen profile itself were broken
 }
 
-medium.Encode(big.NewInt(123456789))      // "74UYC19", nil
+medium.Encode(big.NewInt(123456789))      // "C8XP-8J49", nil
 
-result, err := medium.Decode("74UYC19", nil)
+result, err := medium.Decode("C8XP-8J49", nil)
 if err != nil {
     var be *basehuman.Error
     if errors.As(err, &be) {
@@ -174,9 +188,9 @@ if err != nil {
 }
 result.ID                                 // 123456789
 
-medium.Decode("OOOOOOC", nil)             // id 0 (typed O aliases to 0)
+medium.Decode("UORY-PDCA", nil)           // id 1 (typed O aliases to 0)
 medium.Capacity()                         // 481890304
-medium.Encode(big.NewInt(1131))           // "", *Error [BLOCKED_CODE]
+medium.Encode(big.NewInt(813))            // "", *Error [BLOCKED_CODE]
 ```
 
 ### Customized profile
@@ -185,12 +199,11 @@ medium.Encode(big.NewInt(1131))           // "", *Error [BLOCKED_CODE]
 custom := basehuman.BasehMediumV1()  // fresh mutable Profile per call
 custom.ProfileID = "orders-v1"
 custom.BodyLength = 7
-custom.Separator = "-"
-custom.Grouping = []int{4, 4}
+custom.Grouping = []int{5, 4}
 orders, err := basehuman.NewBaseh(custom)
 
-orders.Encode(big.NewInt(123456789))             // "074U-YC1J", nil
-orders.Decode("D4UY-C190", nil)                  // nil, *Error [INVALID_CHECKSUM]
+orders.Encode(big.NewInt(123456789))             // "ZC8VR-EMJY", nil
+orders.Decode("ZC8VR-EMJX", nil)                 // nil, *Error [INVALID_CHECKSUM]
 orders.Capacity()                                // 13492928512
 ```
 
@@ -205,12 +218,12 @@ cargo add baseh
 ```rust
 use baseh::{from_code, to_code};
 
-to_code(123456789u64)         // Ok("74UYC19")   (u8..u128, usize, BigUint, &str)
-to_code("123456789")          // Ok("74UYC19")
-from_code("74UYC19")          // Ok(123456789)
-from_code("74uyc 19")         // Ok(123456789)
+to_code(123456789u64)         // Ok("C8XP-8J49")   (u8..u128, usize, BigUint, &str)
+to_code("123456789")          // Ok("C8XP-8J49")
+from_code("C8XP-8J49")        // Ok(123456789)
+from_code("c8xp 8j4 9")       // Ok(123456789)
 
-from_code("74UYC1X")          // Err(BasehError { code: InvalidChecksum, .. })
+from_code("C8XP-8J4X")        // Err(BasehError { code: InvalidChecksum, .. })
 to_code(481890304u64)         // Err(BasehError { code: OutOfRange, .. })
 ```
 
@@ -221,16 +234,16 @@ use baseh::{baseh_medium_v1, Baseh, DecodeOptions};
 
 let medium = Baseh::new(baseh_medium_v1())?;
 
-medium.encode(&BigUint::from(123456789u64))     // Ok("74UYC19")
+medium.encode(&BigUint::from(123456789u64))     // Ok("C8XP-8J49")
 
-match medium.decode("742YC19", &DecodeOptions::strict()) {
+match medium.decode("C8XP-8JX9", &DecodeOptions::strict()) {
     Ok(result) => println!("{}", result.id),
     Err(e) => eprintln!("{:?}: {}", e.code, e.message),
 }
 
-medium.decode("OOOOOOC", &DecodeOptions::strict())  // Ok(id = 0)
+medium.decode("UORY-PDCA", &DecodeOptions::strict())  // Ok(id = 1)
 medium.capacity()                                   // 481890304
-medium.encode(&BigUint::from(1131u64))              // Err([BlockedCode])
+medium.encode(&BigUint::from(813u64))               // Err([BlockedCode])
 ```
 
 ### Customized profile
@@ -239,12 +252,11 @@ medium.encode(&BigUint::from(1131u64))              // Err([BlockedCode])
 let mut custom = baseh_medium_v1();
 custom.profile_id = "orders-v1".to_string();
 custom.body_length = 7;
-custom.separator = "-".to_string();
-custom.grouping = vec![4, 4];
+custom.grouping = vec![5, 4];
 let orders = Baseh::new(custom)?;
 
-orders.encode(&BigUint::from(123456789u64))    // Ok("074U-YC1J")
-orders.decode("D4UY-C190", &DecodeOptions::strict())  // Err([InvalidChecksum])
+orders.encode(&BigUint::from(123456789u64))    // Ok("ZC8VR-EMJY")
+orders.decode("ZC8VR-EMJX", &DecodeOptions::strict())  // Err([InvalidChecksum])
 orders.capacity()                              // 13492928512
 ```
 
@@ -259,12 +271,12 @@ gem install baseh
 ```ruby
 require "baseh"
 
-Baseh.to_code(123456789)      # "74UYC19"   (Integer or decimal String)
-Baseh.to_code("123456789")    # "74UYC19"
-Baseh.from_code("74UYC19")    # 123456789
-Baseh.from_code("74uyc 19")   # 123456789
+Baseh.to_code(123456789)      # "C8XP-8J49"   (Integer or decimal String)
+Baseh.to_code("123456789")    # "C8XP-8J49"
+Baseh.from_code("C8XP-8J49")  # 123456789
+Baseh.from_code("c8xp 8j4 9") # 123456789
 
-Baseh.from_code("74UYC1X")    # raises BasehError [INVALID_CHECKSUM]
+Baseh.from_code("C8XP-8J4X")  # raises BasehError [INVALID_CHECKSUM]
 Baseh.to_code(481890304)      # raises BasehError [OUT_OF_RANGE]
 ```
 
@@ -273,18 +285,18 @@ Baseh.to_code(481890304)      # raises BasehError [OUT_OF_RANGE]
 ```ruby
 medium = Baseh::Baseh.new(Baseh.baseh_medium_v1)
 
-medium.encode(id: 123456789)      # "74UYC19"
-medium.decode("74UYC19").id       # 123456789
-medium.decode("OOOOOOC").id       # 0
+medium.encode(id: 123456789)      # "C8XP-8J49"
+medium.decode("C8XP-8J49").id     # 123456789
+medium.decode("UORY-PDCA").id     # 1
 medium.capacity                   # 481890304
 
 begin
-  medium.decode("742YC19")
+  medium.decode("C8XP-8JX9")
 rescue Baseh::BasehError => e
   warn "#{e.code}: #{e.message}"  # INVALID_CHECKSUM ...
 end
 
-medium.encode(id: 1131)           # raises BasehError [BLOCKED_CODE]
+medium.encode(id: 813)            # raises BasehError [BLOCKED_CODE]
 ```
 
 ### Customized profile
@@ -293,13 +305,12 @@ medium.encode(id: 1131)           # raises BasehError [BLOCKED_CODE]
 custom = Baseh.baseh_medium_v1   # fresh mutable hash per call
 custom[:profile_id] = "orders-v1"
 custom[:body_length] = 7
-custom[:separator] = "-"
-custom[:grouping] = [4, 4]
+custom[:grouping] = [5, 4]
 orders = Baseh::Baseh.new(custom)
 
-orders.encode(id: 123456789)                     # "074U-YC1J"
+orders.encode(id: 123456789)                     # "ZC8VR-EMJY"
 orders.decode(orders.encode(id: 123456789)).id   # 123456789
-orders.decode("D4UY-C190")   # raises BasehError [INVALID_CHECKSUM]
+orders.decode("ZC8VR-EMJX")   # raises BasehError [INVALID_CHECKSUM]
 orders.capacity              # 13492928512
 ```
 
@@ -316,5 +327,5 @@ orders.capacity              # 13492928512
 - On decode failure no internal id is exposed. Use `validate` where you only
   need a boolean.
 - Decoders accept a code typed without its leading zero body symbols:
-  `decode("1D")` returns the same id as `decode("000001D")`. Encoders
+  `decode("XR")` returns the same id as `decode("000000XR")`. Encoders
   always emit the fixed-width canonical code (spec 3.4).

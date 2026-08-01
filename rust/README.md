@@ -11,7 +11,8 @@ and cross-language conformance vectors live in `../vectors/`.
 use baseh::{baseh_medium_v1, Baseh, ConfusionProfile, DecodeOptions};
 use num_bigint::BigUint;
 
-// Medium is the default tier; permutation is off and needs no key material.
+// Medium is the default tier; it permutes with the frozen public key and
+// needs no key material.
 let baseh = Baseh::new(baseh_medium_v1())?;
 
 let code = baseh.encode(&BigUint::from(48_284_291u64))?;
@@ -25,39 +26,47 @@ let outcome = baseh.validate("vcs pq2 g", &DecodeOptions {
     ..DecodeOptions::default()
 });
 
-// Spoken-confusion correction after a checksum failure.
-let fixed = baseh.decode("0000TBC", &DecodeOptions {
+// Spoken-confusion correction after a checksum failure: here a G misheard
+// as a C is repaired and the amended canonical code is returned.
+let fixed = baseh.decode("MGV3-JKDJ", &DecodeOptions {
     try_correction: true,
-    confusion_profile: ConfusionProfile::Light,
+    confusion_profile: ConfusionProfile::Heavy,
+    max_corrections: 1,
     ..DecodeOptions::default()
 });
+assert_eq!(fixed?.canonical_code, "MCV3-JKDJ");
 # Ok::<(), baseh::BasehError>(())
 ```
 
 ## Frozen tiers
 
 Four frozen tiers trade alphabet safety for capacity. All are 6 body symbols,
-case-insensitive, run the default profanity blocklist and keep the typed
-O/I/L aliases where possible. Medium is the default.
+case-insensitive, hyphen-delimited at the midpoint, run the default profanity
+blocklist and keep the typed O/I/L aliases where possible. Medium is the
+default.
 
-| Tier                | Symbols | Checksum | Capacity      |
-| ------------------- | ------- | -------- | ------------- |
-| `baseh_minimum_v1`  | 36      | 0        | 2,176,782,336 |
-| `baseh_light_v1`    | 31      | 1        | 887,503,681   |
-| `baseh_medium_v1`   | 28      | 1        | 481,890,304   |
-| `baseh_heavy_v1`    | 26      | 1        | 308,915,776   |
+| Tier                | Symbols | Checksums | Shape     | Capacity      |
+| ------------------- | ------- | --------- | --------- | ------------- |
+| `baseh_minimum_v1`  | 36      | 0         | XXX-XXX   | 2,176,782,336 |
+| `baseh_light_v1`    | 31      | 2         | XXXX-XXXX | 887,503,681   |
+| `baseh_medium_v1`   | 28      | 2         | XXXX-XXXX | 481,890,304   |
+| `baseh_heavy_v1`    | 26      | 2         | XXXX-XXXX | 308,915,776   |
 
-Minimum is hyphen-delimited XXX-XXX; the rest have no separator. Every helper
-returns a freshly-built profile value, so callers can load a default and
-modify it before constructing the codec.
+Every helper returns a freshly-built profile value, so callers can load a
+default and modify it before constructing the codec.
 
-## Permutation (opt-in)
+## Permutation (always on, frozen key)
 
-The plain tier helpers ship with the permutation disabled. To enable
-feistel-v1 use the `*_p_v1` variants and supply your own key material, key id
-and round count (pass an empty key id or 0 rounds for the defaults
-"default" and 8). Keep both immutable for the life of the profile and out of
-frontend code.
+Every plain tier permutes with feistel-v1 under the frozen published key
+`FROZEN_KEY_BYTES` (key id "frozen", 8 rounds). The key is public by design:
+it makes issued codes look non-sequential but offers no secrecy, since anyone
+can read it here. Never swap it on a live namespace; codes only decode with
+the key they were issued under.
+
+For private scrambling use the `*_p_v1` variants and supply your own key
+material, key id and round count (pass an empty key id or 0 rounds for the
+defaults "default" and 8). Keep both immutable for the life of the profile
+and out of frontend code.
 
 ```rust
 use baseh::{baseh_medium_p_v1, Baseh};
@@ -90,9 +99,9 @@ Profiles accept an optional `profanity` object with three modes:
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
 - `baseh_minimum_v1` / `baseh_light_v1` / `baseh_medium_v1` /
-  `baseh_heavy_v1` build the frozen tier profiles with the permutation
-  disabled. The `*_p_v1` variants build them with feistel-v1 enabled and
-  require caller-supplied key material.
+  `baseh_heavy_v1` build the frozen tier profiles, each permuting with the
+  public frozen key. The `*_p_v1` variants permute with caller-supplied key
+  material instead.
 - `feistel::permute` / `feistel::inverse_permute` are public for conformance
   testing against `../vectors/feistel-vectors.json`.
 

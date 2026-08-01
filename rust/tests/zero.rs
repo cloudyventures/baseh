@@ -31,8 +31,8 @@ fn expect_to_code_error(result: Result<String, baseh::BasehError>, code: ErrorCo
 fn zero_config_matches_the_frozen_medium_profile() {
     assert_eq!(to_code(0u64).unwrap(), medium_encode(0));
     assert_eq!(to_code(123456789u64).unwrap(), medium_encode(123456789));
-    assert_eq!(to_code(481890303u64).unwrap(), "ZZZZZZV");
-    assert_eq!(to_code(0u64).unwrap(), "000000C");
+    assert_eq!(to_code(481890303u64).unwrap(), "H3C9-2PEM");
+    assert_eq!(to_code(0u64).unwrap(), "UJEA-4MA7");
 }
 
 #[test]
@@ -67,8 +67,9 @@ fn to_code_rejects_empty_string() {
 fn to_code_errors_on_out_of_range_and_blocklisted_ids() {
     // One past the Medium capacity.
     expect_to_code_error(to_code(481890304u64), ErrorCode::OutOfRange);
-    // 1131 is reserved by the Medium blocklist.
-    expect_to_code_error(to_code(1131u64), ErrorCode::BlockedCode);
+    // 813 is reserved by the Medium blocklist once the frozen permutation is
+    // applied.
+    expect_to_code_error(to_code(813u64), ErrorCode::BlockedCode);
 }
 
 #[test]
@@ -86,20 +87,29 @@ fn from_code_accepts_lowercase_aliases_and_any_whitespace() {
     );
     let messy = format!("  {} {}\t{} ", &c[..3], &c[3..5], &c[5..]);
     assert_eq!(from_code(&messy).unwrap(), BigUint::from(123456789u64));
-    // Typed aliases decode to canonical values.
-    assert_eq!(from_code("OOOOOOC").unwrap(), BigUint::from(0u64));
+    // Typed aliases decode to canonical values: O reads as 0.
+    assert_eq!(from_code("UORY-PDCA").unwrap(), BigUint::from(1u64));
 }
 
 #[test]
 fn from_code_errors_on_invalid_input_with_no_correction() {
-    expect_code(from_code("0000000"), ErrorCode::InvalidChecksum);
-    expect_code(from_code("!!!!!!!"), ErrorCode::InvalidCharacter);
+    expect_code(from_code("00000000"), ErrorCode::InvalidChecksum);
+    expect_code(from_code("!!!!!!!!"), ErrorCode::InvalidCharacter);
     // B is an alias at Medium: it decodes as 8 rather than failing.
     for i in 1..100_000u64 {
-        let code = to_code(i).unwrap();
-        if code.contains('8') {
-            assert_eq!(from_code(&code.replacen('8', "B", 1)).unwrap(), BigUint::from(i));
-            break;
+        // Blocklist-reserved ids are skipped: they are never issued.
+        match to_code(i) {
+            Ok(code) => {
+                if code.contains('8') {
+                    assert_eq!(
+                        from_code(&code.replacen('8', "B", 1)).unwrap(),
+                        BigUint::from(i)
+                    );
+                    break;
+                }
+            }
+            Err(e) if e.code == ErrorCode::BlockedCode => continue,
+            Err(e) => panic!("to_code({i}) failed: {e}"),
         }
     }
     expect_code(from_code(""), ErrorCode::InvalidLength);

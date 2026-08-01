@@ -6,17 +6,26 @@ module Baseh
   # visual ones exactly as the web tools derive them, so the tool capacities
   # match.
   #
-  #   Minimum  36 symbols, no checksum      2,176,782,336 ids
-  #   Light    31 symbols, 1 checksum         887,503,681 ids
-  #   Medium   28 symbols, 1 checksum         481,890,304 ids (default)
-  #   Heavy    26 symbols, 1 checksum         308,915,776 ids
+  #   Minimum  36 symbols, no checksum, XXX-XXX      2,176,782,336 ids
+  #   Light    31 symbols, 2 checksums, XXXX-XXXX      887,503,681 ids
+  #   Medium   28 symbols, 2 checksums, XXXX-XXXX      481,890,304 ids (default)
+  #   Heavy    26 symbols, 2 checksums, XXXX-XXXX      308,915,776 ids
   #
-  # All four keep the typed O/I/L aliases where possible and run the default
-  # profanity blocklist. Minimum also uses a hyphen delimiter; the rest have
-  # none. The _p variants are identical but with feistel-v1 permutation and
-  # require caller-supplied key material.
+  # All four keep the typed O/I/L aliases where possible, use a hyphen
+  # delimiter at the midpoint and run the default profanity blocklist. Every
+  # tier permutes with the frozen published key (FROZEN_KEY_BYTES below): the
+  # key is public, so the permutation obscures sequence but is not secrecy.
+  # The -p variants are identical but permute with caller-supplied key
+  # material instead.
   module Profiles
     OIL_ALIASES = { "O" => "0", "I" => "1", "L" => "1" }.freeze
+
+    # The frozen published permutation key. Public by design: it makes issued
+    # codes look non-sequential but offers no secrecy, since anyone can read
+    # it here. Never swap it on a live namespace; codes only decode with the
+    # key they were issued under. Use the -p variants to supply private key
+    # material.
+    FROZEN_KEY_BYTES = "baseh-frozen-key-v1".b.freeze
 
     # Tier shapes shared by the plain and (-p) keyed helpers. The values are
     # thawed on every build, so each helper returns a fresh mutable profile.
@@ -34,18 +43,18 @@ module Baseh
         profile_id: "baseh-light",
         body_alphabet: "0123456789ABCEFGHJKMNPQRSUVWXYZ",
         checksum_alphabet: "234679ACEFGHJKMNPQRUVWXY",
-        checksum_length: 1,
-        separator: "",
-        grouping: [],
+        checksum_length: 2,
+        separator: "-",
+        grouping: [4, 4],
         aliases: { **OIL_ALIASES, "D" => "B", "T" => "P" }
       },
       medium: {
         profile_id: "baseh-medium",
         body_alphabet: "0123456789ACDEFGHJKMPQRUVXYZ",
         checksum_alphabet: "234679ACDEFGHJKMPQRUVXY",
-        checksum_length: 1,
-        separator: "",
-        grouping: [],
+        checksum_length: 2,
+        separator: "-",
+        grouping: [4, 4],
         # B and S are dropped for looking like 8 and 5; since they can never
         # be issued, a typed B is always an 8 and a typed S always a 5.
         aliases: { **OIL_ALIASES, "B" => "8", "S" => "5", "T" => "P",
@@ -55,9 +64,9 @@ module Baseh
         profile_id: "baseh-heavy",
         body_alphabet: "0123456789ABCEFHJKMPQRVXYZ",
         checksum_alphabet: "234679ACEFHJKMPQRUVXY",
-        checksum_length: 1,
-        separator: "",
-        grouping: [],
+        checksum_length: 2,
+        separator: "-",
+        grouping: [4, 4],
         aliases: { **OIL_ALIASES, "D" => "B", "T" => "P", "N" => "M",
                    "W" => "V", "S" => "F", "G" => "C" }
       }
@@ -65,42 +74,48 @@ module Baseh
 
     module_function
 
-    # Alphanumeric, no safety strips, no checksum, hyphen-delimited XXX-XXX.
-    def baseh_minimum_v1
-      tier(:minimum, { enabled: false }, false)
+    # Permutation every plain tier applies, built from the frozen published
+    # key.
+    def frozen_permutation
+      keyed_permutation(FROZEN_KEY_BYTES, "frozen", 8)
     end
 
-    # baseh-minimum with feistel-v1 permutation. key_bytes is required.
+    # Alphanumeric, no safety strips, no checksum, hyphen-delimited XXX-XXX.
+    def baseh_minimum_v1
+      tier(:minimum, frozen_permutation, false)
+    end
+
+    # baseh-minimum permuted with caller-supplied key material.
     def baseh_minimum_p_v1(key_bytes:, key_id: "default", rounds: 8)
       tier(:minimum, keyed_permutation(key_bytes, key_id, rounds), true)
     end
 
-    # Visual light plus spoken light, one checksum symbol.
+    # Visual light plus spoken light, two checksum symbols, hyphen-delimited.
     def baseh_light_v1
-      tier(:light, { enabled: false }, false)
+      tier(:light, frozen_permutation, false)
     end
 
-    # baseh-light with feistel-v1 permutation. key_bytes is required.
+    # baseh-light permuted with caller-supplied key material.
     def baseh_light_p_v1(key_bytes:, key_id: "default", rounds: 8)
       tier(:light, keyed_permutation(key_bytes, key_id, rounds), true)
     end
 
-    # Visual medium plus spoken medium, one checksum symbol. The default.
+    # Visual medium plus spoken medium, two checksum symbols, hyphen-delimited. The default.
     def baseh_medium_v1
-      tier(:medium, { enabled: false }, false)
+      tier(:medium, frozen_permutation, false)
     end
 
-    # baseh-medium with feistel-v1 permutation. key_bytes is required.
+    # baseh-medium permuted with caller-supplied key material.
     def baseh_medium_p_v1(key_bytes:, key_id: "default", rounds: 8)
       tier(:medium, keyed_permutation(key_bytes, key_id, rounds), true)
     end
 
-    # Conservative alphabet plus spoken heavy, one checksum symbol.
+    # Conservative alphabet plus spoken heavy, two checksum symbols, hyphen-delimited.
     def baseh_heavy_v1
-      tier(:heavy, { enabled: false }, false)
+      tier(:heavy, frozen_permutation, false)
     end
 
-    # baseh-heavy with feistel-v1 permutation. key_bytes is required.
+    # baseh-heavy permuted with caller-supplied key material.
     def baseh_heavy_p_v1(key_bytes:, key_id: "default", rounds: 8)
       tier(:heavy, keyed_permutation(key_bytes, key_id, rounds), true)
     end
@@ -134,6 +149,6 @@ module Baseh
         profanity: { mode: "blocklist" }
       }
     end
-    private_class_method :keyed_permutation, :tier
+    private_class_method :frozen_permutation, :keyed_permutation, :tier
   end
 end

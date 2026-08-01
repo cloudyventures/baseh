@@ -1,9 +1,9 @@
 # baseh
 
 Ruby port of the baseH (Human Reference Code) codec. Encodes integer IDs as
-fixed-length, checksummed, human-friendly reference codes with an opt-in
-reversible feistel-v1 permutation and profanity safety. The normative spec
-is `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
+fixed-length, checksummed, human-friendly reference codes with a feistel-v1
+permutation on every tier and profanity safety. The normative spec is
+`spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
 
 ## Install
 
@@ -26,19 +26,21 @@ library are used.
 
 Four frozen tiers ship with the gem, built from the full alphanumeric set
 with cumulative visual and spoken strips. All four encode 6 body symbols,
-are case-insensitive and run the default profanity blocklist.
+are case-insensitive, hyphen-delimit at the midpoint, run the default
+profanity blocklist and permute with the published frozen key.
 
 | Tier | Helper | Body symbols | Checksum | Format | Capacity |
 | ---- | ------ | ------------ | -------- | ------ | -------- |
 | Minimum | `Baseh.baseh_minimum_v1` | 36 | none | `XXX-XXX` | 2,176,782,336 |
-| Light | `Baseh.baseh_light_v1` | 31 | 1 | plain | 887,503,681 |
-| Medium | `Baseh.baseh_medium_v1` | 28 | 1 | plain | 481,890,304 |
-| Heavy | `Baseh.baseh_heavy_v1` | 26 | 1 | plain | 308,915,776 |
+| Light | `Baseh.baseh_light_v1` | 31 | 2 | `XXXX-XXXX` | 887,503,681 |
+| Medium | `Baseh.baseh_medium_v1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 |
+| Heavy | `Baseh.baseh_heavy_v1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 |
 
-Medium is the default. Minimum keeps the full alphabet and uses a hyphen
-delimiter; the rest have no separator. Each tier keeps the typed O/I/L
-aliases where possible and adds spoken-confusion aliases for the stripped
-symbols.
+Medium is the default. The frozen key is public by design: it hides sequence,
+not records. It is not a secret and anyone can read it at
+`Baseh::FROZEN_KEY_BYTES`; it must never change for a live namespace. Each
+tier keeps the typed O/I/L aliases where possible and adds spoken-confusion
+aliases for the stripped symbols.
 
 Every helper returns a freshly built mutable profile hash on each call, so
 callers can load a default and modify it before constructing a codec.
@@ -59,19 +61,19 @@ result.corrected                           # => true when input needed correctio
 
 codec.capacity                             # => 481890304
 
-check = codec.validate("0000000")
+check = codec.validate("00000000")
 check.valid                                # => false
 check.reason                               # => "INVALID_CHECKSUM"
 
 # Spoken-confusion correction
-result = codec.decode("TB14QDF", try_correction: true, confusion_profile: :light)
+result = codec.decode("TB14QDFU", try_correction: true, confusion_profile: :light)
 ```
 
-## Permutation (opt-in)
+## Permutation
 
-The `-p` variants opt a tier into the reversible feistel-v1 permutation.
-`key_bytes:` is required; keep the key in a secret manager and never change
-it for a live profile:
+The plain tiers permute with `Baseh::FROZEN_KEY_BYTES`, the published frozen
+key. The `-p` variants take caller-supplied key material instead; keep that
+key in a secret manager and never change it for a live profile:
 
 ```ruby
 profile = Baseh.baseh_medium_p_v1(
@@ -82,7 +84,7 @@ codec = Baseh::Baseh.new(profile)
 ```
 
 `rounds:` is also accepted (default 8). The `-p` profile is identical to
-its plain tier apart from the permutation; its profile id gains a `-p`
+its plain tier apart from the key material; its profile id gains a `-p`
 segment, for example `baseh-medium-p-v1`.
 
 ## Profanity safety (spec 18)

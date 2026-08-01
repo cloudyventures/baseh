@@ -3,3 +3,9 @@
 source "https://rubygems.org"
 
 gemspec
+
+group :development, :test do
+  # Required explicitly so bundler/gem_tasks can see it: on Rubies where
+  # minitest is a bundled gem it is otherwise outside the bundle load path.
+  gem "minitest", require: false
+end

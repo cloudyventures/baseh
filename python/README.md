@@ -27,22 +27,24 @@ from baseh import Baseh, BasehError, baseh_medium_v1
 codec = Baseh(baseh_medium_v1())
 
 code = codec.encode(123456789)
-print(code)                       # fixed-length, checksummed code
+print(code)                       # "C8XP-8J49": fixed-length, checksummed code
 
 result = codec.decode(code.lower())  # case-insensitive
 print(result.id)                  # 123456789
-print(result.canonical_code)      # canonical rendering
+print(result.canonical_code)      # "C8XP-8J49"
 print(result.corrected)           # False (input differed only in case)
 
-# Assisted correction over spoken-confusion pairs (B/D, P/T, ...):
+# Assisted correction over spoken-confusion pairs (B/D, P/T, C/G, ...):
 fixed = codec.decode(
-    code,
+    "GC8G-AZ2V",
     try_correction=True,
-    confusion_profile="light",
+    confusion_profile="heavy",
 )
+print(fixed.corrected)            # True
+print(fixed.canonical_code)       # "CC8G-AZ2V"
 
 # Non-throwing validation for user input:
-check = codec.validate("0000000")
+check = codec.validate("00000000")
 print(check)                      # {"valid": False, "reason": "INVALID_CHECKSUM"}
 
 print(codec.capacity())           # 481890304
@@ -58,30 +60,38 @@ Errors raise `BasehError` with a `.code` attribute, one of:
 Four frozen profiles, each 6 body symbols and case-insensitive, built from
 the full alphanumeric set with cumulative visual and spoken strips:
 
-| Tier | Helper | Symbols | Checksum | Capacity |
-|------|--------|---------|----------|----------|
-| Minimum | `baseh_minimum_v1()` | 36 | none | 2,176,782,336 |
-| Light | `baseh_light_v1()` | 31 | 1 | 887,503,681 |
-| Medium | `baseh_medium_v1()` | 28 | 1 | 481,890,304 |
-| Heavy | `baseh_heavy_v1()` | 26 | 1 | 308,915,776 |
+| Tier | Helper | Symbols | Checksums | Shape | Capacity |
+|------|--------|---------|-----------|-------|----------|
+| Minimum | `baseh_minimum_v1()` | 36 | none | `XXX-XXX` | 2,176,782,336 |
+| Light | `baseh_light_v1()` | 31 | 2 | `XXXX-XXXX` | 887,503,681 |
+| Medium | `baseh_medium_v1()` | 28 | 2 | `XXXX-XXXX` | 481,890,304 |
+| Heavy | `baseh_heavy_v1()` | 26 | 2 | `XXXX-XXXX` | 308,915,776 |
 
-Medium is the default. All four keep the typed O/I/L aliases where possible
-and run the default profanity blocklist. Minimum also uses a hyphen
-delimiter (`XXX-XXX`); the rest have none.
+Medium is the default. All four keep the typed O/I/L aliases where
+possible, use a hyphen delimiter at the midpoint and run the default
+profanity blocklist.
+
+Every plain tier permutes with the frozen published key, exported as
+`FROZEN_KEY_BYTES` (the ASCII bytes of `"baseh-frozen-key-v1"`, 8
+feistel-v1 rounds, key id `"frozen"`). The key is public by design: it
+makes issued codes look non-sequential but offers no secrecy, since anyone
+can read it in the source. Never swap it on a live namespace; codes only
+decode with the key they were issued under.
 
 Each helper returns a freshly-built mutable profile dict on every call, so
 callers can load a default and modify it:
 
 ```python
 profile = baseh_medium_v1()
-profile["checksumLength"] = 2
+profile["bodyLength"] = 7
+profile["grouping"] = [4, 5]  # groups must sum to bodyLength + checksumLength
 codec = Baseh(profile)
 ```
 
 ### Permuted variants
 
-The `_p` variants are identical to their tier but enable feistel-v1
-permutation and require caller-supplied key material:
+The `_p` variants are identical to their tier but permute with
+caller-supplied feistel-v1 key material instead of the frozen key:
 
 ```python
 from baseh import Baseh, baseh_medium_p_v1

@@ -7,24 +7,30 @@ cross-language vectors in `vectors/`.
 ## Install
 
 ```sh
-go get github.com/cloudyventures/baseh/go
+go get github.com/cloudyventures/baseh/go/v2
 ```
 
 ## Frozen tiers
 
 The package ships eight frozen-profile helpers covering four tiers. All
-share a 6-symbol body, case-insensitive decode and the default profanity
-blocklist:
+share a 6-symbol body, a hyphen delimiter at the midpoint, case-insensitive
+decode and the default profanity blocklist:
 
-| Tier    | Symbols | Checksum | Format   | Capacity      |
-|---------|---------|----------|----------|---------------|
-| Minimum | 36      | none     | XXX-XXX  | 2,176,782,336 |
-| Light   | 31      | 1        | XXXXXXX  | 887,503,681   |
-| Medium  | 28      | 1        | XXXXXXX  | 481,890,304   |
-| Heavy   | 26      | 1        | XXXXXXX  | 308,915,776   |
+| Tier    | Symbols | Checksums | Format    | Capacity      |
+|---------|---------|-----------|-----------|---------------|
+| Minimum | 36      | none      | XXX-XXX   | 2,176,782,336 |
+| Light   | 31      | 2         | XXXX-XXXX | 887,503,681   |
+| Medium  | 28      | 2         | XXXX-XXXX | 481,890,304   |
+| Heavy   | 26      | 2         | XXXX-XXXX | 308,915,776   |
 
 `BasehMinimumV1()`, `BasehLightV1()`, `BasehMediumV1()` and
 `BasehHeavyV1()` take no arguments. Medium is the default tier.
+
+Every tier permutes with the frozen published key (`FrozenKeyBytes`). The
+key is public by design: it makes issued codes look non-sequential but
+offers no secrecy, since anyone can read it in `profiles.go`. Never swap
+it on a live namespace; codes only decode with the key they were issued
+under.
 
 Every helper returns a freshly-built `Profile` value, so callers can load
 a default and modify it (words, separators and so on) before `NewBaseh`
@@ -39,7 +45,7 @@ import (
 	"fmt"
 	"math/big"
 
-	basehuman "github.com/cloudyventures/baseh/go"
+	basehuman "github.com/cloudyventures/baseh/go/v2"
 )
 
 func main() {
@@ -52,9 +58,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(code) // 74UYC19
+	fmt.Println(code) // C8XP-8J49
 
-	res, err := h.Decode("74uyc19", &basehuman.DecodeOptions{
+	res, err := h.Decode("c8xp-8j49", &basehuman.DecodeOptions{
 		AcceptSpaces: true,
 	})
 	if err != nil {
@@ -63,7 +69,7 @@ func main() {
 	fmt.Println(res.ID)
 
 	// Boolean-only check; never exposes an internal ID on failure.
-	if v := h.Validate("0000000", nil); !v.Valid {
+	if v := h.Validate("00000000", nil); !v.Valid {
 		fmt.Println("invalid code:", v.Reason)
 	}
 }
@@ -71,12 +77,13 @@ func main() {
 
 ## Permutation variants
 
-Each tier has a `-p` variant that enables the reversible feistel-v1
-permutation: `BasehMinimumPV1`, `BasehLightPV1`, `BasehMediumPV1` and
-`BasehHeavyPV1`, each taking `keyBytes []byte, keyID string, rounds int`.
-Key bytes are required; an empty key id defaults to `"default"` and zero
-rounds to 8. Key material is application-specific and never part of the
-frozen profile.
+Every plain tier already runs the reversible feistel-v1 permutation with
+the frozen published key. Each tier also has a `-p` variant that permutes
+with caller-supplied key material instead: `BasehMinimumPV1`,
+`BasehLightPV1`, `BasehMediumPV1` and `BasehHeavyPV1`, each taking
+`keyBytes []byte, keyID string, rounds int`. Key bytes are required; an
+empty key id defaults to `"default"` and zero rounds to 8. Key material
+is application-specific and never part of the frozen profile.
 
 ```go
 key := []byte("application-secret-key-material")

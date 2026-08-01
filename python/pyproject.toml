@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "baseh"
-version = "1.1.0"
+version = "2.0.0"
 description = "baseH codec: checksumed, optionally permuted human-readable identifiers"
 readme = "README.md"
 requires-python = ">=3.9"

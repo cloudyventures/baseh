@@ -312,8 +312,7 @@ impl Baseh {
             // alphabet profile) could never validate; generating it anyway
             // would throw INVALID_CHARACTER from the checksum step instead of
             // reporting an honest INVALID_CHECKSUM.
-            let body_set: HashSet<char> =
-                self.profile.body_alphabet_norm.iter().copied().collect();
+            let body_set: HashSet<char> = self.profile.body_alphabet_norm.iter().copied().collect();
             let filtered_map: Vec<(char, Vec<char>)> = options
                 .confusion_profile
                 .map()
@@ -331,8 +330,7 @@ impl Baseh {
                     }
                 })
                 .collect();
-            let candidates =
-                generate_candidates(&body, &filtered_map, options.max_corrections)?;
+            let candidates = generate_candidates(&body, &filtered_map, options.max_corrections)?;
             let mut valid: HashSet<Vec<char>> = HashSet::new();
             for candidate in candidates {
                 let candidate_checksum = calculate_checksum(&self.profile, &candidate)?;

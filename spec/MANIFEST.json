@@ -2,34 +2,34 @@
   "files": [
     {
       "name": "DESIGN_NOTES.md",
-      "bytes": 9086
+      "bytes": 9694
     },
     {
       "name": "IMPLEMENTATION_CAPACITY_CALCULATOR.md",
-      "bytes": 8081
+      "bytes": 9125
     },
     {
       "name": "IMPLEMENTATION_CODEC.md",
-      "bytes": 14297
+      "bytes": 27250
     },
     {
       "name": "IMPLEMENTATION_CODE_DESIGNER.md",
-      "bytes": 8198
+      "bytes": 8364
     },
     {
       "name": "IMPLEMENTATION_TEST_SUITE.md",
-      "bytes": 9689
+      "bytes": 10104
     },
     {
       "name": "PATENT_AND_PRIOR_ART_RESEARCH.md",
-      "bytes": 11217
+      "bytes": 11235
     },
     {
       "name": "README.md",
-      "bytes": 5410
+      "bytes": 6914
     }
   ],
-  "total_bytes": 65978,
+  "total_bytes": 82686,
   "forbidden_reference_found": false,
   "dash_issue_found": false
 }

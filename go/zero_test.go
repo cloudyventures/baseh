@@ -37,20 +37,20 @@ func TestZeroConfigMatchesFrozenMedium(t *testing.T) {
 		}
 	}
 
-	got, err := ToCode(big.NewInt(481890303))
-	if err != nil {
-		t.Fatalf("ToCode(481890303): %v", err)
+	// Zero-config parity literals from the JS reference suite.
+	parity := map[int64]string{
+		0:         "UJEA-4MA7",
+		123456789: "C8XP-8J49",
+		481890303: "H3C9-2PEM",
 	}
-	if got != "ZZZZZZV" {
-		t.Fatalf("ToCode(481890303) = %q, want %q", got, "ZZZZZZV")
-	}
-
-	got, err = ToCode(big.NewInt(0))
-	if err != nil {
-		t.Fatalf("ToCode(0): %v", err)
-	}
-	if got != "000000C" {
-		t.Fatalf("ToCode(0) = %q, want %q", got, "000000C")
+	for n, want := range parity {
+		got, err := ToCode(big.NewInt(n))
+		if err != nil {
+			t.Fatalf("ToCode(%d): %v", n, err)
+		}
+		if got != want {
+			t.Errorf("ToCode(%d) = %q, want %q", n, got, want)
+		}
 	}
 }
 
@@ -86,8 +86,8 @@ func TestToCodeOutOfRangeAndBlocked(t *testing.T) {
 	_, err = ToCodeString("481890304")
 	assertZeroCode(t, err, OUT_OF_RANGE)
 
-	// 1131 is reserved by the Medium blocklist.
-	_, err = ToCode(big.NewInt(1131))
+	// 813 is reserved by the Medium blocklist once the frozen permutation is applied.
+	_, err = ToCode(big.NewInt(813))
 	assertZeroCode(t, err, BLOCKED_CODE)
 }
 
@@ -123,18 +123,18 @@ func TestFromCodeLowercaseAliasesAndWhitespace(t *testing.T) {
 		t.Fatalf("FromCode(whitespace) = %v, %v; want %v", id, err, want)
 	}
 
-	// Typed aliases decode to canonical values.
-	id, err = FromCode("OOOOOOC")
-	if err != nil || id.Sign() != 0 {
-		t.Fatalf("FromCode(OOOOOOC) = %v, %v; want 0", id, err)
+	// Typed aliases decode to canonical values: O reads as 0.
+	id, err = FromCode("UORY-PDCA")
+	if err != nil || id.Cmp(big.NewInt(1)) != 0 {
+		t.Fatalf("FromCode(UORY-PDCA) = %v, %v; want 1", id, err)
 	}
 }
 
 func TestFromCodeInvalidInput(t *testing.T) {
-	_, err := FromCode("0000000")
+	_, err := FromCode("00000000")
 	assertZeroCode(t, err, INVALID_CHECKSUM)
 
-	_, err = FromCode("!!!!!!!")
+	_, err = FromCode("!!!!!!!!")
 	assertZeroCode(t, err, INVALID_CHARACTER)
 
 	// B is an alias at Medium: it decodes as 8 rather than failing.
