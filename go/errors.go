@@ -2,11 +2,11 @@ package basehuman
 
 import "fmt"
 
-// ErrorCode is a stable machine-readable HRC error category. Values match
+// ErrorCode is a stable machine-readable BaseH error category. Values match
 // the cross-language specification exactly.
 type ErrorCode string
 
-// Error codes defined by the HRC codec specification.
+// Error codes defined by the BaseH codec specification.
 const (
 	INVALID_PROFILE     ErrorCode = "INVALID_PROFILE"
 	OUT_OF_RANGE        ErrorCode = "OUT_OF_RANGE"
@@ -16,6 +16,7 @@ const (
 	INVALID_CHECKSUM    ErrorCode = "INVALID_CHECKSUM"
 	AMBIGUOUS_INPUT     ErrorCode = "AMBIGUOUS_INPUT"
 	TOO_MANY_CANDIDATES ErrorCode = "TOO_MANY_CANDIDATES"
+	BLOCKED_CODE        ErrorCode = "BLOCKED_CODE"
 )
 
 // Error is the single error type returned by this package. Retrieve it with
@@ -29,7 +30,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("hrc: %s: %s", e.Code, e.Message)
+	return fmt.Sprintf("baseh: %s: %s", e.Code, e.Message)
 }
 
 func newError(code ErrorCode, message string, safe bool) *Error {
@@ -37,5 +38,5 @@ func newError(code ErrorCode, message string, safe bool) *Error {
 }
 
 func invalidProfile(reason string) *Error {
-	return newError(INVALID_PROFILE, "invalid HRC profile: "+reason, false)
+	return newError(INVALID_PROFILE, "invalid BaseH profile: "+reason, false)
 }

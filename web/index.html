@@ -51,7 +51,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="spoken-safety">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">Sets which sound-alike substitutions the decoder may try when a code fails validation, for codes read out over the phone. None: no correction attempts. Light: B/D and P/T. Medium: adds M/N and V/W. Heavy: adds F/S and C/G. Larger maps rescue more misheard codes but raise the chance that two different codes both validate; when that happens the decoder refuses with AMBIGUOUS_INPUT rather than guessing.</span></span></label>
+        <label for="spoken-safety">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">For codes read out over the phone. For each sound-alike pair, one letter is removed from the alphabet so it can never appear in a new code, and a code that contains it anyway decodes automatically as the kept letter: no ambiguity, no guessing. Light removes D (decodes as B) and T (decodes as P). Medium also removes N (decodes as M) and W (decodes as V). Heavy also removes S (decodes as F) and G (decodes as C). Pairs run from the most common confusions at Light to the least at Heavy. Each removed letter shrinks the alphabet by one, so capacity falls slightly at higher levels.</span></span></label>
         <select id="spoken-safety">
           <option value="none">None</option>
           <option value="light" selected>Light</option>

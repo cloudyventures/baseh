@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .errors import INVALID_PROFILE, HrcError
+from .blocklist import effective_blocklist, strip_vowels
+from .errors import INVALID_PROFILE, BasehError
 
 
 def _fail(reason: str) -> None:
-    raise HrcError(INVALID_PROFILE, f"Invalid HRC profile: {reason}", False)
+    raise BasehError(INVALID_PROFILE, f"Invalid BaseH profile: {reason}", False)
 
 
 def _is_ascii_char(ch: str) -> bool:
@@ -47,6 +48,7 @@ class PreparedProfile:
     permutation: PreparedPermutation
     checksum_modulus: int
     capacity: int
+    blocklist: tuple
 
 
 def _norm(case_sensitive: bool, ch: str) -> str:
@@ -54,7 +56,7 @@ def _norm(case_sensitive: bool, ch: str) -> str:
 
 
 def prepare_profile(profile) -> PreparedProfile:
-    """Validate a profile dict per spec 2.2. Raises HrcError INVALID_PROFILE."""
+    """Validate a profile dict per spec 2.2. Raises BasehError INVALID_PROFILE."""
     if not isinstance(profile, dict):
         _fail("profile is required")
 
@@ -97,6 +99,26 @@ def prepare_profile(profile) -> PreparedProfile:
     if len(set(checksum_norm)) != len(checksum_norm):
         _fail("checksum alphabet symbols must be unique after case normalization")
 
+    # Spec 18. no-vowels strips vowels before every downstream rule; blocklist
+    # only arms the encode-time scan.
+    profanity = profile.get("profanity") or {"mode": "none"}
+    if not isinstance(profanity, dict) or profanity.get("mode") not in (
+        "none",
+        "no-vowels",
+        "blocklist",
+    ):
+        _fail("profanity mode must be none, no-vowels or blocklist")
+    if profanity["mode"] == "no-vowels":
+        body_norm = strip_vowels(body_norm)
+        checksum_norm = strip_vowels(checksum_norm)
+        if len(body_norm) < 2:
+            _fail("no-vowels mode leaves the body alphabet with fewer than two symbols")
+        if checksum_length > 0 and len(checksum_norm) < 2:
+            _fail("no-vowels mode leaves the checksum alphabet with fewer than two symbols")
+    blocklist = (
+        effective_blocklist(profanity) if profanity["mode"] == "blocklist" else []
+    )
+
     separator = profile.get("separator") or ""
     if not isinstance(separator, str):
         _fail("separator must be a string")
@@ -128,14 +150,18 @@ def prepare_profile(profile) -> PreparedProfile:
 
     grouping = profile.get("grouping")
     if not isinstance(grouping, (list, tuple)):
-        _fail("group sizes must sum to bodyLength + checksumLength")
-    group_sum = 0
-    for g in grouping:
-        if not _is_int(g) or g < 1:
+        _fail("grouping must be empty when separator is empty")
+    if separator == "":
+        if len(grouping) != 0:
+            _fail("grouping must be empty when separator is empty")
+    else:
+        group_sum = 0
+        for g in grouping:
+            if not _is_int(g) or g < 1:
+                _fail("group sizes must sum to bodyLength + checksumLength")
+            group_sum += g
+        if group_sum != body_length + checksum_length:
             _fail("group sizes must sum to bodyLength + checksumLength")
-        group_sum += g
-    if group_sum != body_length + checksum_length:
-        _fail("group sizes must sum to bodyLength + checksumLength")
 
     permutation = profile.get("permutation") or {"enabled": False}
     if not isinstance(permutation, dict):
@@ -175,4 +201,5 @@ def prepare_profile(profile) -> PreparedProfile:
         permutation=perm,
         checksum_modulus=modulus_base ** checksum_length,
         capacity=len(body_norm) ** body_length,
+        blocklist=tuple(blocklist),
     )

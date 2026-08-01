@@ -8,12 +8,13 @@ from .basen import alphabet_index, decode_base_n, encode_base_n
 from .checksum import calculate_checksum
 from .errors import (
     AMBIGUOUS_INPUT,
+    BLOCKED_CODE,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
     OUT_OF_RANGE,
     TOO_MANY_CANDIDATES,
-    HrcError,
+    BasehError,
 )
 from .feistel import FeistelKey, inverse_permute, permute
 from .profile import PreparedProfile, prepare_profile
@@ -46,7 +47,7 @@ class DecodeResult:
 def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False) -> str:
     """Spec 3.1 normalization, steps 1-7. Returns the raw unformatted string."""
     if not isinstance(input, str):
-        raise HrcError(INVALID_CHARACTER, "input must be a string")
+        raise BasehError(INVALID_CHARACTER, "input must be a string")
     s = input.strip(_ASCII_WS)
     if profile.separator:
         s = s.replace(profile.separator, "")
@@ -59,10 +60,10 @@ def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False)
     allowed = set(profile.body_alphabet_norm) | set(profile.checksum_alphabet_norm)
     for ch in s:
         if ch not in allowed:
-            raise HrcError(INVALID_CHARACTER, f"Symbol {ch!r} is not accepted")
+            raise BasehError(INVALID_CHARACTER, f"Symbol {ch!r} is not accepted")
     expected = profile.body_length + profile.checksum_length
     if len(s) != expected:
-        raise HrcError(INVALID_LENGTH, f"Expected {expected} symbols, got {len(s)}")
+        raise BasehError(INVALID_LENGTH, f"Expected {expected} symbols, got {len(s)}")
     return s
 
 
@@ -87,7 +88,7 @@ def generate_candidates(body: str, confusion_map: dict, max_edits: int = 1) -> l
             candidate = body[:pos] + replacement + body[pos + 1 :]
             results.add(candidate)
             if len(results) > _MAX_CANDIDATES:
-                raise HrcError(
+                raise BasehError(
                     TOO_MANY_CANDIDATES,
                     "Candidate generation exceeded 64 entries",
                     False,
@@ -95,7 +96,7 @@ def generate_candidates(body: str, confusion_map: dict, max_edits: int = 1) -> l
     return list(results)
 
 
-class Hrc:
+class Baseh:
     """Codec bound to one validated profile. The profile is validated once at
     construction per spec 2.2, never per encode or decode."""
 
@@ -122,19 +123,29 @@ class Hrc:
         )
 
     def encode(self, id: int) -> str:
-        """Spec 8."""
+        """Spec 8, including the section 18.2 blocked-substring scan."""
         if isinstance(id, bool) or not isinstance(id, int):
-            raise HrcError(OUT_OF_RANGE, "id must be an integer")
+            raise BasehError(OUT_OF_RANGE, "id must be an integer")
         value = id
         if value < 0 or value >= self._profile.capacity:
-            raise HrcError(OUT_OF_RANGE, f"ID {value} is outside the profile capacity")
+            raise BasehError(OUT_OF_RANGE, f"ID {value} is outside the profile capacity")
         if self._profile.permutation.enabled:
             value = permute(value, self._profile.capacity, self._feistel_key())
         body = encode_base_n(
             value, self._profile.body_alphabet_norm, self._profile.body_length
         )
         checksum = calculate_checksum(self._profile, body)
-        return format_raw(body + checksum, self._profile)
+        raw = body + checksum
+        # Spec 18.2: case-insensitive substring scan over the raw code.
+        if self._profile.blocklist:
+            upper = raw.upper()
+            if any(word in upper for word in self._profile.blocklist):
+                raise BasehError(
+                    BLOCKED_CODE,
+                    "The generated reference contains a blocked substring",
+                    False,
+                )
+        return format_raw(raw, self._profile)
 
     def decode(
         self,
@@ -150,9 +161,15 @@ class Hrc:
         body = raw[: self._profile.body_length]
         supplied_checksum = raw[self._profile.body_length :]
 
+        # Spec 3.1 validates union membership before the split. There is no
+        # per-region membership check: a checksum-region symbol outside the
+        # checksum alphabet fails as INVALID_CHECKSUM and a body symbol
+        # outside the body alphabet fails in the checksum or base-N work as
+        # INVALID_CHARACTER.
+
         if calculate_checksum(self._profile, body) != supplied_checksum:
             if not try_correction or max_corrections == 0:
-                raise HrcError(
+                raise BasehError(
                     INVALID_CHECKSUM, "The reference code did not pass validation"
                 )
             if confusion_profile == "none":
@@ -168,11 +185,11 @@ class Hrc:
                 if calculate_checksum(self._profile, candidate) == supplied_checksum:
                     valid.add(candidate)
             if not valid:
-                raise HrcError(
+                raise BasehError(
                     INVALID_CHECKSUM, "The reference code did not pass validation"
                 )
             if len(valid) > 1:
-                raise HrcError(
+                raise BasehError(
                     AMBIGUOUS_INPUT,
                     "The reference code matches more than one record",
                     False,
@@ -187,7 +204,10 @@ class Hrc:
                 value, self._profile.capacity, self._feistel_key()
             )
         canonical_code = self.encode(value)
-        canonical_raw = canonical_code.replace(self._profile.separator, "")
+        if self._profile.separator:
+            canonical_raw = canonical_code.replace(self._profile.separator, "")
+        else:
+            canonical_raw = canonical_code
         return DecodeResult(
             id=value,
             canonical_code=canonical_code,
@@ -199,5 +219,5 @@ class Hrc:
         try:
             result = self.decode(input, **options)
             return {"valid": True, "canonical_code": result.canonical_code}
-        except HrcError as err:
+        except BasehError as err:
             return {"valid": False, "reason": err.code}

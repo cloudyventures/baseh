@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from base_human import Hrc, HrcError  # noqa: E402
+from base_human import Baseh, BasehError  # noqa: E402
 from base_human.feistel import FeistelKey, inverse_permute, permute  # noqa: E402
 
 _VECTORS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vectors")
@@ -38,7 +38,7 @@ class TestVectors(unittest.TestCase):
         cls.codecs = {}
         for entry in data["profiles"]:
             profile = _build_profile(entry["definition"])
-            cls.codecs[entry["profileId"]] = Hrc(profile)
+            cls.codecs[entry["profileId"]] = Baseh(profile)
 
     def test_capacities(self):
         for entry in self.data["profiles"]:
@@ -66,8 +66,8 @@ class TestVectors(unittest.TestCase):
                 result = codec.decode(input_text)
                 self.assertEqual(str(result.id), vector["id"])
                 self.assertEqual(result.canonical_code, vector["canonicalCode"])
-                # Case, separator and whitespace fixes are normalization, not
-                # correction; the corrected flag stays false for these inputs.
+                # Case fixes are normalization, not correction; the corrected
+                # flag stays false for these inputs.
                 self.assertFalse(result.corrected)
             count += 1
         self.assertGreater(count, 0)
@@ -79,10 +79,28 @@ class TestVectors(unittest.TestCase):
                 codec = self.codecs[vector["profileId"]]
                 try:
                     codec.decode(vector["input"])
-                except HrcError as err:
+                except BasehError as err:
                     self.assertEqual(err.code, vector["error"])
                 else:
                     self.fail(f"expected {vector['error']} for {vector['input']!r}")
+            count += 1
+        self.assertGreater(count, 0)
+
+    def test_encode_error_vectors(self):
+        count = 0
+        for vector in self.data["encodeErrors"]:
+            with self.subTest(profile_id=vector["profileId"], id=vector["id"]):
+                codec = self.codecs[vector["profileId"]]
+                try:
+                    codec.encode(int(vector["id"]))
+                except BasehError as err:
+                    self.assertEqual(err.code, vector["error"])
+                    if vector["error"] == "BLOCKED_CODE":
+                        self.assertFalse(err.safe_for_customer)
+                else:
+                    self.fail(
+                        f"expected {vector['error']} for id {vector['id']}"
+                    )
             count += 1
         self.assertGreater(count, 0)
 
@@ -92,7 +110,7 @@ class TestVectors(unittest.TestCase):
             confusion_profile = vector.get("confusionProfile", "light")
             with self.subTest(input=vector["input"]):
                 if "error" in vector:
-                    with self.assertRaises(HrcError) as ctx:
+                    with self.assertRaises(BasehError) as ctx:
                         codec.decode(
                             vector["input"],
                             try_correction=True,
@@ -106,7 +124,10 @@ class TestVectors(unittest.TestCase):
                         confusion_profile=confusion_profile,
                     )
                     self.assertTrue(result.corrected)
-                    canonical_raw = result.canonical_code.replace("-", "")
+                    canonical_raw = result.canonical_code
+                    separator = codec.profile.separator
+                    if separator:
+                        canonical_raw = canonical_raw.replace(separator, "")
                     body = canonical_raw[: len(vector["expectedBody"])]
                     self.assertEqual(body, vector["expectedBody"])
                     # The corrected code must round-trip inside this codec.

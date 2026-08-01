@@ -67,7 +67,7 @@ function readInput(): DesignerInput | null {
 }
 
 function card(c: Candidate, label?: string): string {
-  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity)
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken)
     .map((s) => `${fmt(BigInt(s.id))}: <code>${s.code}</code>`)
     .join(" &middot; ");
   return `<div class="card alt-card">

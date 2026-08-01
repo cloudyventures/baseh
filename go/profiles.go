@@ -9,20 +9,20 @@ func frozenAliases() map[string]string {
 	return map[string]string{"O": "0", "I": "1", "L": "1"}
 }
 
-// HRC32V1Profile returns the frozen assisted-support profile hrc32-v1:
-// 6 body plus 1 checksum symbol with the feistel-v1 permutation. Key
-// material is application-specific and never part of the frozen profile;
-// see spec 7.4.
-func HRC32V1Profile(keyBytes []byte, keyID string) Profile {
+// Baseh32V1Profile returns the frozen assisted-support profile baseh32-v1:
+// 6 body plus 1 checksum symbol with the feistel-v1 permutation and no
+// separators. Key material is application-specific and never part of the
+// frozen profile; see spec 7.4.
+func Baseh32V1Profile(keyBytes []byte, keyID string) Profile {
 	return Profile{
-		ProfileID:        "hrc32-v1",
+		ProfileID:        "baseh32-v1",
 		BodyAlphabet:     frozenBodyAlphabet,
 		BodyLength:       6,
 		ChecksumAlphabet: frozenChecksumAlphabet,
 		ChecksumLength:   1,
 		CaseSensitive:    false,
-		Separator:        "-",
-		Grouping:         []int{3, 3, 1},
+		Separator:        "",
+		Grouping:         nil,
 		Aliases:          frozenAliases(),
 		Permutation: Permutation{
 			Enabled:   true,
@@ -34,13 +34,12 @@ func HRC32V1Profile(keyBytes []byte, keyID string) Profile {
 	}
 }
 
-// HRC32SV1Profile returns the frozen self-service profile hrc32s-v1:
+// Baseh32SV1Profile returns the frozen self-service profile baseh32s-v1:
 // 6 body plus 2 checksum symbols. Detects all single-symbol substitutions
 // and all adjacent transpositions; see spec 6.3.
-func HRC32SV1Profile(keyBytes []byte, keyID string) Profile {
-	p := HRC32V1Profile(keyBytes, keyID)
-	p.ProfileID = "hrc32s-v1"
+func Baseh32SV1Profile(keyBytes []byte, keyID string) Profile {
+	p := Baseh32V1Profile(keyBytes, keyID)
+	p.ProfileID = "baseh32s-v1"
 	p.ChecksumLength = 2
-	p.Grouping = []int{3, 3, 2}
 	return p
 }

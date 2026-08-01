@@ -63,7 +63,7 @@ Safety levels are product presets, not universal truths. Spoken confusion varies
 
 The UI must expose the actual symbols and pairs.
 
-Suggested initial spoken candidate pairs should be conservative and tested with target users before being enabled automatically.
+The normative spoken pair list (capacity calculator 3.5) strips one member of each sound-alike pair from generation alphabets and aliases the stripped symbol back to the kept one, ordered from the most common confusion at Light to the least at Heavy. Keep the pair list conservative and test it with target users before enabling higher levels by default.
 
 ## 4. One checksum or two
 

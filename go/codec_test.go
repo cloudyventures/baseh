@@ -6,20 +6,21 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 var testKey, _ = hex.DecodeString("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
 
 func baseProfile() Profile {
-	return HRC32V1Profile(testKey, "test-01")
+	return Baseh32V1Profile(testKey, "test-01")
 }
 
-func mustNew(t *testing.T, p Profile) *Hrc {
+func mustNew(t *testing.T, p Profile) *Baseh {
 	t.Helper()
-	h, err := NewHrc(p)
+	h, err := NewBaseh(p)
 	if err != nil {
-		t.Fatalf("NewHrc: %v", err)
+		t.Fatalf("NewBaseh: %v", err)
 	}
 	return h
 }
@@ -52,18 +53,14 @@ func TestProfileValidationRejections(t *testing.T) {
 		"body length above limit": mut(func(p *Profile) { p.BodyLength = 33 }),
 		"checksum length negative": mut(func(p *Profile) {
 			p.ChecksumLength = -1
-			p.Grouping = []int{6}
 		}),
 		"checksum length above limit": mut(func(p *Profile) {
 			p.ChecksumLength = 9
-			p.Grouping = []int{3, 3, 9}
 		}),
 		"checksum alphabet too small": mut(func(p *Profile) { p.ChecksumAlphabet = "2" }),
 		"duplicate checksum symbols":  mut(func(p *Profile) { p.ChecksumAlphabet = "22AB" }),
 		"case collision checksum":     mut(func(p *Profile) { p.ChecksumAlphabet = "AaBC" }),
 		"non-ascii checksum symbol":   mut(func(p *Profile) { p.ChecksumAlphabet = "23\xc3\xa99" }),
-		"separator in body":           mut(func(p *Profile) { p.Separator = "0" }),
-		"separator in checksum":       mut(func(p *Profile) { p.Separator = "2" }),
 		"alias source not ascii":      mut(func(p *Profile) { p.Aliases = map[string]string{"OO": "0"} }),
 		"alias target not canonical":  mut(func(p *Profile) { p.Aliases = map[string]string{"U": "!"} }),
 		"alias source canonical":      mut(func(p *Profile) { p.Aliases = map[string]string{"0": "1"} }),
@@ -76,24 +73,43 @@ func TestProfileValidationRejections(t *testing.T) {
 		"alias cycle": mut(func(p *Profile) {
 			p.Aliases = map[string]string{"O": "I", "I": "O"}
 		}),
-		"group total mismatch":    mut(func(p *Profile) { p.Grouping = []int{3, 3} }),
-		"empty grouping":          mut(func(p *Profile) { p.Grouping = nil }),
-		"missing permutation key": mut(func(p *Profile) { p.Permutation.KeyBytes = nil }),
-		"missing key id":          mut(func(p *Profile) { p.Permutation.KeyID = "" }),
-		"unknown algorithm":       mut(func(p *Profile) { p.Permutation.Algorithm = "xor-v9" }),
-		"odd rounds":              mut(func(p *Profile) { p.Permutation.Rounds = 5 }),
-		"too few rounds":          mut(func(p *Profile) { p.Permutation.Rounds = 2 }),
-		"too many rounds":         mut(func(p *Profile) { p.Permutation.Rounds = 18 }),
+		"grouping with empty separator": mut(func(p *Profile) { p.Grouping = []int{3, 3, 1} }),
+		"separator in body":             mut(func(p *Profile) { p.Separator = "0"; p.Grouping = []int{7} }),
+		"separator in checksum":         mut(func(p *Profile) { p.Separator = "2"; p.Grouping = []int{7} }),
+		"group total mismatch":          mut(func(p *Profile) { p.Separator = "-"; p.Grouping = []int{3, 3} }),
+		"empty grouping with separator": mut(func(p *Profile) { p.Separator = "-"; p.Grouping = nil }),
+		"missing permutation key":       mut(func(p *Profile) { p.Permutation.KeyBytes = nil }),
+		"missing key id":                mut(func(p *Profile) { p.Permutation.KeyID = "" }),
+		"unknown algorithm":             mut(func(p *Profile) { p.Permutation.Algorithm = "xor-v9" }),
+		"odd rounds":                    mut(func(p *Profile) { p.Permutation.Rounds = 5 }),
+		"too few rounds":                mut(func(p *Profile) { p.Permutation.Rounds = 2 }),
+		"too many rounds":               mut(func(p *Profile) { p.Permutation.Rounds = 18 }),
 		"bad key hex": mut(func(p *Profile) {
 			p.Permutation.KeyBytes = nil
 			p.Permutation.KeyBytesHex = "zz"
 		}),
+		"unknown profanity mode": mut(func(p *Profile) {
+			p.Profanity = Profanity{Mode: "silent-edit"}
+		}),
+		"blocklist word too short": mut(func(p *Profile) {
+			p.Profanity = Profanity{Mode: ProfanityBlocklist, Words: []string{"X"}}
+		}),
+		"blocklist word not letters": mut(func(p *Profile) {
+			p.Profanity = Profanity{Mode: ProfanityBlocklist, Words: []string{"W0RD"}}
+		}),
+		"blocklist word too long": mut(func(p *Profile) {
+			p.Profanity = Profanity{Mode: ProfanityBlocklist, ExtraWords: []string{strings.Repeat("A", 33)}}
+		}),
+		"no-vowels empties checksum alphabet": mut(func(p *Profile) {
+			p.ChecksumAlphabet = "AEIO"
+			p.Profanity = Profanity{Mode: ProfanityNoVowels}
+		}),
 	}
 	for name, p := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewHrc(p)
+			_, err := NewBaseh(p)
 			if err == nil {
-				t.Fatalf("NewHrc accepted invalid profile")
+				t.Fatalf("NewBaseh accepted invalid profile")
 			}
 			assertCode(t, err, INVALID_PROFILE)
 		})
@@ -101,15 +117,15 @@ func TestProfileValidationRejections(t *testing.T) {
 }
 
 func TestShippedProfilesAccepted(t *testing.T) {
-	if _, err := NewHrc(HRC32V1Profile(testKey, "test-01")); err != nil {
-		t.Errorf("hrc32-v1: %v", err)
+	if _, err := NewBaseh(Baseh32V1Profile(testKey, "test-01")); err != nil {
+		t.Errorf("baseh32-v1: %v", err)
 	}
-	if _, err := NewHrc(HRC32SV1Profile(testKey, "test-01")); err != nil {
-		t.Errorf("hrc32s-v1: %v", err)
+	if _, err := NewBaseh(Baseh32SV1Profile(testKey, "test-01")); err != nil {
+		t.Errorf("baseh32s-v1: %v", err)
 	}
-	p := HRC32V1Profile(testKey, "test-01")
+	p := Baseh32V1Profile(testKey, "test-01")
 	p.Permutation = Permutation{Enabled: false}
-	if _, err := NewHrc(p); err != nil {
+	if _, err := NewBaseh(p); err != nil {
 		t.Errorf("no-permutation variant: %v", err)
 	}
 }
@@ -182,10 +198,10 @@ func TestAliasesAndNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	if code != "VCS-PQ2-G" {
+	if code != "GZEYHTN" {
 		t.Fatalf("canonical = %q", code)
 	}
-	inputs := []string{"vcs-pq2-g", "VCSPQ2G", "  VCS-PQ2-G ", "VCS-PQ2-G"}
+	inputs := []string{"gzeyhtn", "  GZEYHTN ", "GZEYHTN"}
 	for _, in := range inputs {
 		res, err := h.Decode(in, nil)
 		if err != nil {
@@ -197,32 +213,167 @@ func TestAliasesAndNormalization(t *testing.T) {
 		}
 	}
 	// Internal space only with acceptSpaces.
-	spaced := "VCS PQ2 G"
+	spaced := "GZE YHTN"
 	if _, err := h.Decode(spaced, nil); err == nil {
 		t.Errorf("internal space accepted without acceptSpaces")
 	}
 	if _, err := h.Decode(spaced, &DecodeOptions{AcceptSpaces: true}); err != nil {
 		t.Errorf("internal space rejected with acceptSpaces: %v", err)
 	}
+
+	// Aliases decode to the canonical id on a no-permutation profile.
+	p := Baseh32V1Profile(testKey, "test-01")
+	p.Permutation = Permutation{Enabled: false}
+	np := mustNew(t, p)
+	c, err := np.Encode(big.NewInt(1))
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if c[:6] != "000001" {
+		t.Fatalf("noperm body = %q", c[:6])
+	}
+	aliased := "00000I" + c[6:]
+	res, err := np.Decode(aliased, nil)
+	if err != nil || res.ID.Int64() != 1 || res.Corrected {
+		t.Errorf("alias decode -> %+v, %v", res, err)
+	}
 }
 
 func TestCorrectionModes(t *testing.T) {
-	p := HRC32V1Profile(testKey, "test-01")
+	p := Baseh32V1Profile(testKey, "test-01")
 	p.Permutation = Permutation{Enabled: false}
-	p.ProfileID = "hrc32-noperm-test"
+	p.ProfileID = "baseh32-noperm-test"
 	h := mustNew(t, p)
 
 	// Without tryCorrection a substituted symbol stays a checksum error.
-	if _, err := h.Decode("0000TBJ", nil); err == nil {
+	if _, err := h.Decode("0000TBC", nil); err == nil {
 		t.Fatalf("uncorrected input accepted")
 	} else {
 		assertCode(t, err, INVALID_CHECKSUM)
 	}
+	// Default confusion profile is "none", so correction without an
+	// explicit map cannot help.
+	if _, err := h.Decode("0000TBC", &DecodeOptions{TryCorrection: true}); err == nil {
+		t.Fatalf("correction with default none map succeeded")
+	} else {
+		assertCode(t, err, INVALID_CHECKSUM)
+	}
+	// The light map finds the unique fix.
+	res, err := h.Decode("0000TBC", &DecodeOptions{TryCorrection: true, ConfusionProfile: "light"})
+	if err != nil || !res.Corrected {
+		t.Fatalf("light correction -> %+v, %v", res, err)
+	}
 	// Unknown confusion profile is a caller error, not customer input.
-	if _, err := h.Decode("0000TBJ", &DecodeOptions{TryCorrection: true, ConfusionProfile: "loud"}); err == nil {
+	if _, err := h.Decode("0000TBC", &DecodeOptions{TryCorrection: true, ConfusionProfile: "loud"}); err == nil {
 		t.Fatalf("unknown confusion profile accepted")
 	} else {
 		assertCode(t, err, INVALID_PROFILE)
+	}
+}
+
+func TestProfanityBlocklist(t *testing.T) {
+	base := func() Profile {
+		p := Baseh32V1Profile(testKey, "test-01")
+		p.Permutation = Permutation{Enabled: false}
+		p.ProfileID = "block32-test"
+		p.Profanity = Profanity{Mode: ProfanityBlocklist}
+		return p
+	}
+	h := mustNew(t, base())
+
+	// Vector-driven: id 13066 encodes to raw "000CRA" + one checksum char
+	// containing CRAP under this checksum domain, so it is blocked.
+	if _, err := h.Encode(big.NewInt(13066)); err == nil {
+		t.Fatalf("blocked id encoded")
+	} else {
+		assertCode(t, err, BLOCKED_CODE)
+		var herr *Error
+		errors.As(err, &herr)
+		if herr.SafeForCustomer {
+			t.Errorf("BLOCKED_CODE must not be safe for customer")
+		}
+	}
+
+	// decode of the blocked raw string also surfaces BLOCKED_CODE, since
+	// the canonical form could never have been issued.
+	open := base()
+	open.Profanity = Profanity{Mode: ProfanityNone}
+	openProfile := mustNew(t, open)
+	raw, err := openProfile.Encode(big.NewInt(13066))
+	if err != nil {
+		t.Fatalf("open encode: %v", err)
+	}
+	if _, err := h.Decode(raw, nil); err == nil {
+		t.Fatalf("decode of blocked code succeeded")
+	} else {
+		assertCode(t, err, BLOCKED_CODE)
+	}
+
+	// Words replaces the default list entirely.
+	repl := base()
+	repl.ProfileID = "block32-replace-test"
+	repl.Profanity = Profanity{Mode: ProfanityBlocklist, Words: []string{"ZZZZ"}}
+	hr := mustNew(t, repl)
+	code, err := hr.Encode(big.NewInt(13066))
+	if err != nil || code != "000CRA7" {
+		t.Errorf("replacement list should allow CRAP-bearing code, got %q, %v", code, err)
+	}
+
+	// ExtraWords appends to the default list. Use bodies that contain the
+	// word outright so the case is independent of the checksum domain.
+	extra := base()
+	extra.ProfileID = "my-extra-test"
+	extra.Profanity = Profanity{Mode: ProfanityBlocklist, ExtraWords: []string{"QQQQ"}}
+	he := mustNew(t, extra)
+	// body 00DAMN: a default-list word.
+	if _, err := he.Encode(big.NewInt(436885)); err == nil {
+		t.Errorf("default list not applied with extraWords")
+	} else {
+		assertCode(t, err, BLOCKED_CODE)
+	}
+	// body 00QQQQ: an extraWords entry.
+	if _, err := he.Encode(big.NewInt(777975)); err == nil {
+		t.Errorf("extraWords entry not applied")
+	} else {
+		assertCode(t, err, BLOCKED_CODE)
+	}
+	// body 000000 plus checksum char: no blocked substring.
+	if _, err := he.Encode(big.NewInt(0)); err != nil {
+		t.Errorf("innocent id blocked: %v", err)
+	}
+}
+
+func TestProfanityNoVowels(t *testing.T) {
+	p := Baseh32V1Profile(testKey, "test-01")
+	p.Permutation = Permutation{Enabled: false}
+	p.ProfileID = "novowel32-test"
+	p.Profanity = Profanity{Mode: ProfanityNoVowels}
+	h, err := NewBaseh(p)
+	if err != nil {
+		t.Fatalf("novowel profile rejected: %v", err)
+	}
+	// Stripped body alphabet has 30 symbols: 30^6.
+	if h.Capacity().String() != "729000000" {
+		t.Errorf("capacity = %s", h.Capacity())
+	}
+	for _, id := range []int64{0, 1, 2, 728999999} {
+		code, err := h.Encode(big.NewInt(id))
+		if err != nil {
+			t.Fatalf("encode %d: %v", id, err)
+		}
+		if strings.ContainsAny(code, "AEIOU") {
+			t.Errorf("novowel code %q contains a vowel", code)
+		}
+		res, err := h.Decode(code, nil)
+		if err != nil || res.ID.Int64() != id {
+			t.Errorf("round trip %d -> %q -> %+v, %v", id, code, res, err)
+		}
+	}
+	// A vowel in typed input is INVALID_CHARACTER.
+	if _, err := h.Decode("0000A02", nil); err == nil {
+		t.Errorf("vowel input accepted")
+	} else {
+		assertCode(t, err, INVALID_CHARACTER)
 	}
 }
 
@@ -236,11 +387,11 @@ func TestValidate(t *testing.T) {
 	if !ok.Valid || ok.CanonicalCode != code || ok.Reason != "" {
 		t.Errorf("valid code: %+v", ok)
 	}
-	bad := h.Validate("000-000-0", nil)
+	bad := h.Validate("0000000", nil)
 	if bad.Valid || bad.CanonicalCode != "" || bad.Reason != INVALID_CHECKSUM {
 		t.Errorf("invalid code: %+v", bad)
 	}
-	short := h.Validate("000-00", nil)
+	short := h.Validate("00000", nil)
 	if short.Valid || short.Reason != INVALID_LENGTH {
 		t.Errorf("short code: %+v", short)
 	}
@@ -263,6 +414,16 @@ func TestConfusionMapsExact(t *testing.T) {
 		if !reflect.DeepEqual(ConfusionMaps[name], want) {
 			t.Errorf("%s map = %v, want %v", name, ConfusionMaps[name], want)
 		}
+	}
+}
+
+func TestDefaultBlocklistExact(t *testing.T) {
+	want := []string{
+		"CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC",
+		"SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
+	}
+	if !reflect.DeepEqual(DefaultBlocklist, want) {
+		t.Errorf("DefaultBlocklist = %v", DefaultBlocklist)
 	}
 }
 
@@ -318,6 +479,6 @@ func TestFuzzSmoke(t *testing.T) {
 		for j := range buf {
 			buf[j] = byte(rng.Intn(256))
 		}
-		_ = h.Validate(string(buf), &DecodeOptions{TryCorrection: true})
+		_ = h.Validate(string(buf), &DecodeOptions{TryCorrection: true, ConfusionProfile: "light"})
 	}
 }

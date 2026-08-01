@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Profile describes one HRC encoding configuration. JSON tags match the
+// Profile describes one BaseH encoding configuration. JSON tags match the
 // shared cross-language vector definitions exactly.
 type Profile struct {
 	ProfileID        string            `json:"profileId"`
@@ -20,6 +20,9 @@ type Profile struct {
 	Grouping         []int             `json:"grouping"`
 	Aliases          map[string]string `json:"aliases"`
 	Permutation      Permutation       `json:"permutation"`
+	// Profanity is the optional spec-18 configuration. The zero value
+	// (mode "") selects mode "none".
+	Profanity Profanity `json:"profanity,omitempty"`
 }
 
 // Permutation configures the optional reversible Feistel permutation.
@@ -28,7 +31,7 @@ type Permutation struct {
 	Algorithm string `json:"algorithm"`
 	KeyID     string `json:"keyId"`
 	// KeyBytes holds the key material. When empty and KeyBytesHex is set,
-	// NewHrc decodes KeyBytesHex instead (the vector file format).
+	// NewBaseh decodes KeyBytesHex instead (the vector file format).
 	KeyBytes    []byte `json:"-"`
 	KeyBytesHex string `json:"keyBytesHex,omitempty"`
 	Rounds      int    `json:"rounds"`
@@ -69,13 +72,14 @@ type prepared struct {
 	checksumModulus *big.Int
 	capacity        *big.Int
 	permutationKey  feistelKey
+	blocklist       []string
 	allowedByte     [128]bool
-	inBodyAlphabet  [128]bool
 	rawLength       int
 }
 
-// prepareProfile validates a profile per spec section 2.2 and returns it with
-// derived precomputed values. Any violation returns INVALID_PROFILE.
+// prepareProfile validates a profile per spec section 2.2 (plus the spec-18
+// profanity and separator/grouping rules) and returns it with derived
+// precomputed values. Any violation returns INVALID_PROFILE.
 func prepareProfile(p Profile) (*prepared, error) {
 	if p.ProfileID == "" {
 		return nil, invalidProfile("profileId must be non-empty")
@@ -103,19 +107,43 @@ func prepareProfile(p Profile) (*prepared, error) {
 	}
 
 	checksumAlphabet := p.ChecksumAlphabet
-	if p.ChecksumLength > 0 {
-		if len(checksumAlphabet) < 2 {
-			return nil, invalidProfile("checksumAlphabet needs at least two symbols when checksumLength is positive")
-		}
-		if !isASCIIString(checksumAlphabet) {
-			return nil, invalidProfile("checksum alphabet symbols must be single ASCII characters")
-		}
-	} else if !isASCIIString(checksumAlphabet) {
+	if !isASCIIString(checksumAlphabet) {
 		return nil, invalidProfile("checksum alphabet symbols must be single ASCII characters")
+	}
+	if p.ChecksumLength > 0 && len(checksumAlphabet) < 2 {
+		return nil, invalidProfile("checksumAlphabet needs at least two symbols when checksumLength is positive")
 	}
 	checksumNorm := normString(p.CaseSensitive, checksumAlphabet)
 	if !allUnique(checksumNorm) {
 		return nil, invalidProfile("checksum alphabet symbols must be unique after case normalization")
+	}
+
+	// Spec 18. no-vowels strips vowels before every downstream rule;
+	// blocklist only arms the encode-time scan.
+	mode := p.Profanity.Mode
+	if mode == "" {
+		mode = ProfanityNone
+	}
+	var blocklist []string
+	switch mode {
+	case ProfanityNone:
+	case ProfanityNoVowels:
+		bodyNorm = stripVowels(bodyNorm)
+		checksumNorm = stripVowels(checksumNorm)
+		if len(bodyNorm) < 2 {
+			return nil, invalidProfile("no-vowels mode leaves the body alphabet with fewer than two symbols")
+		}
+		if p.ChecksumLength > 0 && len(checksumNorm) < 2 {
+			return nil, invalidProfile("no-vowels mode leaves the checksum alphabet with fewer than two symbols")
+		}
+	case ProfanityBlocklist:
+		list, err := effectiveBlocklist(p.Profanity)
+		if err != nil {
+			return nil, err
+		}
+		blocklist = list
+	default:
+		return nil, invalidProfile("profanity mode must be none, no-vowels or blocklist")
 	}
 
 	for i := 0; i < len(p.Separator); i++ {
@@ -165,18 +193,21 @@ func prepareProfile(p Profile) (*prepared, error) {
 		aliasesNorm[sNorm] = tNorm
 	}
 
-	groupTotal := 0
-	for _, g := range p.Grouping {
-		if g < 1 {
-			return nil, invalidProfile("group sizes must be positive integers")
+	if p.Separator == "" {
+		if len(p.Grouping) != 0 {
+			return nil, invalidProfile("grouping must be empty when separator is empty")
 		}
-		groupTotal += g
-	}
-	if len(p.Grouping) == 0 {
-		groupTotal = -1
-	}
-	if groupTotal != p.BodyLength+p.ChecksumLength {
-		return nil, invalidProfile("group sizes must sum to bodyLength + checksumLength")
+	} else {
+		groupTotal := 0
+		for _, g := range p.Grouping {
+			if g < 1 {
+				return nil, invalidProfile("group sizes must be positive integers")
+			}
+			groupTotal += g
+		}
+		if len(p.Grouping) == 0 || groupTotal != p.BodyLength+p.ChecksumLength {
+			return nil, invalidProfile("group sizes must sum to bodyLength + checksumLength")
+		}
 	}
 
 	prep := &prepared{
@@ -184,13 +215,13 @@ func prepareProfile(p Profile) (*prepared, error) {
 		bodyNorm:     bodyNorm,
 		checksumNorm: checksumNorm,
 		aliasesNorm:  aliasesNorm,
+		blocklist:    blocklist,
 		rawLength:    p.BodyLength + p.ChecksumLength,
 	}
 
 	prep.bodyIndex = make(map[byte]int64, len(bodyNorm))
 	for i := 0; i < len(bodyNorm); i++ {
 		prep.bodyIndex[bodyNorm[i]] = int64(i)
-		prep.inBodyAlphabet[bodyNorm[i]] = true
 		prep.allowedByte[bodyNorm[i]] = true
 	}
 	for i := 0; i < len(checksumNorm); i++ {
