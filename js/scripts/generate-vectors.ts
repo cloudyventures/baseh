@@ -27,13 +27,28 @@ interface VectorProfile {
 }
 
 function profiles(): VectorProfile[] {
-  const base = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
-  const strong = baseh32sV1({ keyBytes: TEST_KEY, keyId: "test-01" });
+  // Frozen profiles ship permutation-off, so their vectors are unpermuted.
+  const base = baseh32V1();
+  const strong = baseh32sV1();
   const noPerm: BasehProfile = { ...base, profileId: "baseh32-noperm-test", permutation: { enabled: false } };
+  // Dedicated permuted profile keeps the full encode/decode pipeline covered
+  // cross-language with a published test key.
+  const permTest: BasehProfile = {
+    ...base,
+    profileId: "baseh32-perm-test",
+    permutation: {
+      enabled: true,
+      algorithm: "feistel-v1",
+      keyId: "test-01",
+      keyBytes: TEST_KEY,
+      rounds: 8
+    }
+  };
   return [
-    { profile: base, keyHex: TEST_KEY_HEX },
-    { profile: strong, keyHex: TEST_KEY_HEX },
-    { profile: noPerm, keyHex: null }
+    { profile: base, keyHex: null },
+    { profile: strong, keyHex: null },
+    { profile: noPerm, keyHex: null },
+    { profile: permTest, keyHex: TEST_KEY_HEX }
   ];
 }
 
@@ -91,7 +106,7 @@ for (const { profile, keyHex } of profiles()) {
 
 // Decode-side vectors: aliases, case, separators, whitespace.
 {
-  const base = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
+  const base = baseh32V1();
   const h = new Baseh(base);
   const canonical = h.encode(123456789n);
   (codecVectors as unknown[]).push(
@@ -113,7 +128,7 @@ const errorVectors: unknown[] = [
 ];
 // checksum-failing code built deterministically from a real body
 {
-  const base = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
+  const base = baseh32V1();
   const h = new Baseh(base);
   const canonical = h.encode(77n);
   const raw = canonical.replaceAll("-", "");
@@ -127,7 +142,7 @@ const errorVectors: unknown[] = [
 // Checksums must be computed under the exact profile the vectors name:
 // baseh32-noperm-test, whose profileId is part of the checksum domain.
 const correctionVectors: unknown[] = (() => {
-  const base = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
+  const base = baseh32V1();
   const noPerm: BasehProfile = { ...base, profileId: "baseh32-noperm-test", permutation: { enabled: false } };
   const prepared = prepareProfile(noPerm);
   const uniqueCheck = calculateChecksum(prepared, "0000PB");

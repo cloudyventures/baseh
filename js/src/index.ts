@@ -13,6 +13,6 @@ export type { DecodeOptions, DecodeResult, ValidateResult, ConfusionProfileName 
 export { encodeBaseN, decodeBaseN, alphabetIndex } from "./basen.js";
 export { calculateChecksum, checksumValue } from "./checksum.js";
 export { permute, inversePermute } from "./feistel.js";
-export { baseh32V1, baseh32sV1, DEMO_KEY_ID, DEMO_KEY_BYTES } from "./profiles.js";
+export { baseh32V1, baseh32sV1 } from "./profiles.js";
 export { DEFAULT_BLOCKLIST, effectiveBlocklist, stripVowels } from "./blocklist.js";
 export type { BasehProfanity, BasehProfanityMode } from "./blocklist.js";

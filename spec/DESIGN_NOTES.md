@@ -372,7 +372,7 @@ aliases:
 correction:
   enabled: false
 permutation:
-  enabled: true
+  enabled: false
 format:
   grouping: []
   separator: ""

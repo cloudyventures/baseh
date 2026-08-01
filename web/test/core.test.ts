@@ -12,7 +12,6 @@ function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
     profanity: "none",
     bodyLength: 6,
     checksumLength: 1,
-    permutation: false,
     separator: "-",
     prefix: "",
     suffix: "",
@@ -82,7 +81,7 @@ describe("calculator", () => {
     assert.equal(r.utilizationStatus, "invalid");
   });
   it("examples are deterministic and valid", () => {
-    const r = calculate(calcInput({ visualSafety: "light", permutation: true }));
+    const r = calculate(calcInput({ visualSafety: "light" }));
     assert.equal(r.examples.length, 5);
     for (const e of r.examples) assert.match(e.code, /^[0-9A-Z-]+$/);
   });

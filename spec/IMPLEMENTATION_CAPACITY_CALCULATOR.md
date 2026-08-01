@@ -89,20 +89,7 @@ Default to the safe checksum alphabet. Permit custom configuration in advanced m
 
 ### 3.8 Permutation
 
-Options:
-
-- Off
-- On, presentation only
-
-Display a warning:
-
-> Permutation hides obvious sequence but does not provide access control.
-
-Live preview with permutation on requires a key in the browser. The tool ships with the fixed published demo key `BASEHUMAN-DEMO-KEY-01` (key ID `demo-01`) for this purpose. The UI must label this clearly near the preview:
-
-> Preview uses the published demo key. A real application generates its own key and never shares it with a browser.
-
-The demo key must never be accepted by a real application profile. Exported configurations contain no key material.
+The shipped tool does not expose permutation. Permutation is a codec-level opt-in for applications that manage their own server-side key; it has no place in a client-side preview because any key visible to the browser is public by definition. Live previews and exported configurations are always unpermuted.
 
 ### 3.9 Formatting
 
