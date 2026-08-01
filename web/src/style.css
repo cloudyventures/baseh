@@ -22,7 +22,7 @@ header h1 { font-size: 1.6rem; margin: 0 0 0.2rem; }
 h2 { font-size: 1.05rem; border-bottom: 1px solid var(--line); padding-bottom: 0.3rem; }
 h3 { font-size: 0.95rem; margin: 1.2rem 0 0.4rem; }
 .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1200px; }
-.cols.designer { grid-template-columns: 1fr 1.9fr 1fr; }
+.cols.designer { grid-template-columns: 2fr 3.8fr 1fr; }
 .field { margin-bottom: 0.8rem; }
 .field label { display: block; font-size: 0.9rem; margin-bottom: 0.2rem; }
 .field input[type="text"], .field input[type="number"], .field select {
@@ -67,7 +67,8 @@ td code, .card code { letter-spacing: 0.06em; }
 .tip:hover .tip-body, .tip:focus-within .tip-body { display: block; }
 #candidates { table-layout: auto; }
 #candidates th:nth-child(-n+6), #candidates td:nth-child(-n+6) { white-space: nowrap; width: 1%; }
-#candidates th:nth-child(7), #candidates td:nth-child(7) { min-width: 60ch; }
+#candidates td { text-align: center; }
+#candidates th:nth-child(7), #candidates td:nth-child(7) { min-width: 60ch; text-align: start; }
 button {
   font: inherit; padding: 0.45rem 0.9rem; border: 1px solid var(--line); background: var(--card);
   border-radius: 4px; cursor: pointer;

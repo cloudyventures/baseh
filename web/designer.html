@@ -15,7 +15,7 @@
     <section aria-labelledby="req">
       <h2 id="req">Requirements</h2>
       <div class="field">
-        <label for="required">Required unique identifiers</label>
+        <label for="required">Required number of IDs<span class="tip" tabindex="0" aria-label="Required number of IDs details"><span class="i">i</span><span class="tip-body">The number of distinct identifiers this namespace must ever issue. Plain digits or a compact suffix: 6k is 6,000, 6m is 6,000,000, 6b is 6,000,000,000 and 6t is 6,000,000,000,000. When you leave the field the number is restated in the standard display format. Deriving from operational demand (below) uses the larger of the two values.</span></span></label>
         <input id="required" type="text" inputmode="numeric" value="60000000" />
       </div>
       <details>
@@ -79,6 +79,9 @@
         <label class="check"><input id="allow-upper" type="checkbox" checked /> Letters only</label>
         <label class="check"><input id="allow-digits" type="checkbox" checked /> Digits only</label>
       </fieldset>
+      <div class="row">
+        <button id="d-export" type="button">Copy export JSON</button>
+      </div>
     </section>
 
     <section aria-labelledby="result" aria-live="polite">
@@ -97,9 +100,6 @@
         </thead>
         <tbody></tbody>
       </table>
-      <div class="row">
-        <button id="d-export" type="button">Copy export JSON</button>
-      </div>
     </section>
   </main>
   <script type="module" src="/src/designer.ts"></script>
