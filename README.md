@@ -6,10 +6,6 @@ baseH is designed to give you the best of both worlds: short, clear codes that a
 
 This implementation gives you total control over length, capacity, checksums and profanity, with error hardening for audio, visual or both. It was originally developed in support of new AI based customer service systems where a user might start in one channel and follow up in another, e.g. start on chat, follow up by phone, and so needed an easy to use reference number that worked both over the phone and the keyboard. 
 
-```text
-C8XP-8J49
-```
-
 - **Reversible**: an internal integer ID converts to a code and back, exactly.
 - **Expandable by default**: codes start at four characters and grow one
   symbol at a time as the id sequence fills each length. No migrations, no
