@@ -101,24 +101,36 @@
         <thead><tr><th>ID</th><th>Code</th></tr></thead>
         <tbody></tbody>
       </table>
+      <h3>Convert</h3>
+      <div class="field">
+        <label for="conv-id">Identifier<span class="tip" tabindex="0" aria-label="Convert identifier details"><span class="i">i</span><span class="tip-body">Type any identifier from 0 up to the capacity minus one to see the exact code this configuration would issue for it. Blocklisted identifiers report as blocked instead.</span></span></label>
+        <input id="conv-id" type="text" inputmode="numeric" placeholder="123456789" />
+        <div id="conv-id-out" class="field-note" aria-live="polite"></div>
+      </div>
+      <div class="field">
+        <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Convert code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
+        <input id="conv-code" type="text" placeholder="74UYC19" />
+        <div id="conv-code-out" class="field-note" aria-live="polite"></div>
+      </div>
     </section>
 
     <section aria-labelledby="fit">
       <h2 id="fit">Operational fit</h2>
+      <p class="muted">Feed in your expected traffic to estimate how much of this namespace it will use, how long the codes last and whether this configuration fits. Leave every field empty to skip the demand analysis.</p>
       <div class="field">
-        <label for="records">New records per day</label>
+        <label for="records">New records per day<span class="tip" tabindex="0" aria-label="New records per day details"><span class="i">i</span><span class="tip-body">How many new records this namespace issues on an average day. Combined with the retention period it sizes the demand the namespace must hold at once.</span></span></label>
         <input id="records" type="number" min="0" placeholder="1000" />
       </div>
       <div class="field">
-        <label for="retention">Retention period in days</label>
+        <label for="retention">Retention period in days<span class="tip" tabindex="0" aria-label="Retention period details"><span class="i">i</span><span class="tip-body">How long a code must keep working after it is issued, in days. Records per day times retention gives the volume of live codes; codes that outlive their retention can be retired.</span></span></label>
         <input id="retention" type="number" min="0" placeholder="3650" />
       </div>
       <div class="field">
-        <label for="peak">Peak multiplier</label>
+        <label for="peak">Peak multiplier<span class="tip" tabindex="0" aria-label="Peak multiplier details"><span class="i">i</span><span class="tip-body">Headroom above the average day for busy periods. 1.25 plans for days 25 percent above average. Applied as a multiplicative factor when sizing required capacity.</span></span></label>
         <input id="peak" type="number" step="0.05" value="1.25" />
       </div>
       <div class="field">
-        <label for="margin">Safety margin</label>
+        <label for="margin">Safety margin<span class="tip" tabindex="0" aria-label="Safety margin details"><span class="i">i</span><span class="tip-body">Extra room on top of the demand estimate, for growth and forecasting error. 2.0 aims for a namespace that could hold double the expected volume before it is exhausted.</span></span></label>
         <input id="margin" type="number" step="0.1" value="2.0" />
       </div>
       <div id="fit-out" class="card"></div>

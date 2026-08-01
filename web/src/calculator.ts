@@ -1,4 +1,5 @@
-import { calculate, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel, deriveChecksumAlphabet } from "./core.js";
+import { calculate, calculatorProfile, friendlyError, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel, deriveChecksumAlphabet } from "./core.js";
+import { Baseh } from "base-human";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -24,6 +25,10 @@ const els = {
   alphaSize: $("alpha-size"),
   alphaView: $("alpha-view"),
   examplesBody: document.querySelector("#examples tbody") as HTMLElement,
+  convId: $<HTMLInputElement>("conv-id"),
+  convIdOut: $("conv-id-out"),
+  convCode: $<HTMLInputElement>("conv-code"),
+  convCodeOut: $("conv-code-out"),
   fitOut: $("fit-out"),
   problems: $("problems"),
   copyJson: $<HTMLButtonElement>("copy-json"),
@@ -127,9 +132,55 @@ function render() {
   }
   if (input.checksumLength === 0) fit += `<div class="warn">No checksum: typing errors cannot be detected reliably.</div>`;
   els.fitOut.innerHTML = fit;
+  els.fitOut.hidden = fit === "";
 
   els.problems.innerHTML = r.problems.map((p) => `<p>${p}</p>`).join("");
   els.copyJson.disabled = !r.valid;
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
+  } catch {
+    // Storage full or disabled: persistence is best effort.
+  }
+
+  // Live conversion against the same preview profile the examples use.
+  let h: Baseh | null = null;
+  if (r.valid) {
+    try {
+      const profile = calculatorProfile(input);
+      h = profile ? new Baseh(profile) : null;
+    } catch {
+      h = null;
+    }
+  }
+  const idRaw = els.convId.value.trim();
+  if (idRaw === "") {
+    els.convIdOut.textContent = "";
+  } else if (!/^[0-9]+$/.test(idRaw)) {
+    els.convIdOut.textContent = "an identifier is a non-negative integer, digits only";
+  } else if (!h) {
+    els.convIdOut.textContent = "the configuration is invalid, fix it to convert";
+  } else {
+    try {
+      els.convIdOut.innerHTML = "";
+      const out = document.createElement("code");
+      out.textContent = h.encode(BigInt(idRaw));
+      els.convIdOut.appendChild(out);
+    } catch (e) {
+      els.convIdOut.textContent = friendlyError(e);
+    }
+  }
+  const codeRaw = els.convCode.value.replace(/\s+/g, "");
+  if (codeRaw === "") {
+    els.convCodeOut.textContent = "";
+  } else if (!h) {
+    els.convCodeOut.textContent = "the configuration is invalid, fix it to convert";
+  } else {
+    try {
+      els.convCodeOut.textContent = `identifier ${h.decode(codeRaw).id}`;
+    } catch (e) {
+      els.convCodeOut.textContent = friendlyError(e);
+    }
+  }
 }
 
 els.copyJson.addEventListener("click", async () => {
@@ -169,19 +220,98 @@ els.copyUrl.addEventListener("click", async () => {
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "medium"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin]) {
+  els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
+  els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
 
-// Restore shareable state from the URL; a shared link wins over the
-// default preset so the recipient sees exactly what was copied.
+// Settings persist through page refresh (sessionStorage) but not across
+// a close and reopen: the tab's session store is what we write to.
+const STORAGE_KEY = "baseh-calculator-state";
+
+interface SavedState {
+  namespace: string;
+  mode: string;
+  customAlphabet: string;
+  visual: string;
+  spoken: string;
+  profanity: string;
+  bodyLength: string;
+  checksumLength: string;
+  permutation: boolean;
+  separator: string;
+  records: string;
+  retention: string;
+  peak: string;
+  margin: string;
+  convId: string;
+  convCode: string;
+}
+
+function readState(): SavedState {
+  return {
+    namespace: els.namespace.value,
+    mode: els.mode.value,
+    customAlphabet: els.customAlpha.value,
+    visual: els.visual.value,
+    spoken: els.spoken.value,
+    profanity: els.profanity.value,
+    bodyLength: els.bodyLen.value,
+    checksumLength: els.checksumLen.value,
+    permutation: els.permutation.checked,
+    separator: els.separator.value,
+    records: els.records.value,
+    retention: els.retention.value,
+    peak: els.peak.value,
+    margin: els.margin.value,
+    convId: els.convId.value,
+    convCode: els.convCode.value
+  };
+}
+
+function applyState(s: SavedState) {
+  els.namespace.value = s.namespace;
+  els.mode.value = s.mode;
+  els.customAlpha.value = s.customAlphabet;
+  els.visual.value = s.visual;
+  els.spoken.value = s.spoken;
+  els.profanity.value = s.profanity;
+  els.bodyLen.value = s.bodyLength;
+  els.checksumLen.value = s.checksumLength;
+  els.permutation.checked = s.permutation;
+  els.separator.value = s.separator;
+  els.records.value = s.records;
+  els.retention.value = s.retention;
+  els.peak.value = s.peak;
+  els.margin.value = s.margin;
+  els.convId.value = s.convId;
+  els.convCode.value = s.convCode;
+}
+
 {
   const q = new URLSearchParams(location.search);
   const hasParams = [...q.keys()].length > 0;
-  if (q.get("mode")) els.mode.value = q.get("mode") as string;
-  if (q.get("visual")) els.visual.value = q.get("visual") as string;
-  if (q.get("body")) els.bodyLen.value = q.get("body") as string;
-  if (q.get("check")) els.checksumLen.value = q.get("check") as string;
-  if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
-  if (!hasParams) applyPreset(els.preset.value || "medium");
+  if (hasParams) {
+    // A shared link wins over stored state so the recipient sees exactly
+    // what was copied.
+    if (q.get("mode")) els.mode.value = q.get("mode") as string;
+    if (q.get("visual")) els.visual.value = q.get("visual") as string;
+    if (q.get("body")) els.bodyLen.value = q.get("body") as string;
+    if (q.get("check")) els.checksumLen.value = q.get("check") as string;
+    if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
+    render();
+  } else {
+    let restored = false;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        applyState(JSON.parse(raw) as SavedState);
+        restored = true;
+      }
+    } catch {
+      // Corrupt or unavailable storage falls back to the default preset.
+    }
+    if (restored) render();
+    else applyPreset(els.preset.value || "medium");
+  }
 }

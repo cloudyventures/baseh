@@ -183,6 +183,44 @@ export interface CalculatorResult {
   examples: Array<{ id: string; code: string; blocked?: boolean }>;
 }
 
+/** The live-preview profile the calculator samples with, or null when the
+ * configuration is invalid (alphabet smaller than two symbols). */
+export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
+  const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
+  if (alphabet.length < 2) return null;
+  const totalLen = input.bodyLength + input.checksumLength;
+  return {
+    profileId: "ui-preview",
+    bodyAlphabet: alphabet,
+    bodyLength: input.bodyLength,
+    checksumAlphabet: deriveChecksumAlphabet(alphabet, input.spokenSafety, input.profanity),
+    checksumLength: input.checksumLength,
+    caseSensitive: false,
+    separator: input.separator,
+    grouping: input.separator ? groupingFor(totalLen) : [],
+    aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
+    profanity: { mode: input.profanity },
+    permutation: previewPermutation(input.permutation)
+  };
+}
+
+/** A plain-language explanation for the converter fields, keyed off the
+ * codec's machine error codes. */
+export function friendlyError(e: unknown): string {
+  if (e instanceof BasehError) {
+    switch (e.code) {
+      case "BLOCKED_CODE": return "blocked: this identifier spells a profanity and is never issued";
+      case "OUT_OF_RANGE": return "outside this configuration's capacity";
+      case "INVALID_CHECKSUM": return "the checksum does not validate";
+      case "INVALID_LENGTH": return "the wrong number of characters";
+      case "INVALID_CHARACTER": return "contains characters outside this alphabet";
+      case "AMBIGUOUS_INPUT": return "matches more than one possible correction";
+      default: return `not a valid code (${e.code.toLowerCase().replaceAll("_", " ")})`;
+    }
+  }
+  return "invalid input";
+}
+
 export function calculate(input: CalculatorInput): CalculatorResult {
   const problems: string[] = [];
   const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
@@ -236,26 +274,14 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   }
 
   const totalLen = input.bodyLength + input.checksumLength;
-  const groups = Math.ceil(totalLen / 4);
   const displayedLength =
-    totalLen + (input.separator ? Math.max(groups - 1, 0) : 0) + input.prefix.length + input.suffix.length;
+    totalLen + (input.separator ? groupingFor(totalLen).length - 1 : 0) + input.prefix.length + input.suffix.length;
 
   const examples: Array<{ id: string; code: string; blocked?: boolean }> = [];
   if (problems.length === 0) {
     try {
-      const profile: BasehProfile = {
-        profileId: "ui-preview",
-        bodyAlphabet: alphabet,
-        bodyLength: input.bodyLength,
-        checksumAlphabet,
-        checksumLength: input.checksumLength,
-        caseSensitive: false,
-        separator: input.separator,
-        grouping: input.separator ? groupingFor(totalLen) : [],
-        aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
-        profanity: { mode: input.profanity },
-        permutation: previewPermutation(input.permutation)
-      };
+      const profile = calculatorProfile(input);
+      if (profile === null) throw new Error("calculatorProfile returned null");
       const h = new Baseh(profile);
       const ids = [0n, 1n, BigInt(alphabet.length) - 1n, BigInt(alphabet.length), capacity - 1n];
       for (const id of new Set(ids)) {
@@ -507,6 +533,24 @@ export function design(input: DesignerInput): DesignerResult {
   return { feasible: withReasons, recommended, alternatives: alternatives.slice(0, 5), repair, requiredCapacity: required };
 }
 
+/** The live-preview profile a designer candidate samples with. */
+export function candidateProfile(c: Candidate, permutation: boolean): BasehProfile {
+  const totalLen = c.bodyLength + c.checksumLength;
+  return {
+    profileId: "ui-preview",
+    bodyAlphabet: c.alphabet,
+    bodyLength: c.bodyLength,
+    checksumAlphabet: deriveChecksumAlphabet(c.alphabet, c.spoken, c.profanity),
+    checksumLength: c.checksumLength,
+    caseSensitive: false,
+    separator: c.separator,
+    grouping: c.separator ? groupingFor(totalLen) : [],
+    aliases: { ...baseAliases(c.alphabet), ...spokenAliases(c.alphabet, c.spoken) },
+    profanity: { mode: c.profanity },
+    permutation: previewPermutation(permutation)
+  };
+}
+
 /** Rendered example codes for a candidate, using the published demo key. */
 export function sampleCodes(
   alphabet: string,
@@ -520,20 +564,10 @@ export function sampleCodes(
 ): Array<{ id: string; code: string; blocked?: boolean }> {
   const out: Array<{ id: string; code: string; blocked?: boolean }> = [];
   try {
-    const totalLen = bodyLength + checksumLength;
-    const profile: BasehProfile = {
-      profileId: "ui-preview",
-      bodyAlphabet: alphabet,
-      bodyLength,
-      checksumAlphabet: deriveChecksumAlphabet(alphabet, spoken, profanity),
-      checksumLength,
-      caseSensitive: false,
-      separator,
-      grouping: separator ? groupingFor(totalLen) : [],
-      aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, spoken) },
-      profanity: { mode: profanity },
-      permutation: previewPermutation(permutation)
-    };
+    const profile = candidateProfile(
+      { alphabet, bodyLength, checksumLength, spoken, separator, profanity } as Candidate,
+      permutation
+    );
     const h = new Baseh(profile);
     for (const id of new Set([0n, 1n, capacity - 1n])) {
       if (id < 0n || id >= capacity) continue;
