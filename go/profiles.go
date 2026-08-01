@@ -10,10 +10,25 @@ func frozenAliases() map[string]string {
 }
 
 // Baseh32V1Profile returns the frozen assisted-support profile baseh32-v1:
-// 6 body plus 1 checksum symbol with the feistel-v1 permutation and no
-// separators. Key material is application-specific and never part of the
-// frozen profile; see spec 7.4.
+// 6 body plus 1 checksum symbol and no separators. The feistel-v1
+// permutation is opt-in: pass nil or empty keyBytes for an unpermuted
+// profile (keyID is then ignored). With keyBytes non-empty, keyID defaults
+// to "default" and rounds fixed at 8. Key material is application-specific
+// and never part of the frozen profile; see spec 7.4.
 func Baseh32V1Profile(keyBytes []byte, keyID string) Profile {
+	permutation := Permutation{Enabled: false}
+	if len(keyBytes) > 0 {
+		if keyID == "" {
+			keyID = "default"
+		}
+		permutation = Permutation{
+			Enabled:   true,
+			Algorithm: "feistel-v1",
+			KeyID:     keyID,
+			KeyBytes:  keyBytes,
+			Rounds:    8,
+		}
+	}
 	return Profile{
 		ProfileID:        "baseh32-v1",
 		BodyAlphabet:     frozenBodyAlphabet,
@@ -24,13 +39,7 @@ func Baseh32V1Profile(keyBytes []byte, keyID string) Profile {
 		Separator:        "",
 		Grouping:         nil,
 		Aliases:          frozenAliases(),
-		Permutation: Permutation{
-			Enabled:   true,
-			Algorithm: "feistel-v1",
-			KeyID:     keyID,
-			KeyBytes:  keyBytes,
-			Rounds:    8,
-		},
+		Permutation:      permutation,
 	}
 }
 

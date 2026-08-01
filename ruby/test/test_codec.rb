@@ -150,6 +150,36 @@ class TestCodec < Minitest::Test
     assert BaseHuman::Baseh.new(BaseHuman.baseh32s_v1(key_bytes: TEST_KEY, key_id: "k"))
   end
 
+  # --- helper key optionality ---
+
+  def test_helpers_without_key_disable_permutation
+    [BaseHuman.baseh32_v1, BaseHuman.baseh32s_v1].each do |profile|
+      assert_equal({ enabled: false }, profile[:permutation])
+      codec = BaseHuman::Baseh.new(profile)
+      assert_equal 42, codec.decode(codec.encode(id: 42)).id
+    end
+  end
+
+  def test_helpers_with_key_enable_feistel_v1
+    [BaseHuman.baseh32_v1(key_bytes: TEST_KEY),
+     BaseHuman.baseh32s_v1(key_bytes: TEST_KEY)].each do |profile|
+      permutation = profile[:permutation]
+      assert_equal true, permutation[:enabled]
+      assert_equal "feistel-v1", permutation[:algorithm]
+      assert_equal "default", permutation[:key_id]
+      assert_equal TEST_KEY, permutation[:key_bytes]
+      assert_equal 8, permutation[:rounds]
+      codec = BaseHuman::Baseh.new(profile)
+      assert_equal 42, codec.decode(codec.encode(id: 42)).id
+    end
+  end
+
+  def test_helpers_apply_key_id_and_rounds_overrides
+    profile = BaseHuman.baseh32_v1(key_bytes: TEST_KEY, key_id: "k-2", rounds: 10)
+    assert_equal "k-2", profile[:permutation][:key_id]
+    assert_equal 10, profile[:permutation][:rounds]
+  end
+
   # --- base-N unit behaviour (test-suite section 4) ---
 
   def hex_profile

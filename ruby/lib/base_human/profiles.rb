@@ -11,10 +11,11 @@ module BaseHuman
 
     module_function
 
-    # baseh32-v1: 6 body + 1 checksum, feistel-v1 permutation, no separator.
-    # Assisted-support use; structured single-substitution miss rate about
-    # 1.2 percent per position (spec 6.3).
-    def baseh32_v1(key_bytes:, key_id:, rounds: 8)
+    # baseh32-v1: 6 body + 1 checksum, permutation off by default, no
+    # separator. Assisted-support use; structured single-substitution miss
+    # rate about 1.2 percent per position (spec 6.3). Supply key_bytes to opt
+    # into feistel-v1 permutation.
+    def baseh32_v1(key_bytes: nil, key_id: nil, rounds: 8)
       {
         profile_id: "baseh32-v1",
         body_alphabet: BODY_ALPHABET,
@@ -25,23 +26,33 @@ module BaseHuman
         separator: "",
         grouping: [],
         aliases: ALIASES.dup,
-        permutation: {
-          enabled: true,
-          algorithm: "feistel-v1",
-          key_id: key_id,
-          key_bytes: key_bytes,
-          rounds: rounds
-        },
+        permutation: permutation_for(key_bytes: key_bytes, key_id: key_id, rounds: rounds),
         profanity: { mode: "none" }
       }
     end
 
-    # baseh32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
+    # baseh32s-v1: 6 body + 2 checksum, permutation off by default.
     # Self-service use; provably detects all single-symbol substitutions and
-    # all adjacent transpositions (spec 6.3).
-    def baseh32s_v1(key_bytes:, key_id:, rounds: 8)
+    # all adjacent transpositions (spec 6.3). Supply key_bytes to opt into
+    # feistel-v1 permutation.
+    def baseh32s_v1(key_bytes: nil, key_id: nil, rounds: 8)
       profile = baseh32_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
       profile.merge(profile_id: "baseh32s-v1", checksum_length: 2)
     end
+
+    # Permutation block for the frozen helpers: disabled without key_bytes,
+    # feistel-v1 with them.
+    def permutation_for(key_bytes:, key_id:, rounds:)
+      return { enabled: false } unless key_bytes
+
+      {
+        enabled: true,
+        algorithm: "feistel-v1",
+        key_id: key_id || "default",
+        key_bytes: key_bytes,
+        rounds: rounds
+      }
+    end
+    private_class_method :permutation_for
   end
 end

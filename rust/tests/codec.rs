@@ -3,8 +3,8 @@
 //! fuzz smoke.
 
 use base_human::{
-    baseh32_v1, baseh32s_v1, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Permutation,
-    Profanity, ProfanityMode, Profile,
+    baseh32_v1, baseh32_v1_with_key, baseh32s_v1, baseh32s_v1_with_key, Baseh, ConfusionProfile,
+    DecodeOptions, ErrorCode, Permutation, Profanity, ProfanityMode, Profile,
 };
 use num_bigint::BigUint;
 
@@ -27,9 +27,8 @@ fn base_profile() -> Profile {
 }
 
 fn no_perm() -> Profile {
-    let mut p = baseh32_v1(KEY, "test-01");
+    let mut p = baseh32_v1();
     p.profile_id = "baseh32-noperm-test".to_string();
-    p.permutation = Permutation::Disabled;
     p
 }
 
@@ -224,12 +223,38 @@ fn profile_validation_rejections() {
 
 #[test]
 fn shipped_profiles_accepted() {
-    Baseh::new(baseh32_v1(KEY, "test-01")).expect("baseh32-v1 valid");
-    Baseh::new(baseh32s_v1(KEY, "test-01")).expect("baseh32s-v1 valid");
+    Baseh::new(baseh32_v1()).expect("baseh32-v1 valid");
+    Baseh::new(baseh32s_v1()).expect("baseh32s-v1 valid");
+    Baseh::new(baseh32_v1_with_key(KEY, "test-01")).expect("keyed baseh32-v1 valid");
+    Baseh::new(baseh32s_v1_with_key(KEY, "test-01")).expect("keyed baseh32s-v1 valid");
     assert_eq!(
-        baseh32_v1(KEY, "test-01").separator,
+        baseh32_v1().separator,
         "",
         "frozen profiles drop separators"
+    );
+}
+
+#[test]
+fn frozen_profile_permutation_shape() {
+    // Permutation is opt-in: the plain helpers disable it.
+    assert_eq!(baseh32_v1().permutation, Permutation::Disabled);
+    assert_eq!(baseh32s_v1().permutation, Permutation::Disabled);
+    // The keyed helpers enable feistel-v1 with 8 rounds.
+    assert_eq!(
+        baseh32_v1_with_key(KEY, "test-01").permutation,
+        Permutation::FeistelV1 {
+            key_id: "test-01".to_string(),
+            key_bytes: KEY.to_vec(),
+            rounds: 8,
+        }
+    );
+    assert_eq!(
+        baseh32s_v1_with_key(KEY, "test-01").permutation,
+        Permutation::FeistelV1 {
+            key_id: "test-01".to_string(),
+            key_bytes: KEY.to_vec(),
+            rounds: 8,
+        }
     );
 }
 
@@ -237,8 +262,10 @@ fn shipped_profiles_accepted() {
 fn boundary_round_trips() {
     for profile in [
         no_perm(),
-        baseh32_v1(KEY, "test-01"),
-        baseh32s_v1(KEY, "test-01"),
+        baseh32_v1(),
+        baseh32s_v1(),
+        baseh32_v1_with_key(KEY, "test-01"),
+        baseh32s_v1_with_key(KEY, "test-01"),
     ] {
         let baseh = Baseh::new(profile).unwrap();
         let cap = baseh.capacity().clone();
@@ -277,7 +304,7 @@ fn round_trip(baseh: &Baseh, id: &BigUint, options: &DecodeOptions) {
 
 #[test]
 fn capacity_values() {
-    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
+    let baseh = Baseh::new(baseh32_v1()).unwrap();
     assert_eq!(baseh.capacity(), &BigUint::from(1_073_741_824u64));
 
     // Capacity beyond u64 must still work end to end.
@@ -415,7 +442,7 @@ fn correction_light_medium_heavy() {
 
 #[test]
 fn validate_never_exposes_id() {
-    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
+    let baseh = Baseh::new(baseh32_v1_with_key(KEY, "test-01")).unwrap();
     let options = DecodeOptions::default();
     let code = baseh.encode(&BigUint::from(7u64)).unwrap();
     let ok = baseh.validate(&code, &options);
@@ -599,7 +626,7 @@ fn error_code_serialized_names() {
 
 #[test]
 fn sequential_round_trip_smoke() {
-    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
+    let baseh = Baseh::new(baseh32_v1_with_key(KEY, "test-01")).unwrap();
     let options = DecodeOptions::default();
     let mut seen = std::collections::HashSet::new();
     for n in 0..10_000u64 {
@@ -637,8 +664,8 @@ impl XorShift {
 fn fuzz_smoke() {
     let profiles = [
         Baseh::new(no_perm()).unwrap(),
-        Baseh::new(baseh32_v1(KEY, "test-01")).unwrap(),
-        Baseh::new(baseh32s_v1(KEY, "test-01")).unwrap(),
+        Baseh::new(baseh32_v1_with_key(KEY, "test-01")).unwrap(),
+        Baseh::new(baseh32s_v1_with_key(KEY, "test-01")).unwrap(),
     ];
     let mut rng = XorShift(0x243F_6A88_85A3_08D3);
     let options = DecodeOptions::default();

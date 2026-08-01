@@ -30,7 +30,50 @@ _CAPACITY = 32 ** 6  # 1,073,741,824
 
 
 def _base_profile() -> dict:
-    return baseh32_v1(_TEST_KEY, "test-01")
+    # Permutation-specific tests opt in by supplying a key explicitly.
+    return baseh32_v1(key_bytes=_TEST_KEY, key_id="test-01")
+
+
+class TestProfileHelpers(unittest.TestCase):
+    def test_no_key_disables_permutation(self):
+        self.assertEqual(baseh32_v1()["permutation"], {"enabled": False})
+        self.assertEqual(baseh32s_v1()["permutation"], {"enabled": False})
+
+    def test_keyed_opt_in_enables_feistel_v1(self):
+        permutation = baseh32_v1(key_bytes=_TEST_KEY)["permutation"]
+        self.assertEqual(
+            permutation,
+            {
+                "enabled": True,
+                "algorithm": "feistel-v1",
+                "keyId": "default",
+                "keyBytes": _TEST_KEY,
+                "rounds": 8,
+            },
+        )
+        permutation = baseh32_v1(
+            key_bytes=_TEST_KEY, key_id="test-01", rounds=10
+        )["permutation"]
+        self.assertEqual(permutation["keyId"], "test-01")
+        self.assertEqual(permutation["rounds"], 10)
+
+    def test_round_trip_no_key(self):
+        for profile in (baseh32_v1(), baseh32s_v1()):
+            codec = Baseh(profile)
+            for value in (0, 7, _CAPACITY - 1):
+                with self.subTest(profile_id=profile["profileId"], id=value):
+                    result = codec.decode(codec.encode(value))
+                    self.assertEqual(result.id, value)
+                    self.assertFalse(result.corrected)
+
+    def test_round_trip_keyed(self):
+        for profile in (baseh32_v1(_TEST_KEY), baseh32s_v1(_TEST_KEY)):
+            codec = Baseh(profile)
+            for value in (0, 7, _CAPACITY - 1):
+                with self.subTest(profile_id=profile["profileId"], id=value):
+                    result = codec.decode(codec.encode(value))
+                    self.assertEqual(result.id, value)
+                    self.assertFalse(result.corrected)
 
 
 class _ProfileCase(unittest.TestCase):
@@ -101,7 +144,7 @@ class TestProfileValidation(_ProfileCase):
 
     def test_shipped_profiles_accepted(self):
         Baseh(_base_profile())
-        Baseh(baseh32s_v1(_TEST_KEY, "test-01"))
+        Baseh(baseh32s_v1(key_bytes=_TEST_KEY, key_id="test-01"))
 
     def test_zero_checksum_profile_accepted(self):
         profile = _base_profile()
@@ -174,7 +217,7 @@ class TestRoundTrip(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.codec = Baseh(_base_profile())
-        cls.codec_s = Baseh(baseh32s_v1(_TEST_KEY, "test-01"))
+        cls.codec_s = Baseh(baseh32s_v1(key_bytes=_TEST_KEY, key_id="test-01"))
 
     def test_boundary_ids(self):
         boundary = [0, 1, 31, 32, 33, _CAPACITY - 2, _CAPACITY - 1]

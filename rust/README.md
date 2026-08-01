@@ -11,9 +11,8 @@ and cross-language conformance vectors live in `../vectors/`.
 use base_human::{baseh32_v1, baseh32s_v1, Baseh, ConfusionProfile, DecodeOptions};
 use num_bigint::BigUint;
 
-// Applications assign their own key material and key id. Keep both immutable
-// for the life of the profile and out of frontend code.
-let baseh = Baseh::new(baseh32_v1(b"application-key-material", "app-key-1"))?;
+// Permutation is off by default; the frozen profiles need no key material.
+let baseh = Baseh::new(baseh32_v1())?;
 
 let code = baseh.encode(&BigUint::from(48_284_291u64))?;
 let result = baseh.decode(&code, &DecodeOptions::default())?;
@@ -40,6 +39,20 @@ self-service lookup: it provably detects all single-symbol substitutions and
 adjacent transpositions (spec 6.3). `baseh32_v1` suits assisted support where
 a human can ask for the code again.
 
+## Permutation (opt-in)
+
+The frozen profiles ship with the permutation disabled. To enable feistel-v1
+(8 rounds), use the keyed variants and supply your own key material and key
+id. Keep both immutable for the life of the profile and out of frontend code.
+
+```rust
+use base_human::{baseh32_v1_with_key, Baseh};
+# fn f() -> Result<(), base_human::BasehError> {
+let baseh = Baseh::new(baseh32_v1_with_key(b"application-key-material", "app-key-1"))?;
+# Ok(())
+# }
+```
+
 ## Profanity safety (spec 18)
 
 Profiles accept an optional `profanity` object with three modes:
@@ -62,7 +75,9 @@ Profiles accept an optional `profanity` object with three modes:
 - `capacity() -> &BigUint` (arbitrary precision, may exceed u64).
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
-- `baseh32_v1` / `baseh32s_v1` build the frozen profiles (8 Feistel rounds).
+- `baseh32_v1` / `baseh32s_v1` build the frozen profiles with the
+  permutation disabled. `baseh32_v1_with_key` / `baseh32s_v1_with_key` build
+  them with feistel-v1 enabled (8 rounds).
 - `feistel::permute` / `feistel::inverse_permute` are public for conformance
   testing against `../vectors/feistel-vectors.json`.
 

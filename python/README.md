@@ -24,8 +24,7 @@ PYTHONPATH=python/src python3 -c "import base_human"
 ```python
 from base_human import Baseh, BasehError, baseh32_v1
 
-key = bytes.fromhex("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
-codec = Baseh(baseh32_v1(key, "my-app-01"))
+codec = Baseh(baseh32_v1())
 
 code = codec.encode(123456789)
 print(code)                       # fixed-length, checksummed code
@@ -41,6 +40,11 @@ fixed = codec.decode(
     try_correction=True,
     confusion_profile="light",
 )
+
+# Optional: opt in to feistel-v1 permutation by supplying a key. Without a
+# key the permutation is disabled.
+key = bytes.fromhex("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
+keyed = Baseh(baseh32_v1(key_bytes=key, key_id="my-app-01"))
 
 # Non-throwing validation for user input:
 check = codec.validate("0000000")
@@ -60,7 +64,7 @@ Profiles accept an optional `profanity` field:
 
 ```python
 # Block specific words (substrings of the raw code) at encode time:
-profile = baseh32_v1(key, "my-app-01")
+profile = baseh32_v1()
 profile["profanity"] = {"mode": "blocklist", "extraWords": ["QQQQ"]}
 codec = Baseh(profile)
 # codec.encode(id) raises BasehError(code="BLOCKED_CODE") on a match.

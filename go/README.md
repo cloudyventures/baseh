@@ -23,8 +23,7 @@ import (
 )
 
 func main() {
-	key := []byte("application-secret-key-material")
-	h, err := basehuman.NewBaseh(basehuman.Baseh32V1Profile(key, "prod-01"))
+	h, err := basehuman.NewBaseh(basehuman.Baseh32V1Profile(nil, ""))
 	if err != nil {
 		panic(err) // invalid profile: fail at startup
 	}
@@ -33,7 +32,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(code) // seven symbols, exact value depends on key material
+	fmt.Println(code) // 3NQK8NJ
 
 	res, err := h.Decode("gzeyhtn", &basehuman.DecodeOptions{
 		AcceptSpaces: true,
@@ -48,6 +47,16 @@ func main() {
 		fmt.Println("invalid code:", v.Reason)
 	}
 }
+```
+
+To opt in to the reversible feistel-v1 permutation, pass key material and a
+key id. With a nil or empty key the permutation stays disabled and the key
+id is ignored. Key material is application-specific and never part of the
+frozen profile.
+
+```go
+key := []byte("application-secret-key-material")
+h, err := basehuman.NewBaseh(basehuman.Baseh32V1Profile(key, "prod-01"))
 ```
 
 Errors are always `*basehuman.Error` with a stable `Code` field (one of
