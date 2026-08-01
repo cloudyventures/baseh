@@ -3,8 +3,8 @@
 //! interactions.
 
 use baseh::{
-    baseh_expandable_p_v1, baseh_expandable_v1, baseh_medium_v1, Baseh, DecodeOptions, ErrorCode,
-    Mode, Permutation, Profile,
+    baseh_expandable_p_v1, baseh_expandable_v1, baseh_medium_v1, Baseh, ConfusionProfile,
+    DecodeOptions, ErrorCode, Mode, Permutation, Profile,
 };
 use num_bigint::BigUint;
 
@@ -242,15 +242,53 @@ fn rejects_min_length_at_or_below_short_checksum_length() {
 }
 
 #[test]
-fn rejects_short_checksum_until_without_short_checksum_length() {
+fn short_checksum_until_alone_is_a_legal_zero_checksum_window() {
+    // Spec 22 amendment: the window field is the switch, so until + absent
+    // length (0) is the zero-checksum window, not an error.
+    let h = Baseh::new(Profile {
+        short_checksum_length: 0,
+        short_checksum_until: 5,
+        ..baseh_expandable_v1()
+    })
+    .unwrap();
+    assert_eq!(h.profile().short_checksum_length, 0);
+    assert_eq!(h.effective_checksum_length(4), 0);
+}
+
+#[test]
+fn rejects_short_checksum_length_without_short_checksum_until() {
     expect_error(
         Baseh::new(Profile {
-            short_checksum_length: 0,
-            short_checksum_until: 5,
+            short_checksum_length: 1,
+            short_checksum_until: 0,
             ..baseh_expandable_v1()
         }),
         ErrorCode::InvalidProfile,
     );
+}
+
+#[test]
+fn rejects_short_checksum_until_above_8() {
+    expect_error(
+        Baseh::new(Profile {
+            short_checksum_length: 1,
+            short_checksum_until: 9,
+            ..baseh_expandable_v1()
+        }),
+        ErrorCode::InvalidProfile,
+    );
+}
+
+#[test]
+fn accepts_short_checksum_until_of_8() {
+    let h = Baseh::new(Profile {
+        short_checksum_length: 1,
+        short_checksum_until: 8,
+        ..baseh_expandable_v1()
+    })
+    .unwrap();
+    assert_eq!(h.effective_checksum_length(8), 1);
+    assert_eq!(h.effective_checksum_length(9), 2);
 }
 
 #[test]
@@ -295,4 +333,144 @@ fn custom_short_checksum_window_round_trips_at_every_generation() {
         assert_eq!(raw(&code).len(), l);
         assert_eq!(h.decode(&code, &strict()).unwrap().id, id);
     }
+}
+
+/// Zero-checksum window profile: checksumLength 2, short 0, until 5.
+fn zero_window_profile() -> Profile {
+    Profile {
+        profile_id: "short-zero-test".to_string(),
+        mode: Mode::Expandable,
+        min_length: 4,
+        checksum_length: 2,
+        short_checksum_length: 0,
+        short_checksum_until: 5,
+        permutation: Permutation::Disabled,
+        profanity: None,
+        max_repetition: 0,
+        ..baseh_expandable_v1()
+    }
+}
+
+#[test]
+fn zero_window_resolves_effective_k_of_zero_inside_checksum_length_above() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    assert_eq!(h.effective_checksum_length(4), 0);
+    assert_eq!(h.effective_checksum_length(5), 0);
+    assert_eq!(h.effective_checksum_length(6), 2);
+}
+
+#[test]
+fn zero_window_generations_are_all_body_capacity_is_a_to_the_l() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    assert_eq!(h.generation_capacity(4), big(34u64.pow(4)));
+    assert_eq!(h.generation_capacity(5), big(34u64.pow(5)));
+    assert_eq!(h.generation_capacity(6), big(34u64.pow(4))); // K = 2 above the window
+}
+
+#[test]
+fn zero_window_round_trips_generations_four_through_six_with_no_checksum_symbols() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    for l in 4..=6usize {
+        for id in [h.generation_base(l), h.generation_base(l + 1) - 1u64] {
+            let code = h.encode(&id).unwrap();
+            assert_eq!(raw(&code).len(), l);
+            assert_eq!(h.decode(&code, &strict()).unwrap().id, id);
+            assert_eq!(h.decode(&code, &strict()).unwrap().canonical_code, code);
+        }
+    }
+}
+
+#[test]
+fn zero_window_checksum_of_zero_symbols_is_the_empty_string() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    let id = h.generation_base(4);
+    let code = raw(&h.encode(&id).unwrap());
+    // All body: every symbol of the raw code is a body symbol.
+    assert_eq!(code.len(), 4);
+    assert!(code.chars().all(|c| "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ".contains(c)));
+}
+
+#[test]
+fn zero_window_typo_is_not_detected_documented_trade_off() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    let id = h.generation_base(4) + 1u64;
+    let code = raw(&h.encode(&id).unwrap());
+    // Flip the last body symbol to a different body symbol.
+    let last = code.chars().nth(3).unwrap();
+    let replacement = if last == '1' { '2' } else { '1' };
+    let typed = format!("{}{}", &code[..3], replacement);
+    let d = h.decode(&typed, &strict()).unwrap(); // no error: there is no checksum to fail
+    assert_ne!(d.id, id);
+}
+
+#[test]
+fn zero_window_correction_never_engages() {
+    // With no checksum there is nothing to correct against: any body
+    // decodes as-is and try_correction never engages.
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    let options = DecodeOptions {
+        try_correction: true,
+        confusion_profile: ConfusionProfile::Heavy,
+        max_corrections: 1,
+        ..DecodeOptions::default()
+    };
+    let id = h.generation_base(5) + 3u64;
+    let code = raw(&h.encode(&id).unwrap());
+    let d = h.decode(&code, &options).unwrap();
+    assert_eq!(d.id, id);
+    assert!(!d.corrected);
+    let last = code.chars().nth(4).unwrap();
+    let typed = format!("{}{}", &code[..4], if last == '1' { '2' } else { '1' });
+    let d2 = h.decode(&typed, &options).unwrap();
+    assert_ne!(d2.id, id);
+    assert!(!d2.corrected);
+}
+
+#[test]
+fn zero_window_repetition_scan_covers_the_whole_all_body_code() {
+    let h = Baseh::new(zero_window_profile()).unwrap();
+    let filtered = Baseh::new(Profile {
+        max_repetition: 4,
+        ..zero_window_profile()
+    })
+    .unwrap();
+    let mut found = None;
+    let mut id = big(0);
+    while id < h.generation_capacity(4) {
+        let r: Vec<char> = raw(&h.encode(&id).unwrap()).chars().collect();
+        if r.windows(4).any(|w| w.iter().all(|c| *c == w[0])) {
+            found = Some(id.clone());
+            break;
+        }
+        id += 1u64;
+    }
+    let found = found.expect("expected a gen-4 code with a run of 4");
+    expect_error(filtered.encode(&found), ErrorCode::BlockedCode);
+}
+
+#[test]
+fn until_8_window_generation_8_carries_one_checksum_symbol_generation_9_carries_two() {
+    let h = Baseh::new(Profile {
+        profile_id: "short-until-8-test".to_string(),
+        mode: Mode::Expandable,
+        min_length: 4,
+        checksum_length: 2,
+        short_checksum_length: 1,
+        short_checksum_until: 8,
+        permutation: Permutation::Disabled,
+        profanity: None,
+        max_repetition: 0,
+        ..baseh_expandable_v1()
+    })
+    .unwrap();
+    let id8 = h.generation_base(8) + 5u64;
+    let c8 = raw(&h.encode(&id8).unwrap());
+    assert_eq!(c8.len(), 8);
+    assert_eq!(h.effective_checksum_length(8), 1);
+    assert_eq!(h.decode(&c8, &strict()).unwrap().id, id8);
+    let id9 = h.generation_base(9) + 5u64;
+    let c9 = raw(&h.encode(&id9).unwrap());
+    assert_eq!(c9.len(), 9);
+    assert_eq!(h.effective_checksum_length(9), 2);
+    assert_eq!(h.decode(&c9, &strict()).unwrap().id, id9);
 }

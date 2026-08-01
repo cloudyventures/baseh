@@ -68,12 +68,13 @@ A profile is valid only when all conditions are true:
 - `checksumLength` is an integer from 0 through 8.
 - The short checksum (section 22) is expandable-mode only: setting
   `shortChecksumLength` or `shortChecksumUntil` in fixed mode is invalid.
-  When `shortChecksumLength` is set it must be an integer of at least `1`
-  and strictly less than `checksumLength` (which must be at least `1`),
-  `shortChecksumUntil` must be present and an integer of at least
-  `minLength`, and `minLength` must be greater than `shortChecksumLength` so
-  the smallest generation carries at least one body symbol.
-  `shortChecksumUntil` without `shortChecksumLength` is invalid.
+  The feature is off when `shortChecksumUntil` is absent or `0`, and
+  `shortChecksumLength` must then be absent or `0` (a length without a
+  window is invalid). When `shortChecksumUntil` is set it must be an integer
+  of at least `minLength` and at most `8`, `shortChecksumLength` must be an
+  integer from `0` through `checksumLength - 1` (a zero-checksum window is
+  legal), and `minLength` must be greater than `shortChecksumLength` so the
+  smallest generation carries at least one body symbol.
 - If `checksumLength` is positive, `checksumAlphabet` has at least two symbols.
 - Checksum symbols are unique after case normalization.
 - The separator does not occur in either alphabet.
@@ -1232,24 +1233,37 @@ generations carry fewer checksum symbols than the rest of the profile:
 
 For a total code length `L <= shortChecksumUntil` the generation's checksum is
 `shortChecksumLength` symbols; above it, `checksumLength` applies exactly as
-section 19 specifies. `shortChecksumLength` of `0`, or an absent field, turns
-the feature off and the profile behaves as if this section did not exist.
+section 19 specifies. The feature is off when `shortChecksumUntil` is `0` or
+absent (the codebase convention for "off", like `maxRepetition: 0` and
+`separatorMinLength: 0`); both fields are then absent or `0` and the profile
+behaves as if this section did not exist.
 Decode needs no marker: the generation — and therefore the effective checksum
 length — is selected by the presented total length (section 19.7), so a
 four-character code always validates against exactly the short checksum.
+
+A `shortChecksumLength` of `0` inside a set window is legal and means **no
+checksum symbols at those lengths**: generations at or below
+`shortChecksumUntil` are all body. This trades typo detection away entirely
+at those lengths — a zero-checksum generation detects zero percent of typos,
+exactly like a fixed profile with `checksumLength: 0`. The capacity gain is
+maximal (generation `L` holds `A^L` ids), but the caller is choosing codes
+with no typo net at the shortest lengths; tooling must display this
+trade-off, never present it silently.
 
 Define the effective checksum length of a generation:
 
 ```text
 effectiveChecksumLength(L) =
-    shortChecksumLength   if shortChecksumLength > 0 and L <= shortChecksumUntil
+    shortChecksumLength   if shortChecksumUntil > 0 and L <= shortChecksumUntil
     checksumLength        otherwise
 ```
 
 Everything section 19 defines in terms of `K` — body size `L - K`, the
 per-generation Feistel domain `A^(L - K)` (section 19.4), the checksum modulus
 `S^K` (section 6.2), generation capacity and `generationBase` (section 19.1) —
-uses `effectiveChecksumLength(L)` per generation. The checksum alphabet and
+uses `effectiveChecksumLength(L)` per generation. At effective `K = 0` the
+modulus is `S^0 = 1`, the checksum of zero symbols is the empty string, and
+the body is the whole code. The checksum alphabet and
 the version 1 rolling polynomial are unchanged; only the modulus and the
 rendered checksum width follow the effective length. Because body sizes are
 per-generation, `generationBase` is the sum of per-generation capacities and
@@ -1263,19 +1277,35 @@ variant is meaningless there.
 
 ### 22.2 Validation
 
-When `shortChecksumLength` is set (non-zero), a profile is valid only when all
-conditions hold:
+The window field is the switch. When `shortChecksumUntil` is absent or `0`
+the feature is off and `shortChecksumLength` must then be absent or `0` —
+a length without a window is `INVALID_PROFILE`.
 
-- `shortChecksumLength` is an integer of at least `1` and strictly less than
-  `checksumLength` (a value equal to or above `checksumLength` changes
-  nothing, so the profile is rejected rather than silently ignored).
-- `checksumLength` is an integer of at least `1`.
-- `shortChecksumUntil` is present and an integer of at least `minLength`.
+When `shortChecksumUntil` is set (non-zero), a profile is valid only when
+all conditions hold:
+
+- `shortChecksumUntil` is an integer of at least `minLength` and at most
+  `8`. The cap is deliberate: beyond 8 the window would swallow nearly every
+  practical code, and long codes genuinely want two checksum symbols.
+- `shortChecksumLength` is an integer from `0` through `checksumLength - 1`.
+  A value of `0` is the zero-checksum window of this section (no checksum
+  symbols in the window). A value equal to or above `checksumLength` changes
+  nothing, so the profile is rejected rather than silently ignored; this
+  also forces `checksumLength` to be at least `1`.
 - `minLength` is greater than `shortChecksumLength`, so the smallest
   generation still carries at least one body symbol.
 
-Setting `shortChecksumUntil` without `shortChecksumLength` is
-`INVALID_PROFILE`.
+An absent `shortChecksumLength` with a set window defaults to `0`, so
+`shortChecksumUntil` alone is a legal zero-checksum window.
+
+Two validation changes relative to the original section, and no silent
+meaning change: configurations that were valid before keep validating with
+exactly the same codes (the previously-valid space had `shortChecksumLength`
+of at least `1`, so no previously-valid configuration changes meaning), the
+previously-invalid zero-length window (`shortChecksumLength: 0` with
+`shortChecksumUntil` set, or the window alone) is now the legal
+zero-checksum window, and windows beyond 8 are newly rejected by the cap.
+The base rule that `minLength` must exceed `checksumLength` is unchanged.
 
 ### 22.3 Generations and capacity
 
@@ -1301,13 +1331,23 @@ profile configuration, displayed by tooling, never a silent override of a
 requested `checksumLength`: presets are configuration helpers, not hidden
 rules.
 
+With a zero-checksum window (`shortChecksumLength: 0`) the window
+generations gain another factor of 34 each — generation `L` holds `A^L` ids
+(for the default alphabet, generation 4 holds `34^4 = 1,336,336` and
+generation 5 holds `34^5 = 45,435,424`) — at the price of **no typo
+detection at all at those lengths**: every presented body decodes, and a
+mistyped symbol silently yields a different id. This is the caller's explicit
+choice, displayed by tooling like every other checksum trade-off.
+
 ### 22.4 Interactions
 
 - The repetition filter (section 21) scans the rendered raw code — body plus
   the effective checksum — exactly as before; a run spanning body and the
-  single short checksum symbol still counts.
+  single short checksum symbol still counts. At a zero-checksum generation
+  the raw code is all body, so the scan covers the body only.
 - `separatorMinLength` and the balanced grouping rule (section 19.5) are
-  functions of the total length and are unchanged.
+  functions of the total length and are unchanged, including at
+  zero-checksum generations.
 - The zero ban (section 19.2) and the derived checksum alphabet `"0" + body`
   (section 19.3) are unchanged.
 - Decode of a typed code uses the effective checksum length of its
@@ -1315,6 +1355,14 @@ rules.
   against one checksum symbol, never two; appending a second checksum symbol
   presents a five-character code whose body/checksum split moves, so it fails
   `INVALID_CHECKSUM` at the random-match rate (section 19.7).
+- At a zero-checksum generation decode expects zero checksum symbols: the
+  whole presented code is the body, the expected checksum is the empty
+  string, and every well-formed body validates — behaviour identical to a
+  fixed profile with `checksumLength: 0`. A typo there is not detected.
+  Correction (section 10) is meaningless without a checksum: because the
+  checksum check can never fail, correction never engages at those
+  generations and yields no candidates, exactly as no-checksum fixed
+  profiles behave.
 
 ### 22.5 Frozen tiers
 
@@ -1324,3 +1372,6 @@ rules.
 field. Codes issued under the pre-feature expandable tier do not decode
 under these definitions; the tier version string stays `v1` because the
 frozen tier was never published before this change (see section 17.1).
+The zero-checksum amendment changes nothing here: the frozen tiers keep
+`shortChecksumLength` 1 and `shortChecksumUntil` 5, and every frozen vector
+code is unchanged.

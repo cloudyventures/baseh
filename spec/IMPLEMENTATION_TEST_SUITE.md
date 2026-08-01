@@ -574,10 +574,24 @@ expandable tier ships the feature on (`checksumLength` 2,
 - **Validation errors.** Setting either field in fixed mode is
   `INVALID_PROFILE`; `shortChecksumLength` equal to or above
   `checksumLength` is rejected; `shortChecksumUntil` below `minLength` is
-  rejected; `minLength` less than or equal to `shortChecksumLength` is
-  rejected; `shortChecksumUntil` without `shortChecksumLength` is rejected;
-  `shortChecksumLength` of `0` or absent turns the feature off and restores
-  the pre-feature generation table.
+  rejected; `shortChecksumUntil` above `8` is rejected and `8` itself is
+  accepted; `minLength` less than or equal to `shortChecksumLength` is
+  rejected; `shortChecksumLength` without `shortChecksumUntil` is rejected;
+  both fields `0` or absent turns the feature off and restores the
+  pre-feature generation table.
+- **Zero-checksum window (amended section 22).** A profile with
+  `checksumLength` 2, `shortChecksumLength` 0, `shortChecksumUntil` 5 is
+  legal — including the window set with the length field absent, which
+  defaults to 0. Round-trip generations 4 through 6: window codes are all
+  body (`A^L` capacity, empty checksum), generation 6 carries two checksum
+  symbols. A typo at a zero-checksum generation is **not** detected — the
+  mistyped code decodes to a different id without error, documenting the
+  trade-off. Correction at those generations never engages and yields no
+  candidates, mirroring `checksumLength: 0` fixed profiles. The repetition
+  scan covers the whole all-body code.
+- **Until-8 window.** A profile with `shortChecksumLength` 1 and
+  `shortChecksumUntil` 8 round-trips across the boundary: generation 8
+  validates against one checksum symbol, generation 9 against two.
 - **Interactions.** The repetition filter's encode-time scan covers body
   plus the short checksum: a four-symbol raw code whose run of four spans
   the body and the single checksum symbol is `BLOCKED_CODE` (section 21).
@@ -596,3 +610,8 @@ expandable tier ships the feature on (`checksumLength` 2,
   and 8 (domains unchanged) and every fixed-mode Feistel vector remain
   byte-identical. Feistel vectors at lengths 4 and 5 regenerate against
   their new domains.
+- **Vector integrity under the zero-checksum amendment.** The amendment is
+  append-only: the new zero-window and until-8 vector profiles and the
+  profile-error vectors are added, and every pre-existing vector entry —
+  including the frozen expandable tier's codes and all Feistel vectors — is
+  byte-identical before and after.

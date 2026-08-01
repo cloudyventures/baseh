@@ -266,15 +266,38 @@ func TestShortChecksumValidation(t *testing.T) {
 		assertCode(t, err, INVALID_PROFILE)
 	}
 
-	// shortChecksumUntil without shortChecksumLength is rejected.
+	// shortChecksumUntil alone is a legal zero-checksum window (amendment).
 	p = base
 	p.ShortChecksumLength = 0
 	p.ShortChecksumUntil = 5
+	zero := mustNew(t, p)
+	if zero.prep.profile.ShortChecksumLength != 0 {
+		t.Errorf("ShortChecksumLength = %d, want 0", zero.prep.profile.ShortChecksumLength)
+	}
+
+	// shortChecksumLength without shortChecksumUntil is rejected.
+	p = base
+	p.ShortChecksumLength = 1
+	p.ShortChecksumUntil = 0
 	if _, err := New(p); err == nil {
-		t.Errorf("shortChecksumUntil without shortChecksumLength accepted")
+		t.Errorf("shortChecksumLength without shortChecksumUntil accepted")
 	} else {
 		assertCode(t, err, INVALID_PROFILE)
 	}
+
+	// shortChecksumUntil above 8 is rejected; 8 is accepted.
+	p = base
+	p.ShortChecksumLength = 1
+	p.ShortChecksumUntil = 9
+	if _, err := New(p); err == nil {
+		t.Errorf("shortChecksumUntil 9 accepted")
+	} else {
+		assertCode(t, err, INVALID_PROFILE)
+	}
+	p = base
+	p.ShortChecksumLength = 1
+	p.ShortChecksumUntil = 8
+	mustNew(t, p)
 
 	// 0 turns the feature off and keeps the old shape.
 	off := mustNew(t, customExpandableShortOff(base))
@@ -341,5 +364,195 @@ func TestShortChecksumCustomWindow(t *testing.T) {
 		if err != nil || res.ID.Cmp(id) != 0 {
 			t.Errorf("round trip %s -> %q -> %+v, %v", id, code, res, err)
 		}
+	}
+}
+
+// zeroWindowProfile is the spec-22 amendment shape: a set window with a
+// short checksum length of 0 (no checksum symbols inside the window).
+func zeroWindowProfile() Profile {
+	p := ExpandableV1()
+	p.ProfileID = "short-zero-test"
+	p.MinLength = 4
+	p.ChecksumLength = 2
+	p.ShortChecksumLength = 0
+	p.ShortChecksumUntil = 5
+	p.Permutation = Permutation{Enabled: false}
+	p.Profanity = Profanity{Mode: ProfanityNone}
+	p.MaxRepetition = 0
+	return p
+}
+
+func TestShortChecksumZeroWindow(t *testing.T) {
+	h := mustNew(t, zeroWindowProfile())
+
+	// Effective K of 0 inside the window, checksumLength above it.
+	for _, e := range []struct {
+		length int
+		want   int
+	}{{4, 0}, {5, 0}, {6, 2}} {
+		if got := effectiveChecksumLength(h.prep, e.length); got != e.want {
+			t.Errorf("effectiveChecksumLength(%d) = %d, want %d", e.length, got, e.want)
+		}
+	}
+
+	// Window generations are all body: capacity is A^L.
+	pow := func(n int64) string {
+		return new(big.Int).Exp(big.NewInt(34), big.NewInt(n), nil).String()
+	}
+	for _, e := range []struct {
+		length int
+		want   string
+	}{{4, pow(4)}, {5, pow(5)}, {6, pow(4)}} {
+		if got := generationCapacity(h.prep, e.length).String(); got != e.want {
+			t.Errorf("generationCapacity(%d) = %s, want %s", e.length, got, e.want)
+		}
+	}
+
+	// Round trips generations 4 through 6 with no checksum symbols in the
+	// window.
+	for l := 4; l <= 6; l++ {
+		first := firstIssuable(t, h, generationBase(h.prep, l))
+		last := new(big.Int).Sub(generationBase(h.prep, l+1), big.NewInt(1))
+		for _, id := range []*big.Int{first, last} {
+			code, err := h.Encode(id)
+			if err != nil {
+				var herr *Error
+				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
+					continue
+				}
+				t.Fatalf("encode %s: %v", id, err)
+			}
+			if got := len(rawCode(code)); got != l {
+				t.Errorf("id %s encoded at length %d, want %d", id, got, l)
+			}
+			res, err := h.Decode(code, nil)
+			if err != nil || res.ID.Cmp(id) != 0 || res.CanonicalCode != code {
+				t.Errorf("round trip %s -> %q -> %+v, %v", id, code, res, err)
+			}
+		}
+	}
+
+	// The checksum of zero symbols is the empty string.
+	id := generationBase(h.prep, 4)
+	code := rawCode(mustEncodeBig(t, h, id))
+	if len(code) != 4 {
+		t.Fatalf("id %s encoded at length %d, want 4", id, len(code))
+	}
+	if got, err := calculateChecksum(h.prep, code, 0); err != nil || got != "" {
+		t.Errorf("calculateChecksum(k=0) = %q, %v; want empty", got, err)
+	}
+}
+
+func TestShortChecksumZeroWindowNoDetection(t *testing.T) {
+	h := mustNew(t, zeroWindowProfile())
+
+	// A typo at a zero-checksum generation is NOT detected (documented
+	// trade-off): there is no checksum to fail, so the mistyped body
+	// silently decodes to a different id.
+	id := new(big.Int).Add(generationBase(h.prep, 4), big.NewInt(1))
+	code := rawCode(mustEncodeBig(t, h, id))
+	last := code[3]
+	replacement := byte('1')
+	if last == '1' {
+		replacement = '2'
+	}
+	typed := code[:3] + string(replacement)
+	res, err := h.Decode(typed, nil)
+	if err != nil {
+		t.Fatalf("decode %q: %v", typed, err)
+	}
+	if res.ID.Cmp(id) == 0 {
+		t.Errorf("typo %q decoded to the original id %s", typed, id)
+	}
+
+	// Correction never engages at zero-checksum generations: the checksum
+	// check cannot fail, so a typo decodes as-is with corrected false.
+	id5 := new(big.Int).Add(generationBase(h.prep, 5), big.NewInt(3))
+	code5 := rawCode(mustEncodeBig(t, h, id5))
+	opts := &DecodeOptions{TryCorrection: true, ConfusionProfile: "heavy"}
+	res, err = h.Decode(code5, opts)
+	if err != nil || res.ID.Cmp(id5) != 0 || res.Corrected {
+		t.Errorf("decode %q = %+v, %v; want id %s uncorrected", code5, res, err, id5)
+	}
+	last = code5[4]
+	replacement = '1'
+	if last == '1' {
+		replacement = '2'
+	}
+	typed5 := code5[:4] + string(replacement)
+	res, err = h.Decode(typed5, opts)
+	if err != nil {
+		t.Fatalf("decode %q: %v", typed5, err)
+	}
+	if res.ID.Cmp(id5) == 0 || res.Corrected {
+		t.Errorf("typo %q = %+v; want a different id, uncorrected", typed5, res)
+	}
+}
+
+func TestShortChecksumZeroWindowRepetition(t *testing.T) {
+	h := mustNew(t, zeroWindowProfile())
+
+	// The repetition scan covers the whole all-body code (spec 22.4).
+	filteredProfile := zeroWindowProfile()
+	filteredProfile.MaxRepetition = 4
+	filtered := mustNew(t, filteredProfile)
+	var found *big.Int
+	limit := generationCapacity(h.prep, 4)
+	for id := big.NewInt(0); id.Cmp(limit) < 0 && found == nil; id.Add(id, big.NewInt(1)) {
+		c, err := h.Encode(id)
+		if err != nil {
+			continue
+		}
+		r := rawCode(c)
+		if len(r) == 4 && r[0] == r[1] && r[1] == r[2] && r[2] == r[3] {
+			found = new(big.Int).Set(id)
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected a gen-4 code with a run of 4")
+	}
+	_, err := filtered.Encode(found)
+	expectCode(t, err, BLOCKED_CODE)
+}
+
+func TestShortChecksumUntil8Boundary(t *testing.T) {
+	p := ExpandableV1()
+	p.ProfileID = "short-until-8-test"
+	p.MinLength = 4
+	p.ChecksumLength = 2
+	p.ShortChecksumLength = 1
+	p.ShortChecksumUntil = 8
+	p.Permutation = Permutation{Enabled: false}
+	p.Profanity = Profanity{Mode: ProfanityNone}
+	p.MaxRepetition = 0
+	h := mustNew(t, p)
+
+	// Generation 8 carries one checksum symbol, generation 9 carries two.
+	id8 := new(big.Int).Add(generationBase(h.prep, 8), big.NewInt(5))
+	c8 := rawCode(mustEncodeBig(t, h, id8))
+	if len(c8) != 8 {
+		t.Fatalf("id %s encoded at length %d, want 8", id8, len(c8))
+	}
+	want8, err := calculateChecksum(h.prep, c8[:7], 1)
+	if err != nil || c8[7:] != want8 {
+		t.Errorf("gen-8 checksum = %q, want %q (%v)", c8[7:], want8, err)
+	}
+	res, err := h.Decode(c8, nil)
+	if err != nil || res.ID.Cmp(id8) != 0 {
+		t.Errorf("round trip %q -> %+v, %v", c8, res, err)
+	}
+
+	id9 := new(big.Int).Add(generationBase(h.prep, 9), big.NewInt(5))
+	c9 := rawCode(mustEncodeBig(t, h, id9))
+	if len(c9) != 9 {
+		t.Fatalf("id %s encoded at length %d, want 9", id9, len(c9))
+	}
+	want9, err := calculateChecksum(h.prep, c9[:7], 2)
+	if err != nil || c9[7:] != want9 {
+		t.Errorf("gen-9 checksum = %q, want %q (%v)", c9[7:], want9, err)
+	}
+	res, err = h.Decode(c9, nil)
+	if err != nil || res.ID.Cmp(id9) != 0 {
+		t.Errorf("round trip %q -> %+v, %v", c9, res, err)
 	}
 }

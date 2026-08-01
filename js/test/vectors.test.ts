@@ -69,8 +69,7 @@ describe("frozen encode-error vectors", () => {
   }
 });
 
-describe("frozen correction vectors", () => {
-  for (const v of vectors.correction) {
+describe("frozen correction vectors", () => {  for (const v of vectors.correction) {
     it(`${v.profileId} ${v.input}`, () => {
       const h = codecs.get(v.profileId) as Baseh;
       const options = { tryCorrection: true, confusionProfile: v.confusionProfile ?? "light" } as const;
@@ -98,6 +97,28 @@ describe("frozen feistel vectors", () => {
       const p = permute(BigInt(v.input), BigInt(v.capacity), key);
       assert.equal(p.toString(), v.permuted);
       assert.equal(inversePermute(p, BigInt(v.capacity), key).toString(), v.input);
+    });
+  }
+});
+
+describe("frozen profile-error vectors (spec 22 amended matrix)", () => {
+  for (const v of vectors.profileErrors ?? []) {
+    it(`${v.note} -> ${v.error}`, () => {
+      const def = v.definition as ProfileDef;
+      const profile: BasehProfile = {
+        ...def,
+        permutation: def.permutation.enabled
+          ? {
+              enabled: true,
+              algorithm: "feistel-v1",
+              keyId: def.permutation.keyId,
+              keyBytes: hexToBytes(def.permutation.keyBytesHex),
+              rounds: def.permutation.rounds
+            }
+          : { enabled: false }
+      };
+      assert.throws(() => new Baseh(profile), (e: unknown) =>
+        e instanceof BasehError && e.code === v.error);
     });
   }
 });

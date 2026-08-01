@@ -86,10 +86,23 @@
         <input id="sep-min-length" type="number" min="0" max="20" value="6" />
       </div>
       <div class="field" id="short-checksum-row">
-        <label for="short-checksum">Short checksum<span class="tip" tabindex="0" aria-label="Short checksum details"><span class="i">i</span><span class="tip-body">Expandable mode can carry fewer checksum symbols on its shortest, most-typed generations: codes through total length 5 validate against 1 checksum symbol, longer codes use the full checksum length. The opening generation holds 34 times as many identifiers in exchange for weaker typo detection there (about 1 in 35 random matches instead of 1 in 1,225). The frozen expandable tier ships this on; Off keeps the full checksum on every generation.</span></span></label>
+        <label for="short-checksum">Short checksum<span class="tip" tabindex="0" aria-label="Short checksum details"><span class="i">i</span><span class="tip-body">Expandable mode can carry fewer checksum symbols on its shortest, most-typed generations: codes through the window length validate against fewer checksum symbols, longer codes use the full checksum length. The opening generation holds 34 times as many identifiers in exchange for weaker typo detection there (about 1 in 35 random matches instead of 1 in 1,225). "0 symbols" is a zero-checksum window: those codes are all body with no typo detection at all. The frozen expandable tier ships 1 symbol through length 5; Off keeps the full checksum on every generation.</span></span></label>
         <select id="short-checksum">
+          <option value="off">Off</option>
+          <option value="0">0 symbols (no typo detection in the window)</option>
+          <option value="1" selected>1 symbol (frozen tier)</option>
+          <option value="2">2 symbols</option>
+        </select>
+      </div>
+      <div class="field" id="short-checksum-until-row">
+        <label for="short-checksum-until">Short checksum through length<span class="tip" tabindex="0" aria-label="Short checksum window details"><span class="i">i</span><span class="tip-body">The last total length that uses the short checksum; longer codes use the full checksum length. The window must start at the minimum length and may reach at most length 8. Off turns the short checksum off entirely.</span></span></label>
+        <select id="short-checksum-until">
           <option value="0">Off</option>
-          <option value="1" selected>1 symbol through length 5 (frozen tier)</option>
+          <option value="4">4</option>
+          <option value="5" selected>5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
         </select>
       </div>
       <div class="field" id="body-length-row">

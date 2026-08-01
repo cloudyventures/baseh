@@ -3,10 +3,12 @@ import { effectiveBlocklist, stripVowels } from "./blocklist.js";
 /**
  * Spec 22. The checksum length that applies to a generation of the given
  * total length: `shortChecksumLength` at or below `shortChecksumUntil`,
- * `checksumLength` above it (and always in fixed mode).
+ * `checksumLength` above it (and always in fixed mode). The feature is on
+ * exactly when `shortChecksumUntil` is non-zero; a `shortChecksumLength` of
+ * 0 then means the window's generations carry no checksum symbols at all.
  */
 export function effectiveChecksumLength(profile, length) {
-    if (profile.mode === "expandable" && profile.shortChecksumLength > 0 && length <= profile.shortChecksumUntil) {
+    if (profile.mode === "expandable" && profile.shortChecksumUntil > 0 && length <= profile.shortChecksumUntil) {
         return profile.shortChecksumLength;
     }
     return profile.checksumLength;
@@ -94,7 +96,10 @@ export function prepareProfile(profile) {
             fail("separatorMinLength must be an integer of at least 0");
         }
     }
-    // Spec 22. The short checksum is expandable-only; 0 or absent turns it off.
+    // Spec 22. The short checksum is expandable-only. The window field is the
+    // switch: `shortChecksumUntil` of 0 or absent turns the feature off (the
+    // codebase convention, like maxRepetition), and the length field without
+    // a window is INVALID_PROFILE.
     const shortChecksumLength = profile.shortChecksumLength ?? 0;
     const shortChecksumUntil = profile.shortChecksumUntil ?? 0;
     if (mode === "fixed") {
@@ -102,22 +107,26 @@ export function prepareProfile(profile) {
             fail("shortChecksumLength and shortChecksumUntil are expandable-mode only");
         }
     }
-    else if (shortChecksumLength !== 0) {
-        if (!Number.isInteger(shortChecksumLength) || shortChecksumLength < 1) {
-            fail("shortChecksumLength must be an integer of at least 1");
-        }
-        if (profile.checksumLength < 1 || shortChecksumLength >= profile.checksumLength) {
-            fail("shortChecksumLength must be less than checksumLength");
-        }
+    else if (shortChecksumUntil !== 0) {
         if (!Number.isInteger(profile.shortChecksumUntil) || shortChecksumUntil < minLength) {
             fail("shortChecksumUntil must be an integer of at least minLength");
+        }
+        // Beyond 8 the window would swallow nearly every practical code, and
+        // long codes genuinely want two checksum symbols.
+        if (shortChecksumUntil > 8) {
+            fail("shortChecksumUntil must be at most 8");
+        }
+        if (!Number.isInteger(shortChecksumLength) ||
+            shortChecksumLength < 0 ||
+            shortChecksumLength >= profile.checksumLength) {
+            fail("shortChecksumLength must be an integer from 0 through checksumLength - 1");
         }
         if (minLength <= shortChecksumLength) {
             fail("minLength must be greater than shortChecksumLength");
         }
     }
-    else if (shortChecksumUntil !== 0) {
-        fail("shortChecksumUntil requires shortChecksumLength");
+    else if (shortChecksumLength !== 0) {
+        fail("shortChecksumLength requires shortChecksumUntil");
     }
     const checksumAlphabet = profile.checksumAlphabet ?? "";
     let checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");

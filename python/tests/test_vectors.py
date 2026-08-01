@@ -157,6 +157,21 @@ class TestVectors(unittest.TestCase):
                     self.assertEqual(again.id, result.id)
                     self.assertEqual(again.canonical_code, result.canonical_code)
                     self.assertFalse(again.corrected)
+    def test_profile_error_vectors(self):
+        """Spec 22 amended validation matrix: these definitions must fail
+        profile preparation with the pinned error."""
+        count = 0
+        for vector in self.data.get("profileErrors", []):
+            with self.subTest(note=vector["note"]):
+                profile = _build_profile(vector["definition"])
+                try:
+                    Baseh(profile)
+                except BasehError as err:
+                    self.assertEqual(err.code, vector["error"])
+                else:
+                    self.fail(f"expected {vector['error']} for {vector['note']!r}")
+            count += 1
+        self.assertGreater(count, 0)
 
 
 class TestFeistelVectors(unittest.TestCase):

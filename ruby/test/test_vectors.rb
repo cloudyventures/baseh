@@ -98,6 +98,16 @@ class TestVectors < Minitest::Test
     end
   end
 
+  def test_profile_error_vectors
+    self.class.vectors_doc["profileErrors"].each do |vector|
+      error = assert_raises(Baseh::BasehError,
+                            "expected #{vector['error']} for #{vector['note']}") do
+        Baseh::Profile.prepare(self.class.build_profile(vector["definition"]))
+      end
+      assert_equal vector["error"], error.code, "wrong code for #{vector['note']}"
+    end
+  end
+
   def test_encode_vectors
     self.class.vectors_doc["vectors"].each do |vector|
       codec = codec(vector["profileId"])

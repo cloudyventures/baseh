@@ -71,9 +71,9 @@ export interface CalculatorInput {
   /** Expandable mode only; the separator appears from this total length up. */
   separatorMinLength: number;
   checksumLength: number;
-  /** Spec 22. Expandable mode only; 0 turns the short checksum off. */
+  /** Spec 22. Expandable mode only; 0 inside a window is a zero-checksum window. */
   shortChecksumLength: number;
-  /** Spec 22. The last total length that carries the short checksum. */
+  /** Spec 22. The last total length that carries the short checksum; 0 turns the feature off. */
   shortChecksumUntil: number;
   permutation: boolean;
   separator: string;
@@ -350,9 +350,11 @@ export function expandableDisplayedLength(totalLen: number, separator: string, s
 }
 
 /** Spec 22. The checksum length that applies at total length `length`:
- * the short checksum at or below `shortChecksumUntil`, `checksumLength` above it. */
+ * the short checksum at or below `shortChecksumUntil`, `checksumLength` above it.
+ * The window field is the switch; a `shortChecksumLength` of 0 then means the
+ * window's generations carry no checksum symbols at all. */
 export function effectiveChecksumLengthAt(checksumLength: number, shortChecksumLength: number, shortChecksumUntil: number, length: number): number {
-  if (shortChecksumLength > 0 && length <= shortChecksumUntil) return shortChecksumLength;
+  if (shortChecksumUntil > 0 && length <= shortChecksumUntil) return shortChecksumLength;
   return checksumLength;
 }
 
@@ -619,20 +621,28 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
   if (!Number.isInteger(input.minLength) || input.minLength < 1) problems.push("Minimum length must be an integer of at least 1.");
   if (input.minLength <= input.checksumLength) problems.push("Minimum length must be greater than the checksum length.");
   if (input.checksumLength < 0 || input.checksumLength > 8) problems.push("Checksum length must be 0 through 8.");
-  // Spec 22.2. The short checksum is expandable-only; 0 turns it off.
-  let shortOk = input.shortChecksumLength === 0;
-  if (input.shortChecksumLength !== 0) {
-    if (!Number.isInteger(input.shortChecksumLength) || input.shortChecksumLength < 1) {
-      problems.push("Short checksum length must be an integer of at least 1.");
-    } else if (input.checksumLength < 1 || input.shortChecksumLength >= input.checksumLength) {
-      problems.push("Short checksum length must be less than the checksum length.");
-    } else if (!Number.isInteger(input.shortChecksumUntil) || input.shortChecksumUntil < input.minLength) {
+  // Spec 22.2. The short checksum is expandable-only; the window field is the
+  // switch (0 turns it off), and a short length of 0 inside a window is a
+  // legal zero-checksum window. The length field without a window is invalid.
+  let shortOk = input.shortChecksumUntil === 0 && input.shortChecksumLength === 0;
+  if (input.shortChecksumUntil !== 0) {
+    if (!Number.isInteger(input.shortChecksumUntil) || input.shortChecksumUntil < input.minLength) {
       problems.push("Short checksum applies through a length of at least the minimum length.");
+    } else if (input.shortChecksumUntil > 8) {
+      problems.push("Short checksum applies through a length of at most 8.");
+    } else if (
+      !Number.isInteger(input.shortChecksumLength) ||
+      input.shortChecksumLength < 0 ||
+      input.shortChecksumLength >= input.checksumLength
+    ) {
+      problems.push("Short checksum length must be an integer from 0 through checksum length - 1.");
     } else if (input.minLength <= input.shortChecksumLength) {
       problems.push("Minimum length must be greater than the short checksum length.");
     } else {
       shortOk = true;
     }
+  } else if (input.shortChecksumLength !== 0) {
+    problems.push("Short checksum length requires a window (short checksum until).");
   }
   const short = shortOk ? input.shortChecksumLength : 0;
   const shortUntil = shortOk ? input.shortChecksumUntil : 0;
@@ -715,8 +725,10 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
 
   const falseAcceptance =
     input.checksumLength === 0 ? "n/a"
-      : short > 0
-        ? `about 1 in ${powBigInt(BigInt(Math.max(checksumAlphabet.length, 1)), short).toString()} through length ${shortUntil}, then 1 in ${checksumStates.toString()}`
+      : shortUntil > 0
+        ? short > 0
+          ? `about 1 in ${powBigInt(BigInt(Math.max(checksumAlphabet.length, 1)), short).toString()} through length ${shortUntil}, then 1 in ${checksumStates.toString()}`
+          : `no typo detection through length ${shortUntil} (zero checksum), then about 1 in ${checksumStates.toString()}`
         : `about 1 in ${checksumStates.toString()}`;
 
   return {

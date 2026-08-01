@@ -27,13 +27,17 @@ type Profile struct {
 	SeparatorMinLength int    `json:"separatorMinLength,omitempty"`
 	ChecksumAlphabet   string `json:"checksumAlphabet"`
 	ChecksumLength     int    `json:"checksumLength"`
-	// ShortChecksumLength applies to expandable mode only (spec 22); the
-	// zero value turns the short checksum off. When set, generations at or
-	// below ShortChecksumUntil use this many checksum symbols instead of
-	// ChecksumLength. Both fields must be 0 in fixed mode.
+	// ShortChecksumLength applies to expandable mode only (spec 22). When
+	// ShortChecksumUntil is set, generations at or below it use this many
+	// checksum symbols instead of ChecksumLength; 0 is a legal
+	// zero-checksum window (no typo detection at those generations). When
+	// the window is off this field must be 0. Both fields must be 0 in
+	// fixed mode.
 	ShortChecksumLength int `json:"shortChecksumLength,omitempty"`
 	// ShortChecksumUntil is the last generation (total length) that uses
-	// the short checksum; required when ShortChecksumLength is set.
+	// the short checksum; it is the feature switch — 0 or absent turns the
+	// feature off, and ShortChecksumLength must then be 0 as well. A set
+	// window alone is a legal zero-checksum window.
 	ShortChecksumUntil int               `json:"shortChecksumUntil,omitempty"`
 	CaseSensitive      bool              `json:"caseSensitive"`
 	Separator          string            `json:"separator"`
@@ -181,27 +185,30 @@ func prepareProfile(p Profile) (*prepared, error) {
 		}
 	}
 
-	// Spec 22. The short checksum is expandable-only; 0 or absent turns it
-	// off. Go ints are always integers, so only the range rules apply.
+	// Spec 22. The short checksum is expandable-only, and the window field
+	// is the switch: a shortChecksumUntil of 0 or absent turns the feature
+	// off, and the length must then be 0 as well. A set window with a
+	// length of 0 is a legal zero-checksum window. Go ints are always
+	// integers, so only the range rules apply.
 	if mode == "fixed" {
 		if p.ShortChecksumLength != 0 || p.ShortChecksumUntil != 0 {
 			return nil, invalidProfile("shortChecksumLength and shortChecksumUntil are expandable-mode only")
 		}
-	} else if p.ShortChecksumLength != 0 {
-		if p.ShortChecksumLength < 1 {
-			return nil, invalidProfile("shortChecksumLength must be an integer of at least 1")
-		}
-		if p.ChecksumLength < 1 || p.ShortChecksumLength >= p.ChecksumLength {
-			return nil, invalidProfile("shortChecksumLength must be less than checksumLength")
-		}
+	} else if p.ShortChecksumUntil != 0 {
 		if p.ShortChecksumUntil < minLength {
 			return nil, invalidProfile("shortChecksumUntil must be an integer of at least minLength")
+		}
+		if p.ShortChecksumUntil > 8 {
+			return nil, invalidProfile("shortChecksumUntil must be at most 8")
+		}
+		if p.ShortChecksumLength < 0 || p.ShortChecksumLength >= p.ChecksumLength {
+			return nil, invalidProfile("shortChecksumLength must be an integer from 0 through checksumLength - 1")
 		}
 		if minLength <= p.ShortChecksumLength {
 			return nil, invalidProfile("minLength must be greater than shortChecksumLength")
 		}
-	} else if p.ShortChecksumUntil != 0 {
-		return nil, invalidProfile("shortChecksumUntil requires shortChecksumLength")
+	} else if p.ShortChecksumLength != 0 {
+		return nil, invalidProfile("shortChecksumLength requires shortChecksumUntil")
 	}
 
 	checksumAlphabet := p.ChecksumAlphabet
@@ -405,7 +412,7 @@ func prepareProfile(p Profile) (*prepared, error) {
 // fixed mode).
 func effectiveChecksumLength(prep *prepared, length int) int {
 	p := prep.profile
-	if prep.mode == "expandable" && p.ShortChecksumLength > 0 && length <= p.ShortChecksumUntil {
+	if prep.mode == "expandable" && p.ShortChecksumUntil > 0 && length <= p.ShortChecksumUntil {
 		return p.ShortChecksumLength
 	}
 	return p.ChecksumLength

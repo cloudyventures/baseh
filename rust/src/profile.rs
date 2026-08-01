@@ -57,11 +57,13 @@ pub struct Profanity {
 
 /// Spec 22. The checksum length that applies to a generation of the given
 /// total length: `short_checksum_length` at or below `short_checksum_until`,
-/// `checksum_length` above it (and always in fixed mode).
+/// `checksum_length` above it (and always in fixed mode). The feature is on
+/// exactly when `short_checksum_until` is non-zero; a `short_checksum_length`
+/// of 0 then means the window's generations carry no checksum symbols at all.
 pub(crate) fn effective_checksum_length(profile: &PreparedProfile, length: usize) -> usize {
     let p = &profile.profile;
     if p.mode == Mode::Expandable
-        && p.short_checksum_length > 0
+        && p.short_checksum_until > 0
         && length <= p.short_checksum_until
     {
         return p.short_checksum_length;
@@ -94,12 +96,15 @@ pub struct Profile {
     pub min_length: usize,
     pub checksum_alphabet: String,
     pub checksum_length: usize,
-    /// Spec 22. Expandable mode only; `0` (the default) disables the short
-    /// checksum. When set, generations at or below `short_checksum_until`
-    /// use this many checksum symbols instead of `checksum_length`.
+    /// Spec 22. Expandable mode only. The checksum width used by generations
+    /// at or below `short_checksum_until`; may be 0 (a zero-checksum window:
+    /// those generations carry no checksum symbols and no typo detection).
+    /// Without a window (`short_checksum_until` of 0) this must be 0.
     pub short_checksum_length: usize,
-    /// Spec 22. Required when `short_checksum_length` is set: the last
-    /// generation (total length) that uses the short checksum.
+    /// Spec 22. The last generation (total length) that uses the short
+    /// checksum; `0` (the default) turns the feature off (the codebase
+    /// convention, like max_repetition). When set it must be an integer from
+    /// `min_length` through 8.
     pub short_checksum_until: usize,
     pub case_sensitive: bool,
     pub separator: String,
@@ -248,7 +253,10 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         return Err(fail("minLength must be greater than checksumLength"));
     }
 
-    // Spec 22. The short checksum is expandable-only; 0 turns it off.
+    // Spec 22. The short checksum is expandable-only. The window field is the
+    // switch: `short_checksum_until` of 0 turns the feature off (the codebase
+    // convention, like max_repetition), and the length field without a window
+    // is INVALID_PROFILE.
     let short_checksum_length = profile.short_checksum_length;
     let short_checksum_until = profile.short_checksum_until;
     if mode == Mode::Fixed {
@@ -257,20 +265,27 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
                 "shortChecksumLength and shortChecksumUntil are expandable-mode only",
             ));
         }
-    } else if short_checksum_length != 0 {
-        if profile.checksum_length < 1 || short_checksum_length >= profile.checksum_length {
-            return Err(fail("shortChecksumLength must be less than checksumLength"));
-        }
+    } else if short_checksum_until != 0 {
         if short_checksum_until < min_length {
             return Err(fail(
                 "shortChecksumUntil must be an integer of at least minLength",
             ));
         }
+        // Beyond 8 the window would swallow nearly every practical code, and
+        // long codes genuinely want two checksum symbols.
+        if short_checksum_until > 8 {
+            return Err(fail("shortChecksumUntil must be at most 8"));
+        }
+        if short_checksum_length >= profile.checksum_length {
+            return Err(fail(
+                "shortChecksumLength must be an integer from 0 through checksumLength - 1",
+            ));
+        }
         if min_length <= short_checksum_length {
             return Err(fail("minLength must be greater than shortChecksumLength"));
         }
-    } else if short_checksum_until != 0 {
-        return Err(fail("shortChecksumUntil requires shortChecksumLength"));
+    } else if short_checksum_length != 0 {
+        return Err(fail("shortChecksumLength requires shortChecksumUntil"));
     }
 
     if mode == Mode::Fixed && profile.checksum_length > 0 {

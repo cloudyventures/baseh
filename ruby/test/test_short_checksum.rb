@@ -180,11 +180,35 @@ class TestShortChecksum < Minitest::Test
     end
   end
 
-  def test_rejects_short_checksum_until_without_short_checksum_length
+  # Spec 22 amendment: the window field is the switch, so until + absent
+  # length (defaults to 0) is the zero-checksum window, not an error.
+  def test_until_without_short_checksum_length_is_a_legal_zero_window
+    h = Baseh::Baseh.new(
+      Baseh.baseh_expandable_v1.merge(short_checksum_length: 0, short_checksum_until: 5)
+    )
+    assert_equal 0, h.profile.short_checksum_length
+    assert_equal 0, h.profile.effective_checksum_length(4)
+  end
+
+  def test_rejects_short_checksum_length_without_short_checksum_until
     plain = Baseh.baseh_expandable_v1.merge(short_checksum_length: 0, short_checksum_until: 0)
     assert_error("INVALID_PROFILE") do
-      Baseh::Baseh.new(plain.merge(short_checksum_until: 5))
+      Baseh::Baseh.new(plain.merge(short_checksum_length: 1))
     end
+  end
+
+  def test_rejects_short_checksum_until_above_8
+    assert_error("INVALID_PROFILE") do
+      Baseh::Baseh.new(Baseh.baseh_expandable_v1.merge(short_checksum_length: 1, short_checksum_until: 9))
+    end
+  end
+
+  def test_accepts_short_checksum_until_of_8
+    h = Baseh::Baseh.new(
+      Baseh.baseh_expandable_v1.merge(short_checksum_length: 1, short_checksum_until: 8)
+    )
+    assert_equal 1, h.profile.effective_checksum_length(8)
+    assert_equal 2, h.profile.effective_checksum_length(9)
   end
 
   def test_rejects_a_non_integer_short_checksum_length
@@ -229,5 +253,130 @@ class TestShortChecksum < Minitest::Test
       assert_equal l, raw(code).length
       assert_equal id, h.decode(code).id
     end
+  end
+
+  # Spec 22 amendment: the zero-checksum window.
+  def zero_window
+    @zero_window ||= Baseh::Baseh.new(
+      Baseh.baseh_expandable_v1.merge(
+        profile_id: "short-zero-test",
+        min_length: 4,
+        checksum_length: 2,
+        short_checksum_length: 0,
+        short_checksum_until: 5,
+        permutation: { enabled: false },
+        profanity: { mode: "none" },
+        max_repetition: 0
+      )
+    )
+  end
+
+  def test_zero_window_resolves_effective_k_of_zero_inside_checksum_length_above
+    assert_equal 0, zero_window.profile.effective_checksum_length(4)
+    assert_equal 0, zero_window.profile.effective_checksum_length(5)
+    assert_equal 2, zero_window.profile.effective_checksum_length(6)
+  end
+
+  def test_zero_window_generations_are_all_body_capacity_is_a_to_the_l
+    assert_equal 34**4, zero_window.generation_capacity(4)
+    assert_equal 34**5, zero_window.generation_capacity(5)
+    assert_equal 34**4, zero_window.generation_capacity(6) # K = 2 above the window
+  end
+
+  def test_zero_window_round_trips_generations_4_through_6_with_no_checksum_symbols
+    (4..6).each do |l|
+      [zero_window.generation_base(l), zero_window.generation_base(l + 1) - 1].each do |id|
+        code = zero_window.encode(id: id)
+        assert_equal l, raw(code).length
+        assert_equal id, zero_window.decode(code).id
+        assert_equal code, zero_window.decode(code).canonical_code
+      end
+    end
+  end
+
+  def test_zero_window_checksum_of_zero_symbols_is_the_empty_string
+    code = raw(zero_window.encode(id: zero_window.generation_base(4)))
+    assert_equal 4, code.length
+    assert_equal "", Baseh::Checksum.calculate_checksum(zero_window.profile, code, nil, 0)
+  end
+
+  # A typo at a zero-checksum generation is NOT detected (documented
+  # trade-off): there is no checksum to fail.
+  def test_zero_window_typo_is_not_detected
+    id = zero_window.generation_base(4) + 1
+    code = raw(zero_window.encode(id: id))
+    last = code[3]
+    replacement = last == "1" ? "2" : "1"
+    typed = "#{code[0...3]}#{replacement}"
+    result = zero_window.decode(typed) # no error
+    refute_equal id, result.id
+  end
+
+  # With no checksum there is nothing to correct against: any body decodes
+  # as-is and correction never engages, like a checksumLength: 0 profile.
+  def test_zero_window_correction_never_engages
+    id = zero_window.generation_base(5) + 3
+    code = raw(zero_window.encode(id: id))
+    result = zero_window.decode(code, try_correction: true, confusion_profile: :heavy)
+    assert_equal id, result.id
+    refute result.corrected
+    last = code[4]
+    typed = "#{code[0...4]}#{last == '1' ? '2' : '1'}"
+    mistyped = zero_window.decode(typed, try_correction: true, confusion_profile: :heavy)
+    refute_equal id, mistyped.id
+    refute mistyped.corrected
+  end
+
+  # Spec 22.4: the repetition scan covers the whole all-body code.
+  def test_zero_window_repetition_scan_covers_the_all_body_code
+    filtered = Baseh::Baseh.new(
+      Baseh.baseh_expandable_v1.merge(
+        profile_id: "short-zero-test",
+        min_length: 4,
+        checksum_length: 2,
+        short_checksum_length: 0,
+        short_checksum_until: 5,
+        permutation: { enabled: false },
+        profanity: { mode: "none" },
+        max_repetition: 4
+      )
+    )
+    found = nil
+    0.upto(zero_window.generation_capacity(4) - 1) do |id|
+      r = raw(zero_window.encode(id: id))
+      next unless /(.)\1{3}/.match?(r)
+
+      found = id
+      break
+    end
+    refute_nil found, "expected a gen-4 code with a run of 4"
+    assert_error("BLOCKED_CODE") { filtered.encode(id: found) }
+  end
+
+  # The until-8 window boundary: generation 8 carries one checksum symbol,
+  # generation 9 carries two.
+  def test_until_8_window_boundary
+    h = Baseh::Baseh.new(
+      Baseh.baseh_expandable_v1.merge(
+        profile_id: "short-until-8-test",
+        min_length: 4,
+        checksum_length: 2,
+        short_checksum_length: 1,
+        short_checksum_until: 8,
+        permutation: { enabled: false },
+        profanity: { mode: "none" },
+        max_repetition: 0
+      )
+    )
+    id8 = h.generation_base(8) + 5
+    c8 = raw(h.encode(id: id8))
+    assert_equal 8, c8.length
+    assert_equal c8[7..], Baseh::Checksum.calculate_checksum(h.profile, c8[0...7], nil, 1)
+    assert_equal id8, h.decode(c8).id
+    id9 = h.generation_base(9) + 5
+    c9 = raw(h.encode(id: id9))
+    assert_equal 9, c9.length
+    assert_equal c9[7..], Baseh::Checksum.calculate_checksum(h.profile, c9[0...7], nil, 2)
+    assert_equal id9, h.decode(c9).id
   end
 end

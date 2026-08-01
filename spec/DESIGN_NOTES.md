@@ -535,3 +535,27 @@ and 6 both hold `34^4` ids. The alternative — extending the window to 6 —
 would push the weaker detection rate into the length where codes start
 carrying separators and heavier use; ending at 5 keeps the trade-off
 confined to the two shortest, most-typed generations.
+
+### Amendment (2026-08): zero-checksum windows, the 8 cap, and "off" by convention
+
+Three refinements settled after the original section shipped:
+
+- **Zero checksum in the window is legal.** `shortChecksumLength` may now be
+  `0` through `checksumLength - 1` when the window is set; a window of length
+  0 carries no checksum symbols at those lengths — the codes are all body.
+  The motivation is maximum capacity at the tiniest lengths (`A^L` ids per
+  window generation), and the cost is explicit: zero typo detection there,
+  identical to a fixed profile with `checksumLength: 0`. This is the caller's
+  choice, declared in the profile and displayed by tooling, never a silent
+  default — the frozen tiers keep one checksum symbol through length 5.
+- **The window is capped at 8.** Beyond eight characters the window would
+  swallow nearly every practical code, and long codes genuinely want two
+  checksum symbols; past that point the capacity trade stops making sense.
+- **"Off" is `shortChecksumUntil: 0` (or omitting both fields).** The window
+  field is the switch, matching the codebase convention (`maxRepetition: 0`
+  is off, `separatorMinLength: 0` is no threshold). A length without a
+  window is invalid; a window without a length defaults the length to 0.
+  No previously-valid configuration changes meaning: the old valid space
+  required a length of at least 1, so every previously-valid profile
+  validates identically and produces identical codes; only previously-invalid
+  zero-length windows become legal, and windows beyond 8 are newly rejected.
