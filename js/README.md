@@ -59,6 +59,9 @@ Expandable mode differs from the fixed tiers as follows:
   `XXXX-XXXX` at 8) — so expandable profiles carry no `grouping` field.
 - All other profile options — visual/spoken safety levels, profanity modes,
   blocklists — compose with expandable unchanged.
+- The repetition filter is on by default here too: the tier ships
+  `maxRepetition: 4`, so a code with a run of four or more identical symbols
+  is never issued (any floor of 3 or more is configurable; 0 turns it off).
 
 A keyed private-mapping variant `baseh-expandable-p-v1` mirrors the `-p`
 fixed tiers:
@@ -86,8 +89,10 @@ The classic frozen tiers are all `mode: "fixed"`: constant-width codes for
 when you need a stable printed length. Four frozen tiers ship with the
 package, built from the full alphanumeric set with cumulative visual and
 spoken strips. All four encode 6 body symbols, are case-insensitive,
-hyphen-delimit at the midpoint, run the default profanity blocklist and
-permute with the published frozen key.
+hyphen-delimit at the midpoint, run the default profanity blocklist, block
+runs of four or more identical symbols (the repetition filter,
+`maxRepetition: 4` — configurable to any floor of 3 or more, or 0 to turn it
+off) and permute with the published frozen key.
 
 | Tier | Helper | Body symbols | Checksum | Format | Capacity |
 | ---- | ------ | ------------ | -------- | ------ | -------- |

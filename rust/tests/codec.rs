@@ -27,6 +27,7 @@ fn base_profile() -> Profile {
         aliases: vec![('O', '0'), ('I', '1'), ('L', '1')],
         permutation: Permutation::Disabled,
         profanity: None,
+        max_repetition: 0,
     }
 }
 
@@ -807,6 +808,7 @@ fn profanity_no_vowels() {
                 words: None,
                 extra_words: vec![],
             }),
+            max_repetition: 0,
         },
         "no-vowels leaves body alphabet with one symbol",
     );

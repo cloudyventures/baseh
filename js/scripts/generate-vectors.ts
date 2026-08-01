@@ -106,7 +106,8 @@ for (const { profile, keyHex } of profiles()) {
             rounds: profile.permutation.rounds
           }
         : { enabled: false },
-      ...(profile.profanity ? { profanity: profile.profanity } : {})
+      ...(profile.profanity ? { profanity: profile.profanity } : {}),
+      ...(profile.maxRepetition !== undefined ? { maxRepetition: profile.maxRepetition } : {})
     },
     capacity: prepared.capacity.toString()
   };
@@ -146,37 +147,6 @@ for (const { profile, keyHex } of profiles()) {
     { profileId: base.profileId, input: canonical.replaceAll("-", ""), id: "123456789", canonicalCode: canonical, note: "no separators" },
     { profileId: base.profileId, input: "  " + canonical + " ", id: "123456789", canonicalCode: canonical, note: "whitespace" }
   );
-}
-
-// Decode-side vectors: stripped leading zero body symbols (spec 3.4). The
-// decoder re-pads the body before validation; the frozen permutation then maps
-// the zero-padded body to its identifier.
-{
-  const base = basehMediumV1();
-  const h = new Baseh(base);
-  for (const body of ["000000", "000001", "00000Z"]) {
-    const stripped = body.replace(/^0+(?=.)/, "") + calculateChecksum(h.profile, body);
-    const id = h.decode(stripped).id;
-    codecVectors.push({
-      profileId: base.profileId,
-      input: stripped,
-      id: id.toString(10),
-      canonicalCode: h.encode(id),
-      note: "stripped leading zeros"
-    } as never);
-  }
-}
-{
-  const base = basehMinimumV1();
-  const h = new Baseh(base);
-  const id = h.decode("0").id;
-  codecVectors.push({
-    profileId: base.profileId,
-    input: "0",
-    id: id.toString(10),
-    canonicalCode: h.encode(id),
-    note: "stripped leading zeros, no checksum"
-  } as never);
 }
 
 // Decode-side vectors: look-alike aliases on the frozen Medium tier. B and S
@@ -229,6 +199,25 @@ const errorVectors: unknown[] = [
   const bad = raw.slice(0, 6) + badCheck + raw[7];
   errorVectors.push({ profileId: base.profileId, input: bad, error: "INVALID_CHECKSUM" });
   void h;
+}
+
+// Decode-side error vectors: stripped leading zero body symbols (spec 3.4).
+// The frozen tiers ship maxRepetition 4 (spec 21), under which these
+// zero-heavy codes are unissuable: the decoder re-pads, validates and then
+// reports BLOCKED_CODE when reconstructing the canonical form, exactly like a
+// blocklisted code (spec 21.3). The padding leniency itself stays pinned by
+// the codec's own unit tests against filter-off clones of the tier shapes.
+{
+  const base = basehMediumV1();
+  const h = new Baseh(base);
+  for (const body of ["000000", "000001", "00000Z"]) {
+    const stripped = body.replace(/^0+(?=.)/, "") + calculateChecksum(h.profile, body);
+    errorVectors.push({ profileId: base.profileId, input: stripped, error: "BLOCKED_CODE" });
+  }
+}
+{
+  const base = basehMinimumV1();
+  errorVectors.push({ profileId: base.profileId, input: "0", error: "BLOCKED_CODE" });
 }
 
 // Correction vectors (frozen case from the spec's ambiguity analysis, modulus 26).
@@ -308,7 +297,8 @@ function profileEntry(profile: BasehProfile, h: Baseh, keyHex: string | null): R
             rounds: profile.permutation.rounds
           }
         : { enabled: false },
-      ...(profile.profanity ? { profanity: profile.profanity } : {})
+      ...(profile.profanity ? { profanity: profile.profanity } : {}),
+      ...(profile.maxRepetition !== undefined ? { maxRepetition: profile.maxRepetition } : {})
     },
     capacity: h.profile.capacity.toString()
   };
@@ -375,6 +365,71 @@ for (const id of [0n, 1n, 2n, hNoVowel.capacity() - 1n]) {
 }
 errorVectors.push({ profileId: "novowel32-test", input: "0000A02", error: "INVALID_CHARACTER" });
 
+// --- Spec 21 repetition filter ----------------------------------------------
+// Probe profiles mirror the blocklist shape: no permutation, no separator, so
+// runs live entirely in the rendered body/checksum. Ids are found with a
+// filter-free twin, exactly like findIdWith above.
+function repProfile(profileId: string, maxRepetition: number): BasehProfile {
+  return { ...blockProfile(profileId, { mode: "none" }), maxRepetition };
+}
+
+function maxRunLength(raw: string): number {
+  let best = 1;
+  let run = 1;
+  for (let i = 1; i < raw.length; i += 1) {
+    run = raw[i] === raw[i - 1] ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+function findIdWithRun(profile: BasehProfile, runLength: number): bigint {
+  const probe = new Baseh({ ...profile, maxRepetition: 0 });
+  for (let id = 0n; id < probe.capacity(); id += 1n) {
+    if (maxRunLength(probe.encode(id).replaceAll("-", "")) === runLength) return id;
+  }
+  throw new Error(`no id with max run ${runLength}`);
+}
+
+const rep4 = repProfile("rep32-test", 4);
+const rep3 = repProfile("rep3-32-test", 3);
+const hRep4 = new Baseh(rep4);
+const hRep3 = new Baseh(rep3);
+profileEntries.push(profileEntry(rep4, hRep4, null));
+profileEntries.push(profileEntry(rep3, hRep3, null));
+
+// Boundary: a run of exactly 3 passes at maxRepetition 4; a run of 4 blocks.
+codecVectors.push(encodeEntry(hRep4, findIdWithRun(rep4, 3)));
+encodeErrors.push({ profileId: rep4.profileId, id: findIdWithRun(rep4, 4).toString(10), error: "BLOCKED_CODE" });
+
+// Custom maxRepetition 3: a normal round trip plus a blocked triple.
+codecVectors.push(encodeEntry(hRep3, findIdWithRun(rep3, 1)));
+codecVectors.push(encodeEntry(hRep3, findIdWithRun(rep3, 2)));
+encodeErrors.push({ profileId: rep3.profileId, id: findIdWithRun(rep3, 3).toString(10), error: "BLOCKED_CODE" });
+
+// Separators do not break a run (spec 21.2): body AAAA renders AA-AA..., no
+// formatted group shows a run of 4, yet the raw run of 4 blocks the encode.
+{
+  const sepRep: BasehProfile = {
+    profileId: "rep16-sep-test",
+    bodyAlphabet: "0123456789ABCDEF",
+    bodyLength: 4,
+    checksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+    checksumLength: 1,
+    caseSensitive: false,
+    separator: "-",
+    grouping: [2, 2, 1],
+    aliases: {},
+    permutation: { enabled: false },
+    maxRepetition: 4
+  };
+  const hSepRep = new Baseh(sepRep);
+  profileEntries.push(profileEntry(sepRep, hSepRep, null));
+  codecVectors.push(encodeEntry(hSepRep, 1n));
+  const idAaaa = 10n * 16n ** 3n + 10n * 16n ** 2n + 10n * 16n + 10n;
+  encodeErrors.push({ profileId: sepRep.profileId, id: idAaaa.toString(10), error: "BLOCKED_CODE" });
+}
+
 // Feistel vectors over several capacities, with walk counts.
 const feistelVectors: unknown[] = [];
 for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]] as const) {
@@ -428,7 +483,8 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
         keyBytesHex: FROZEN_KEY_HEX,
         rounds: 8
       },
-      profanity: { mode: "blocklist" }
+      profanity: { mode: "blocklist" },
+      maxRepetition: 4
     },
     generations: [4, 5, 6, 7, 8].map((l) => ({
       length: l,

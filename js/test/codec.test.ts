@@ -221,8 +221,11 @@ describe("aliases and normalization", () => {
 describe("stripped leading zeros (spec 3.4)", () => {
   // The frozen tiers permute, so spec 3.4 padding is exercised against
   // non-permuting clones of the new 8-char Medium and 6-char Minimum shapes.
-  const medium = new Baseh({ ...basehMediumV1(), profileId: "test-medium", permutation: { enabled: false } });
-  const minimum = new Baseh({ ...basehMinimumV1(), profileId: "test-minimum", permutation: { enabled: false } });
+  // The repetition filter (spec 21) is off in these clones: the frozen tiers
+  // ship maxRepetition 4, under which zero-heavy low ids are unissuable and
+  // decode would report BLOCKED_CODE before the padding leniency mattered.
+  const medium = new Baseh({ ...basehMediumV1(), profileId: "test-medium", permutation: { enabled: false }, maxRepetition: 0 });
+  const minimum = new Baseh({ ...basehMinimumV1(), profileId: "test-minimum", permutation: { enabled: false }, maxRepetition: 0 });
   it("re-pads a code that lost leading zero body symbols", () => {
     assert.equal(medium.decode("XR").id, 0n);   // "000000XR"
     assert.equal(medium.decode("1XU").id, 1n);  // "000001XU"

@@ -181,7 +181,7 @@ export class Baseh {
             throw new BasehError("INVALID_PROFILE", "permutation is disabled", false);
         return { profileId: this.profile.profileId, keyBytes: perm.keyBytes, rounds: perm.rounds, ...(length === undefined ? {} : { length }) };
     }
-    checkBlocklist(raw) {
+    checkBlocked(raw) {
         // Spec 18.2: case-insensitive substring scan over the raw code.
         if (this.profile.blocklist.length > 0) {
             const upper = raw.toUpperCase();
@@ -190,6 +190,13 @@ export class Baseh {
                     throw new BasehError("BLOCKED_CODE", "The generated reference contains a blocked substring", false);
                 }
             }
+        }
+        // Spec 21.2: a run of the same symbol at or above maxRepetition blocks
+        // the code. Runs are measured on the raw string, so a separator never
+        // breaks a run.
+        const max = this.profile.maxRepetition;
+        if (max > 0 && new RegExp(`(.)\\1{${max - 1},}`).test(raw)) {
+            throw new BasehError("BLOCKED_CODE", "The generated reference repeats a symbol beyond the profile limit", false);
         }
     }
     /** Spec 8 (fixed mode). */
@@ -204,7 +211,7 @@ export class Baseh {
         }
         const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, this.profile.bodyLength);
         const raw = body + calculateChecksum(this.profile, body);
-        this.checkBlocklist(raw);
+        this.checkBlocked(raw);
         return formatRaw(raw, this.profile);
     }
     /** Spec 19.6. */
@@ -224,7 +231,7 @@ export class Baseh {
         }
         const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, l - this.profile.checksumLength);
         const raw = body + calculateChecksum(this.profile, body);
-        this.checkBlocklist(raw);
+        this.checkBlocked(raw);
         return formatRaw(raw, this.profile);
     }
     /** Spec 8/19.6. */

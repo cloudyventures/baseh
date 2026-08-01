@@ -101,6 +101,7 @@ fn profile_from_definition(def: &Value) -> Profile {
         aliases,
         permutation,
         profanity,
+        max_repetition: def["maxRepetition"].as_u64().unwrap_or(0) as usize,
     }
 }
 

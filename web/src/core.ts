@@ -73,6 +73,8 @@ export interface CalculatorInput {
   checksumLength: number;
   permutation: boolean;
   separator: string;
+  /** Spec 21. 0 disables the repetition filter; otherwise at least 3. */
+  maxRepetition: number;
   prefix: string;
   suffix: string;
   recordsPerDay?: bigint;
@@ -442,7 +444,8 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
       grouping: [],
       aliases: { ...baseAliases(canonical), ...spokenAliases(body, input.spokenSafety) },
       profanity: { mode: input.profanity },
-      permutation: previewPermutation(input.permutation)
+      permutation: previewPermutation(input.permutation),
+      maxRepetition: input.maxRepetition
     };
   }
   const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
@@ -459,7 +462,8 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
     grouping: input.separator ? groupingFor(totalLen) : [],
     aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
     profanity: { mode: input.profanity },
-    permutation: previewPermutation(input.permutation)
+    permutation: previewPermutation(input.permutation),
+    maxRepetition: input.maxRepetition
   };
 }
 
@@ -468,7 +472,7 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
 export function friendlyError(e: unknown): string {
   if (e instanceof BasehError) {
     switch (e.code) {
-      case "BLOCKED_CODE": return "blocked: this identifier spells a profanity and is never issued";
+      case "BLOCKED_CODE": return "blocked: this identifier is never issued (profanity or a long repetition run)";
       case "OUT_OF_RANGE": return "outside this configuration's capacity";
       case "INVALID_CHECKSUM": return "the checksum does not validate";
       case "INVALID_LENGTH": return "the wrong number of characters";
@@ -728,6 +732,8 @@ export interface DesignerInput {
   spokenSafety: SafetyLevel;
   profanity: ProfanityMode;
   permutation: boolean;
+  /** Spec 21. 0 disables the repetition filter; otherwise at least 3. */
+  maxRepetition: number;
 }
 
 interface AlphabetEntry {
@@ -746,6 +752,8 @@ export interface Candidate {
   profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
+  /** Spec 21. 0 disables the repetition filter. */
+  maxRepetition: number;
   capacity: bigint;
   displayedLength: number;
   utilization: number;
@@ -842,6 +850,7 @@ export function design(input: DesignerInput): DesignerResult {
           profanity: input.profanity,
           bodyLength,
           checksumLength,
+          maxRepetition: input.maxRepetition,
           capacity,
           displayedLength: displayed,
           utilization: utilPerMyriad,
@@ -909,6 +918,8 @@ export interface ExpandableDesign {
   checksumLength: number;
   minLength: number;
   separatorMinLength: number;
+  /** Spec 21. 0 disables the repetition filter. */
+  maxRepetition: number;
   /** Capacity of the opening generation (codes at minLength). */
   startCapacity: bigint;
   /** The generation whose cumulative range holds the required demand. */
@@ -944,6 +955,7 @@ export function expandableDesign(input: DesignerInput): ExpandableDesign | null 
       checksumLength,
       minLength,
       separatorMinLength,
+      maxRepetition: input.maxRepetition,
       startCapacity: generationCapacityAt(body.length, checksumLength, minLength),
       generation,
       cumulativeAtGeneration: generationCumulative(body.length, checksumLength, minLength, generation),
@@ -970,7 +982,8 @@ export function expandableProfile(d: ExpandableDesign, input: DesignerInput, per
     grouping: [],
     aliases: { ...baseAliases(canonical), ...spokenAliases(d.bodyAlphabet, input.spokenSafety) },
     profanity: { mode: input.profanity },
-    permutation: previewPermutation(permutation)
+    permutation: previewPermutation(permutation),
+    maxRepetition: d.maxRepetition
   };
 }
 
@@ -988,7 +1001,8 @@ export function candidateProfile(c: Candidate, permutation: boolean): BasehProfi
     grouping: c.separator ? groupingFor(totalLen) : [],
     aliases: { ...baseAliases(c.alphabet), ...spokenAliases(c.alphabet, c.spoken) },
     profanity: { mode: c.profanity },
-    permutation: previewPermutation(permutation)
+    permutation: previewPermutation(permutation),
+    maxRepetition: c.maxRepetition
   };
 }
 
@@ -1001,12 +1015,13 @@ export function sampleCodes(
   spoken: SafetyLevel = "none",
   separator: string = "",
   profanity: ProfanityMode = "none",
-  permutation: boolean = false
+  permutation: boolean = false,
+  maxRepetition: number = 4
 ): Array<{ id: string; code: string; blocked?: boolean }> {
   const out: Array<{ id: string; code: string; blocked?: boolean }> = [];
   try {
     const profile = candidateProfile(
-      { alphabet, bodyLength, checksumLength, spoken, separator, profanity } as Candidate,
+      { alphabet, bodyLength, checksumLength, spoken, separator, profanity, maxRepetition } as Candidate,
       permutation
     );
     const h = new Baseh(profile);

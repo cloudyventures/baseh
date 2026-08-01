@@ -505,3 +505,46 @@ For `baseh-expandable-v1` and at least one custom expandable profile:
 - Expandable vectors live in the shared vector file with the profile's
   mode recorded; a release fails if any implementation disagrees on any
   generation boundary vector.
+
+## 21. Repetition filter tests
+
+Section references are to `IMPLEMENTATION_CODEC.md` section 21.
+
+- **Validation.** `maxRepetition` of `1` or `2` is rejected with
+  `INVALID_PROFILE`; `0` (off), `3`, and a value above the code length (a
+  legal no-op) are accepted. A profile without the field prepares as `0`.
+- **Boundary, blocked.** With `maxRepetition: 4`, an id whose raw code
+  contains a run of exactly 4 fails encode with `BLOCKED_CODE`. Pinned in
+  the shared vector file (`rep32-test` in `encodeErrors`).
+- **Boundary, allowed.** With `maxRepetition: 4`, an id whose raw code's
+  longest run is exactly 3 encodes and round-trips. Pinned (`rep32-test`
+  round-trip vector).
+- **Off at 0.** A profile with `maxRepetition: 0` (or no field) encodes ids
+  whose raw codes contain runs of any length.
+- **Custom floor.** With `maxRepetition: 3`, a normal id round-trips and an
+  id whose raw code contains a triple fails encode with `BLOCKED_CODE`.
+  Pinned (`rep3-32-test` round-trip and `encodeErrors` entries).
+- **Separators do not break a run.** A code rendered `AA-AA…` under a
+  separator has no formatted group showing a run of 4, but its raw code is
+  `AAAA…` — a run of 4 — and must be blocked (section 21.2). Pinned
+  (`rep16-sep-test` in `encodeErrors`).
+- **Decode consistency.** Decoding a code whose raw form violates
+  `maxRepetition` (constructible only with the filter off) fails with
+  `BLOCKED_CODE`, matching blocklist decode semantics (section 21.3).
+- **Correction consistency.** Correction must never correct into a blocked
+  code: when the sole checksum-valid candidate carries a blocked run,
+  decode fails with `BLOCKED_CODE` instead of returning the candidate
+  (section 21.3).
+- **Frozen tiers.** Every frozen tier — the four fixed tiers, their `-p`
+  variants, and the expandable tier — ships `maxRepetition: 4` (pinned in
+  the shared profile definitions) and rejects a brute-forced id whose raw
+  code has a run of 4.
+- **Issuance skip.** The standard issuance loop (catch `BLOCKED_CODE`,
+  advance the id, retry) encodes the next id successfully after a blocked
+  one.
+- **Vector integrity.** Pre-existing shared vectors are byte-identical
+  except frozen-tier profile definitions (which gain `maxRepetition: 4`) and
+  the fixed-tier stripped-leading-zero decode vectors, which move to the
+  error list as `BLOCKED_CODE` because those zero-heavy codes are now
+  unissuable on the frozen tiers. No emitted code string changes anywhere:
+  the filter only blocks, it never alters a code.

@@ -84,7 +84,7 @@ func (h *Codec) Capacity() (*big.Int, error) {
 }
 
 // Encode implements spec 8 (fixed mode) or spec 19.6 (expandable mode),
-// plus the spec-18.2 encode-time blocklist scan.
+// plus the spec-18.2 blocklist scan and the spec-21.2 repetition scan.
 func (h *Codec) Encode(id *big.Int) (string, error) {
 	if h.prep.mode == "expandable" {
 		return h.encodeExpandable(id)
@@ -159,13 +159,28 @@ func (h *Codec) permKey(length int) feistelKey {
 }
 
 // checkBlocklist runs the spec-18.2 case-insensitive substring scan over
-// the raw code.
+// the raw code, then the spec-21.2 repetition scan. Runs are measured on
+// the raw string, so a separator never breaks a run. Both report
+// BLOCKED_CODE.
 func (h *Codec) checkBlocklist(raw string) error {
 	if len(h.prep.blocklist) > 0 {
 		upper := strings.ToUpper(raw)
 		for _, word := range h.prep.blocklist {
 			if strings.Contains(upper, word) {
 				return newError(BLOCKED_CODE, "the generated reference contains a blocked substring", false)
+			}
+		}
+	}
+	if max := h.prep.profile.MaxRepetition; max > 0 {
+		run := 1
+		for i := 1; i < len(raw); i++ {
+			if raw[i] == raw[i-1] {
+				run++
+				if run >= max {
+					return newError(BLOCKED_CODE, "the generated reference repeats a symbol beyond the profile limit", false)
+				}
+			} else {
+				run = 1
 			}
 		}
 	}

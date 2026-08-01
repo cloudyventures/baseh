@@ -25,7 +25,8 @@
         },
         "profanity": {
           "mode": "blocklist"
-        }
+        },
+        "maxRepetition": 4
       },
       "capacity": "2176782336"
     },
@@ -59,7 +60,8 @@
         },
         "profanity": {
           "mode": "blocklist"
-        }
+        },
+        "maxRepetition": 4
       },
       "capacity": "887503681"
     },
@@ -96,7 +98,8 @@
         },
         "profanity": {
           "mode": "blocklist"
-        }
+        },
+        "maxRepetition": 4
       },
       "capacity": "481890304"
     },
@@ -134,7 +137,8 @@
         },
         "profanity": {
           "mode": "blocklist"
-        }
+        },
+        "maxRepetition": 4
       },
       "capacity": "308915776"
     },
@@ -293,6 +297,81 @@
       "capacity": "729000000"
     },
     {
+      "profileId": "rep32-test",
+      "definition": {
+        "profileId": "rep32-test",
+        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "",
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1"
+        },
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 4
+      },
+      "capacity": "1073741824"
+    },
+    {
+      "profileId": "rep3-32-test",
+      "definition": {
+        "profileId": "rep3-32-test",
+        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "",
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1"
+        },
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 3
+      },
+      "capacity": "1073741824"
+    },
+    {
+      "profileId": "rep16-sep-test",
+      "definition": {
+        "profileId": "rep16-sep-test",
+        "bodyAlphabet": "0123456789ABCDEF",
+        "bodyLength": 4,
+        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "-",
+        "grouping": [
+          2,
+          2,
+          1
+        ],
+        "aliases": {},
+        "permutation": {
+          "enabled": false
+        },
+        "maxRepetition": 4
+      },
+      "capacity": "65536"
+    },
+    {
       "profileId": "baseh-expandable-v1",
       "definition": {
         "profileId": "baseh-expandable-v1",
@@ -322,7 +401,8 @@
         },
         "profanity": {
           "mode": "blocklist"
-        }
+        },
+        "maxRepetition": 4
       },
       "generations": [
         {
@@ -2057,34 +2137,6 @@
     },
     {
       "profileId": "baseh-medium-v1",
-      "input": "0EC",
-      "id": "334181021",
-      "canonicalCode": "0000-00EC",
-      "note": "stripped leading zeros"
-    },
-    {
-      "profileId": "baseh-medium-v1",
-      "input": "1ED",
-      "id": "370206432",
-      "canonicalCode": "0000-01ED",
-      "note": "stripped leading zeros"
-    },
-    {
-      "profileId": "baseh-medium-v1",
-      "input": "ZFG",
-      "id": "432783660",
-      "canonicalCode": "0000-0ZFG",
-      "note": "stripped leading zeros"
-    },
-    {
-      "profileId": "baseh-minimum-v1",
-      "input": "0",
-      "id": "1235527838",
-      "canonicalCode": "000-000",
-      "note": "stripped leading zeros, no checksum"
-    },
-    {
-      "profileId": "baseh-medium-v1",
       "input": "BY16-HHG7",
       "id": "3",
       "canonicalCode": "8Y16-HHG7",
@@ -2131,6 +2183,34 @@
       "canonicalCode": "ZZZZZZP",
       "rawBody": "ZZZZZZ",
       "rawChecksum": "P"
+    },
+    {
+      "profileId": "rep32-test",
+      "id": "1024",
+      "canonicalCode": "0001007",
+      "rawBody": "000100",
+      "rawChecksum": "7"
+    },
+    {
+      "profileId": "rep3-32-test",
+      "id": "1049601",
+      "canonicalCode": "010101X",
+      "rawBody": "010101",
+      "rawChecksum": "X"
+    },
+    {
+      "profileId": "rep3-32-test",
+      "id": "32769",
+      "canonicalCode": "001001E",
+      "rawBody": "001001",
+      "rawChecksum": "E"
+    },
+    {
+      "profileId": "rep16-sep-test",
+      "id": "1",
+      "canonicalCode": "00-01-F",
+      "rawBody": "0001",
+      "rawChecksum": "F"
     },
     {
       "profileId": "baseh-expandable-v1",
@@ -2494,6 +2574,26 @@
       "error": "INVALID_CHECKSUM"
     },
     {
+      "profileId": "baseh-medium-v1",
+      "input": "0EC",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "1ED",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "ZFG",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "input": "0",
+      "error": "BLOCKED_CODE"
+    },
+    {
       "profileId": "novowel32-test",
       "input": "0000A02",
       "error": "INVALID_CHARACTER"
@@ -2568,6 +2668,21 @@
     {
       "profileId": "block32-extra-test",
       "id": "122615",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "rep32-test",
+      "id": "32",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "rep3-32-test",
+      "id": "1024",
+      "error": "BLOCKED_CODE"
+    },
+    {
+      "profileId": "rep16-sep-test",
+      "id": "43690",
       "error": "BLOCKED_CODE"
     }
   ]

@@ -136,6 +136,7 @@ fn tier(shape: &TierShape, permutation: Permutation, p_suffix: bool) -> Profile 
             words: None,
             extra_words: Vec::new(),
         }),
+        max_repetition: 4,
     }
 }
 
@@ -200,6 +201,7 @@ fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
             words: None,
             extra_words: Vec::new(),
         }),
+        max_repetition: 4,
     }
 }
 

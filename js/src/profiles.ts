@@ -76,7 +76,8 @@ function tier(shape: TierShape, permutation: BasehProfile["permutation"], pSuffi
     grouping: shape.grouping,
     aliases: { ...shape.aliases },
     permutation,
-    profanity: { mode: "blocklist" }
+    profanity: { mode: "blocklist" },
+    maxRepetition: 4
   };
 }
 
@@ -193,7 +194,8 @@ function expandableTier(permutation: BasehProfile["permutation"], pSuffix: boole
     grouping: [],
     aliases: { ...OIL_ALIASES, T: "P", N: "M", W: "V" },
     permutation,
-    profanity: { mode: "blocklist" }
+    profanity: { mode: "blocklist" },
+    maxRepetition: 4
   };
 }
 

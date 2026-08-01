@@ -449,3 +449,48 @@ badly. The balanced grouping rule of `IMPLEMENTATION_CODEC.md` section 19.5
 replaces it: group count `max(2, ceil(L / 5))`, sizes differing by at most
 one with larger groups to the left, derived purely from the total length —
 so `grouping` is meaningless in expandable mode and must be empty there.
+
+## 25. Repetition filter (decided 2026-08)
+
+Long runs of one symbol (`00000`) are the classic human mis-count: the
+reader drops or adds a glyph, and the string they type back is a different
+record. The settled design is normative in `IMPLEMENTATION_CODEC.md`
+section 21; this note records the trade-offs.
+
+### Why prevention beats detection
+
+A mis-counted run is undetectable after the fact: if the user types four
+zeros where the code had five, the checksum of what they typed either fails
+(they know they erred but not where) or, worse, the dropped glyph silently
+re-pads into a valid code for a different record (spec 3.4 leniency makes
+this a real path, not a theoretical one). No checksum can identify which
+symbol was mis-counted, so detection buys nothing over prevention. Blocking
+run-heavy codes at issuance removes the whole failure class.
+
+### Why the floor is 3
+
+Banning pairs (`maxRepetition: 2`) would destroy about 9% of every
+generation — adjacent equal symbols are simply too common at these alphabet
+sizes and code lengths to throw away. Runs of three are rare enough to keep
+and common enough to be readable (`AA` is fine; `AAAA` is where counting
+breaks down), so the validation floor is 3 and validation rejects 1 and 2
+outright.
+
+### Why the frozen default is 4
+
+The owner ruled the filter on at 4 for every frozen tier — the four fixed
+tiers, their `-p` variants and the expandable tier alike. Four is the first
+run length people demonstrably mis-count, and at 4 the blocked share of a
+generation is negligible: the expected fraction of raw codes carrying a run
+of four or more is `(L-3)/A^3` at most, which is under 0.03% for every
+frozen tier (worst case the heavy tier: `5/26^3 ≈ 0.028%`) — far below the
+0.5% budget, so `capacity()` stays unchanged by the blocklist precedent and
+issuance skips are rare enough to never matter operationally.
+
+### Why separators do not break a run
+
+Runs are measured on the raw code, separators ignored, so `XXX-XXX` counts
+as a run of 6. A per-group scan would be slightly more permissive (a run
+straddling the separator would pass), but spec simplicity beats the marginal
+over-ban: one scan rule, no group-aware special case, and implementations
+cannot disagree about where a group boundary fell.

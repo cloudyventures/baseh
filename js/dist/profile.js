@@ -128,6 +128,12 @@ export function prepareProfile(profile) {
         fail("body alphabet needs at least two symbols after preparation");
     }
     const blocklist = profanity.mode === "blocklist" ? effectiveBlocklist(profanity) : [];
+    // Spec 21: 0 disables the filter; an active filter needs a floor of 3 —
+    // banning pairs (2) would destroy roughly 9% of every generation.
+    const maxRepetition = profile.maxRepetition ?? 0;
+    if (!Number.isInteger(maxRepetition) || maxRepetition < 0 || (maxRepetition > 0 && maxRepetition < 3)) {
+        fail("maxRepetition must be 0 (off) or an integer of at least 3");
+    }
     const separator = profile.separator ?? "";
     for (const ch of separator) {
         if (bodyNorm.includes(ch) || checksumNorm.includes(ch)) {
@@ -210,7 +216,8 @@ export function prepareProfile(profile) {
         aliasesNorm,
         checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
         capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength ?? 0),
-        blocklist
+        blocklist,
+        maxRepetition
     };
 }
 function bodySum(grouping) {

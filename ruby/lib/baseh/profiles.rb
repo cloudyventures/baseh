@@ -170,7 +170,8 @@ module Baseh
         grouping: shape[:grouping].dup,
         aliases: shape[:aliases].dup,
         permutation: permutation,
-        profanity: { mode: "blocklist" }
+        profanity: { mode: "blocklist" },
+        max_repetition: 4
       }
     end
     # Builds a fresh mutable profile for the expandable tier, plain or (-p)
@@ -189,7 +190,8 @@ module Baseh
         grouping: [],
         aliases: { **OIL_ALIASES, "T" => "P", "N" => "M", "W" => "V" },
         permutation: permutation,
-        profanity: { mode: "blocklist" }
+        profanity: { mode: "blocklist" },
+        max_repetition: 4
       }
     end
     private_class_method :frozen_permutation, :keyed_permutation, :tier, :expandable_tier

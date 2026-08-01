@@ -52,6 +52,7 @@ class PreparedProfile:
     checksum_modulus: int
     capacity: int
     blocklist: tuple
+    max_repetition: int
 
 
 def _norm(case_sensitive: bool, ch: str) -> str:
@@ -165,6 +166,16 @@ def prepare_profile(profile) -> PreparedProfile:
         effective_blocklist(profanity) if profanity["mode"] == "blocklist" else []
     )
 
+    # Spec 21: 0 disables the filter; an active filter needs a floor of 3 —
+    # banning pairs (2) would destroy roughly 9% of every generation.
+    max_repetition = profile.get("maxRepetition")
+    if max_repetition is None:
+        max_repetition = 0
+    if not _is_int(max_repetition) or max_repetition < 0 or (
+        0 < max_repetition < 3
+    ):
+        _fail("maxRepetition must be 0 (off) or an integer of at least 3")
+
     separator = profile.get("separator") or ""
     if not isinstance(separator, str):
         _fail("separator must be a string")
@@ -263,4 +274,5 @@ def prepare_profile(profile) -> PreparedProfile:
         checksum_modulus=modulus_base ** checksum_length,
         capacity=len(body_norm) ** body_length,
         blocklist=tuple(blocklist),
+        max_repetition=max_repetition,
     )

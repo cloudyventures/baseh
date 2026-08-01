@@ -84,6 +84,14 @@
           <option value="blocklist">Blocklist</option>
         </select>
       </div>
+      <div class="field">
+        <label for="d-max-repetition">Repetition filter<span class="tip" tabindex="0" aria-label="Repetition filter details"><span class="i">i</span><span class="tip-body">Applied to every candidate and the expandable design: any code with a run of identical symbols this long or longer is refused, because humans mis-count long runs (00000 read as 0000) and no checksum can catch a symbol that was never typed. Runs are measured on the raw code, ignoring delimiters. Blocked identifiers are reserved and skipped; candidate capacities still count them (well under 0.5% of ids). 4 is what every frozen tier ships; Off disables the filter.</span></span></label>
+        <select id="d-max-repetition">
+          <option value="0">Off</option>
+          <option value="3">3</option>
+          <option value="4" selected>4 (frozen tiers)</option>
+        </select>
+      </div>
       <fieldset class="field">
         <legend>Permutation<span class="tip" tabindex="0" aria-label="Permutation details"><span class="i">i</span><span class="tip-body">Permutation shuffles which code an identifier gets, hiding obvious sequence in the previews. It changes nothing about capacity, length or validation, and it is not access control. The preview uses a public built-in key; a real application generates its own key and keeps it server-side. It also costs compute: with permutation off, encode is about 20x faster and decode about 13x faster (1 microsecond per code instead of tens of microseconds), so it matters for bulk encoding, not per request. Permutation is not part of the exported design.</span></span></legend>
         <label class="check"><input id="d-permutation" type="checkbox" checked /> Preview with permutation on</label>

@@ -52,7 +52,8 @@ function tier(shape, permutation, pSuffix) {
         grouping: shape.grouping,
         aliases: { ...shape.aliases },
         permutation,
-        profanity: { mode: "blocklist" }
+        profanity: { mode: "blocklist" },
+        maxRepetition: 4
     };
 }
 const MINIMUM = {
@@ -155,7 +156,8 @@ function expandableTier(permutation, pSuffix) {
         grouping: [],
         aliases: { ...OIL_ALIASES, T: "P", N: "M", W: "V" },
         permutation,
-        profanity: { mode: "blocklist" }
+        profanity: { mode: "blocklist" },
+        maxRepetition: 4
     };
 }
 /** The frozen expandable tier; the recommended starting point for new namespaces. */

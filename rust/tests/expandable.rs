@@ -30,6 +30,7 @@ fn custom_expandable() -> Profile {
         aliases: vec![('O', '0'), ('I', '1'), ('L', '1')],
         permutation: Permutation::Disabled,
         profanity: None,
+        max_repetition: 0,
     }
 }
 

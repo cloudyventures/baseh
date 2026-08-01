@@ -18,6 +18,7 @@ const els = {
   spoken: $<HTMLSelectElement>("d-spoken"),
   spokenDrops: $("d-spoken-drops"),
   profanity: $<HTMLSelectElement>("d-profanity"),
+  maxRep: $<HTMLSelectElement>("d-max-repetition"),
   permutation: $<HTMLInputElement>("d-permutation"),
   allowAlnum: $<HTMLInputElement>("allow-alnum"),
   allowUpper: $<HTMLInputElement>("allow-upper"),
@@ -79,6 +80,7 @@ function readInput(): DesignerInput | null {
     visualSafety: els.visual.value as SafetyLevel,
     spokenSafety: els.spoken.value as SafetyLevel,
     profanity: els.profanity.value as ProfanityMode,
+    maxRepetition: Number(els.maxRep.value),
     permutation: els.permutation.checked
   };
 }
@@ -97,7 +99,7 @@ function sampleLine(s: { id: string; code: string; blocked?: boolean }): string 
     marker = "&infin;";
   }
   const rendered = s.blocked
-    ? `<span class="muted" title="This identifier spells a profanity and is never issued.">blocked</span>`
+    ? `<span class="muted" title="This identifier is never issued (profanity or a repetition run).">blocked</span>`
     : `<code>${s.code}</code>`;
   return `<span class="sample" title="${title}">${marker} ${rendered}</span>`;
 }
@@ -113,7 +115,7 @@ function collisionRate(c: Candidate, input: DesignerInput): string {
 }
 
 function card(c: Candidate, permutation: boolean, label?: string): string {
-  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation)
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation, c.maxRepetition)
     .map(sampleLine)
     .join("");
   return `<div class="card alt-card">
@@ -201,7 +203,7 @@ function render() {
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
       <td>${collisionRate(c, input)}</td>
-      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation).find((s) => s.id === "0")?.code ?? ""}</code></td>
+      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation, c.maxRepetition).find((s) => s.id === "0")?.code ?? ""}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");
   els.exportBtn.onclick = async () => {
@@ -272,7 +274,7 @@ function render() {
   const convSample = result.recommended
     ? sampleCodes(result.recommended.alphabet, result.recommended.bodyLength, result.recommended.checksumLength,
         result.recommended.capacity, result.recommended.spoken, result.recommended.separator,
-        result.recommended.profanity, input.permutation)
+        result.recommended.profanity, input.permutation, result.recommended.maxRepetition)
         .reverse().find((s) => !s.blocked && s.code)?.code ?? null
     : null;
   renderTryList(els.convTry, convProfile ? trySuggestions(convProfile, convSample, h ?? undefined) : [], (code) => {
@@ -287,7 +289,7 @@ function render() {
 }
 
 for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.separator, els.minCheck,
-  els.maxUtil, els.visual, els.spoken, els.profanity, els.permutation, els.allowAlnum, els.allowUpper, els.allowDigits,
+  els.maxUtil, els.visual, els.spoken, els.profanity, els.maxRep, els.permutation, els.allowAlnum, els.allowUpper, els.allowDigits,
   els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
@@ -313,6 +315,7 @@ interface SavedState {
   visual: string;
   spoken: string;
   profanity: string;
+  maxRepetition: string;
   permutation: boolean;
   allowAlnum: boolean;
   allowUpper: boolean;
@@ -333,6 +336,7 @@ function readState(): SavedState {
     visual: els.visual.value,
     spoken: els.spoken.value,
     profanity: els.profanity.value,
+    maxRepetition: els.maxRep.value,
     permutation: els.permutation.checked,
     allowAlnum: els.allowAlnum.checked,
     allowUpper: els.allowUpper.checked,
@@ -353,6 +357,8 @@ function applyState(s: SavedState) {
   els.visual.value = s.visual;
   els.spoken.value = s.spoken;
   els.profanity.value = s.profanity;
+  // Older stored states predate the repetition filter; keep the control default.
+  els.maxRep.value = s.maxRepetition ?? els.maxRep.value;
   els.permutation.checked = s.permutation;
   els.allowAlnum.checked = s.allowAlnum;
   els.allowUpper.checked = s.allowUpper;

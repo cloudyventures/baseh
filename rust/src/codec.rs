@@ -459,6 +459,23 @@ impl Baseh {
                 ));
             }
         }
+        // Spec 21.2: a run of the same symbol at or above max_repetition
+        // blocks the code. Runs are measured on the raw string, so a
+        // separator never breaks a run.
+        let max = self.profile.profile.max_repetition;
+        if max > 0 {
+            let mut run = 1;
+            for pair in raw.windows(2) {
+                run = if pair[0] == pair[1] { run + 1 } else { 1 };
+                if run >= max {
+                    return Err(BasehError::new(
+                        ErrorCode::BlockedCode,
+                        "The generated reference repeats a symbol beyond the profile limit",
+                        false,
+                    ));
+                }
+            }
+        }
         Ok(raw)
     }
 

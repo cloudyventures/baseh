@@ -60,7 +60,8 @@ class TestVectors < Minitest::Test
       grouping: definition["grouping"],
       aliases: definition["aliases"] || {},
       permutation: permutation,
-      profanity: profanity
+      profanity: profanity,
+      max_repetition: definition["maxRepetition"]
     }.compact
   end
 

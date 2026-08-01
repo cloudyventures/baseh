@@ -214,7 +214,7 @@ class Baseh:
             length=length,
         )
 
-    def _check_blocklist(self, raw: str) -> None:
+    def _check_blocked(self, raw: str) -> None:
         # Spec 18.2: case-insensitive substring scan over the raw code.
         if self._profile.blocklist:
             upper = raw.upper()
@@ -224,6 +224,20 @@ class Baseh:
                     "The generated reference contains a blocked substring",
                     False,
                 )
+        # Spec 21.2: a run of the same symbol at or above maxRepetition
+        # blocks the code. Runs are measured on the raw string, so a
+        # separator never breaks a run.
+        max_repetition = self._profile.max_repetition
+        if max_repetition > 0:
+            run = 1
+            for i in range(1, len(raw)):
+                run = run + 1 if raw[i] == raw[i - 1] else 1
+                if run >= max_repetition:
+                    raise BasehError(
+                        BLOCKED_CODE,
+                        "The generated reference repeats a symbol beyond the profile limit",
+                        False,
+                    )
 
     def _encode_fixed(self, id: int) -> str:
         """Spec 8."""
@@ -237,7 +251,7 @@ class Baseh:
         )
         checksum = calculate_checksum(self._profile, body)
         raw = body + checksum
-        self._check_blocklist(raw)
+        self._check_blocked(raw)
         return format_raw(raw, self._profile)
 
     def _encode_expandable(self, id: int) -> str:
@@ -260,11 +274,11 @@ class Baseh:
         )
         checksum = calculate_checksum(self._profile, body)
         raw = body + checksum
-        self._check_blocklist(raw)
+        self._check_blocked(raw)
         return format_raw(raw, self._profile)
 
     def encode(self, id: int) -> str:
-        """Spec 8/19.6, including the section 18.2 blocked-substring scan."""
+        """Spec 8/19.6, including the 18.2 blocklist and 21.2 repetition scans."""
         if isinstance(id, bool) or not isinstance(id, int):
             raise BasehError(OUT_OF_RANGE, "id must be an integer")
         if self._profile.mode == "expandable":

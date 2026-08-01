@@ -35,6 +35,9 @@ type Profile struct {
 	// Profanity is the optional spec-18 configuration. The zero value
 	// (mode "") selects mode "none".
 	Profanity Profanity `json:"profanity,omitempty"`
+	// MaxRepetition is the optional spec-21 repetition filter. The zero
+	// value disables it; when on it must be an integer of at least 3.
+	MaxRepetition int `json:"maxRepetition,omitempty"`
 }
 
 // Permutation configures the optional reversible Feistel permutation.
@@ -150,6 +153,13 @@ func prepareProfile(p Profile) (*prepared, error) {
 	}
 	if p.ChecksumLength < 0 || p.ChecksumLength > 8 {
 		return nil, invalidProfile("checksumLength must be an integer from 0 through 8")
+	}
+	// Spec 21: 0 disables the repetition filter; banning runs shorter than
+	// three would destroy too much of every generation, so 1 and 2 are
+	// rejected. There is no upper bound — a value above the code length is
+	// a legal no-op.
+	if p.MaxRepetition < 0 || (p.MaxRepetition > 0 && p.MaxRepetition < 3) {
+		return nil, invalidProfile("maxRepetition must be 0 (off) or an integer of at least 3")
 	}
 	if mode == "expandable" {
 		if minLength < 1 {

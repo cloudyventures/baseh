@@ -357,20 +357,32 @@ module Baseh
     private
 
     # Spec 18.2: case-insensitive substring scan over the raw unformatted
-    # code. BLOCKED_CODE is an issuance decision, not an end-user condition.
+    # code, plus the spec 21.2 run scan. BLOCKED_CODE is an issuance
+    # decision, not an end-user condition.
     def check_blocklist!(raw)
-      return if @profile.blocklist.empty?
+      unless @profile.blocklist.empty?
+        upper = raw.upcase
+        @profile.blocklist.each do |word|
+          next unless upper.include?(word)
 
-      upper = raw.upcase
-      @profile.blocklist.each do |word|
-        next unless upper.include?(word)
-
-        raise BasehError.new(
-          "BLOCKED_CODE",
-          "The generated reference contains a blocked substring",
-          safe_for_customer: false
-        )
+          raise BasehError.new(
+            "BLOCKED_CODE",
+            "The generated reference contains a blocked substring",
+            safe_for_customer: false
+          )
+        end
       end
+      # Spec 21.2: a run of the same symbol at or above maxRepetition blocks
+      # the code. Runs are measured on the raw string, so a separator never
+      # breaks a run.
+      max = @profile.max_repetition
+      return unless max.positive? && /(.)\1{#{max - 1},}/.match?(raw)
+
+      raise BasehError.new(
+        "BLOCKED_CODE",
+        "The generated reference repeats a symbol beyond the profile limit",
+        safe_for_customer: false
+      )
     end
 
     def confusion_map(name)

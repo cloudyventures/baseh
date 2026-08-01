@@ -99,6 +99,14 @@
         </select>
       </div>
       <div class="field">
+        <label for="max-repetition">Repetition filter<span class="tip" tabindex="0" aria-label="Repetition filter details"><span class="i">i</span><span class="tip-body">Refuses to issue any code with a run of identical symbols this long or longer, because humans mis-count long runs (00000 read as 0000) and no checksum can catch a symbol that was never typed. Runs are measured on the raw code, ignoring delimiters, so a run may straddle one. Blocked identifiers are reserved and skipped, marked as blocked in the examples; the capacity figure still counts them (well under 0.5% of ids). 4 is what every frozen tier ships; Off disables the filter.</span></span></label>
+        <select id="max-repetition">
+          <option value="0">Off</option>
+          <option value="3">3</option>
+          <option value="4" selected>4 (frozen tiers)</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="separator">Separator (optional)</label>
         <input id="separator" type="text" value="" maxlength="2" />
       </div>
