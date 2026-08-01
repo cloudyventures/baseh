@@ -118,9 +118,20 @@ module Baseh
             "The reference code did not pass validation"
           )
         end
+        # Spec 10: replacements that are not body alphabet symbols are
+        # dropped before candidate generation. A suggested symbol the alphabet
+        # cannot contain (say a spoken drop on a stripped-alphabet profile)
+        # could never validate; generating it anyway would throw
+        # INVALID_CHARACTER from the checksum step instead of reporting an
+        # honest INVALID_CHECKSUM.
         map = confusion_map(confusion_profile)
+        filtered = {}
+        map.each do |source, replacements|
+          kept = replacements.select { |r| @body_index.key?(r) }
+          filtered[source] = kept unless kept.empty?
+        end
         valid = {}
-        generate_candidates(body, map, max_corrections).each do |candidate|
+        generate_candidates(body, filtered, max_corrections).each do |candidate|
           if Checksum.calculate_checksum(@profile, candidate, @body_index) == supplied_checksum
             valid[candidate] = true
           end

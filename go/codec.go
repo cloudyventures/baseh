@@ -152,7 +152,29 @@ func (h *Baseh) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 		if err != nil {
 			return nil, err
 		}
-		candidates, err := generateCandidates(body, confusionMap, o.MaxCorrections)
+		// Spec 10.1: replacements that are not body alphabet symbols are
+		// dropped before candidate generation. A suggested symbol the alphabet
+		// cannot contain (say a spoken drop on a stripped-alphabet profile)
+		// could never validate; generating it anyway would return
+		// INVALID_CHARACTER from the checksum step instead of reporting an
+		// honest INVALID_CHECKSUM.
+		bodySet := make(map[string]bool, len(h.prep.bodyNorm))
+		for i := 0; i < len(h.prep.bodyNorm); i++ {
+			bodySet[h.prep.bodyNorm[i:i+1]] = true
+		}
+		filtered := make(map[string][]string, len(confusionMap))
+		for source, replacements := range confusionMap {
+			var kept []string
+			for _, r := range replacements {
+				if bodySet[r] {
+					kept = append(kept, r)
+				}
+			}
+			if len(kept) > 0 {
+				filtered[source] = kept
+			}
+		}
+		candidates, err := generateCandidates(body, filtered, o.MaxCorrections)
 		if err != nil {
 			return nil, err
 		}

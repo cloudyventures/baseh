@@ -94,8 +94,14 @@ fn from_code_accepts_lowercase_aliases_and_any_whitespace() {
 fn from_code_errors_on_invalid_input_with_no_correction() {
     expect_code(from_code("0000000"), ErrorCode::InvalidChecksum);
     expect_code(from_code("!!!!!!!"), ErrorCode::InvalidCharacter);
-    // B is not canonical in Medium and is not an alias; no correction guesses it.
-    expect_code(from_code("B00000C"), ErrorCode::InvalidCharacter);
+    // B is an alias at Medium: it decodes as 8 rather than failing.
+    for i in 1..100_000u64 {
+        let code = to_code(i).unwrap();
+        if code.contains('8') {
+            assert_eq!(from_code(&code.replacen('8', "B", 1)).unwrap(), BigUint::from(i));
+            break;
+        }
+    }
     expect_code(from_code(""), ErrorCode::InvalidLength);
 }
 

@@ -355,6 +355,75 @@ class TestRoundTrip(unittest.TestCase):
         self.assertEqual(ctx.exception.code, TOO_MANY_CANDIDATES)
 
 
+class TestLookAlikeAliases(unittest.TestCase):
+    """Frozen medium tier: typed B is always an 8 and typed S always a 5."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.codec = Baseh(baseh_medium_v1())
+
+    def _first_code_with(self, sym):
+        for value in range(1, 5_000_000):
+            try:
+                # Blocklisted identifiers are reserved and never issued; skip.
+                code = self.codec.encode(value)
+            except BasehError as err:
+                self.assertEqual(err.code, BLOCKED_CODE)
+                continue
+            if sym in code:
+                return value, code
+        self.fail(f"no medium code contains {sym} in range")
+
+    def test_typed_b_decodes_as_8(self):
+        value, code = self._first_code_with("8")
+        result = self.codec.decode(code.replace("8", "B"))
+        self.assertEqual(result.id, value)
+        # Aliases canonicalize during normalization, so the corrected flag
+        # stays false; only confusion-map correction sets it.
+        self.assertFalse(result.corrected)
+
+    def test_typed_s_decodes_as_5_and_lowercase_works(self):
+        value, code = self._first_code_with("5")
+        self.assertEqual(self.codec.decode(code.replace("5", "S")).id, value)
+        self.assertEqual(self.codec.decode(code.replace("5", "s")).id, value)
+
+    def test_encode_never_emits_b_or_s(self):
+        for value in range(5000):
+            try:
+                code = self.codec.encode(value)
+            except BasehError as err:
+                # Blocklisted identifiers are reserved and never issued; skip.
+                self.assertEqual(err.code, BLOCKED_CODE)
+                continue
+            self.assertNotIn("B", code)
+            self.assertNotIn("S", code)
+
+    def test_genuinely_wrong_symbol_still_fails_checksum(self):
+        _, code = self._first_code_with("8")
+        wrong = code.replace("8", "7")
+        with self.assertRaises(BasehError) as ctx:
+            self.codec.decode(wrong)
+        self.assertEqual(ctx.exception.code, INVALID_CHECKSUM)
+
+
+class TestCorrectionFilter(unittest.TestCase):
+    def test_ignores_map_replacements_the_alphabet_cannot_contain(self):
+        # baseh-medium drops B, S and T. A P in the body under confusion light
+        # would suggest a T that can never validate; that candidate must be
+        # skipped and the failure reported as INVALID_CHECKSUM, never thrown
+        # as INVALID_CHARACTER from the checksum step.
+        codec = Baseh(baseh_medium_v1())
+        code = ""
+        for value in range(100_000, 1_000_000):
+            code = codec.encode(value)
+            if "P" in code:
+                break
+        bad = code[:-1] + ("3" if code.endswith("2") else "2")
+        with self.assertRaises(BasehError) as ctx:
+            codec.decode(bad, try_correction=True, confusion_profile="light")
+        self.assertEqual(ctx.exception.code, INVALID_CHECKSUM)
+
+
 class TestFuzz(unittest.TestCase):
     """Random ASCII and unicode inputs must only ever raise BasehError."""
 
