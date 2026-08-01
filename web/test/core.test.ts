@@ -572,6 +572,8 @@ describe("expandable calculator mode", async () => {
     assert.match(r.falseAcceptance, /1 in 35 through length 5/);
     assert.match(r.falseAcceptance, /then 1 in 1225/);
     assert.equal(calculate(exp({ shortChecksumLength: 0, shortChecksumUntil: 0 })).falseAcceptance, "about 1 in 1225");
+    // Amendment: a zero-checksum window frames the missing typo detection.
+    assert.match(calculate(exp({ shortChecksumLength: 0, shortChecksumUntil: 5 })).falseAcceptance, /no typo detection through length 5/);
   });
   it("validates minLength against the checksum length", () => {
     assert.ok(!calculate(exp({ minLength: 2 })).valid);
@@ -588,6 +590,13 @@ describe("expandable calculator mode", async () => {
     assert.ok(!calculate(exp({ minLength: 1, checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 5 })).valid);
     // Explicitly off stays valid even with a tiny full checksum.
     assert.ok(calculate(exp({ checksumLength: 1, shortChecksumLength: 0, shortChecksumUntil: 0 })).valid);
+    // Amendment: the window is capped at 8; 8 is accepted, 9 is rejected.
+    assert.ok(calculate(exp({ shortChecksumUntil: 8 })).valid);
+    assert.ok(!calculate(exp({ shortChecksumUntil: 9 })).valid);
+    // Amendment: a zero-checksum window (length 0 with a window) is legal.
+    assert.ok(calculate(exp({ shortChecksumLength: 0, shortChecksumUntil: 5 })).valid);
+    // The length field without a window is rejected.
+    assert.ok(!calculate(exp({ shortChecksumLength: 1, shortChecksumUntil: 0 })).valid);
   });
   it("demand analysis names the generation the demand lands in", () => {
     // 1000/day x 3650 days x 1.25 x 2 = 9,125,000 required: generation 7.
@@ -768,12 +777,23 @@ describe("short checksum (spec 22)", async () => {
       { ...base, shortChecksumLength: 2, shortChecksumUntil: 5 },
       { ...base, shortChecksumLength: 1, shortChecksumUntil: 3 },
       { ...base, minLength: 1, shortChecksumLength: 1, shortChecksumUntil: 5 },
-      { ...base, shortChecksumLength: 0, shortChecksumUntil: 5 },
-      { ...base, shortChecksumLength: 1.5, shortChecksumUntil: 5 }
+      // Amendment: beyond 8 the window would swallow nearly every practical code.
+      { ...base, shortChecksumLength: 1, shortChecksumUntil: 9 },
+      // Amendment: the length field without a window is invalid.
+      { ...base, shortChecksumLength: 1, shortChecksumUntil: 0 },
+      { ...base, shortChecksumLength: 1.5, shortChecksumUntil: 5 },
+      // Fixed mode: the fields are expandable-only.
+      { ...base, mode: "fixed" as const, bodyLength: 6, shortChecksumLength: 1, shortChecksumUntil: 5 }
     ];
     for (const profile of bad) {
       assert.throws(() => new Baseh(profile), (e: unknown) => e instanceof BasehError && e.code === "INVALID_PROFILE");
     }
+    // Amendment: until + length 0 is now a legal zero-checksum window.
+    const zero = new Baseh({ ...base, shortChecksumLength: 0, shortChecksumUntil: 5 });
+    assert.equal(zero.profile.shortChecksumLength, 0);
+    assert.equal(zero.profile.shortChecksumUntil, 5);
+    // Amendment: until 8 is the top of the range.
+    assert.ok(new Baseh({ ...base, shortChecksumLength: 1, shortChecksumUntil: 8 }));
   });
 
   it("a custom short-checksum window previews and round trips", () => {
@@ -800,6 +820,125 @@ describe("short checksum (spec 22)", async () => {
     assert.equal(profile.shortChecksumUntil, 5);
     const h = new Baseh(profile);
     assert.equal(raw(h.encode(0n)).length, 4);
+  });
+});
+
+describe("short checksum: zero-checksum window (spec 22 amendment)", async () => {
+  const { effectiveChecksumLengthAt, generationCapacityAt, generationTable } = await import("../src/core.js");
+  const { Baseh, BasehError, basehExpandableV1, calculateChecksum, generationBase, generationCapacity } = await import("@cloudyventures/baseh");
+
+  const raw = (code: string) => code.replaceAll("-", "");
+  const zeroProfile = {
+    ...basehExpandableV1(),
+    profileId: "short-zero-test",
+    minLength: 4,
+    checksumLength: 2,
+    shortChecksumLength: 0,
+    shortChecksumUntil: 5,
+    permutation: { enabled: false } as const,
+    profanity: { mode: "none" as const },
+    maxRepetition: 0
+  };
+  const h = new Baseh(zeroProfile);
+
+  it("resolves effective K of 0 inside the window, checksumLength above it", () => {
+    assert.equal(effectiveChecksumLengthAt(2, 0, 5, 4), 0);
+    assert.equal(effectiveChecksumLengthAt(2, 0, 5, 5), 0);
+    assert.equal(effectiveChecksumLengthAt(2, 0, 5, 6), 2);
+    assert.deepEqual(generationTable(34, 2, 4, 5, 0, 5).map((r) => r.checksum), [0, 0, 2, 2, 2]);
+  });
+
+  it("window generations are all body: capacity is A^L", () => {
+    assert.equal(generationCapacityAt(34, 2, 4, 0, 5).toString(), (34n ** 4n).toString());
+    assert.equal(generationCapacityAt(34, 2, 5, 0, 5).toString(), (34n ** 5n).toString());
+    assert.equal(generationCapacity(h.profile, 4), 34n ** 4n);
+    // Above the window the full checksum still reserves its symbols.
+    assert.equal(generationCapacity(h.profile, 6), 34n ** 4n);
+  });
+
+  it("round trips generations 4-6 with an empty checksum inside the window", () => {
+    for (let l = 4; l <= 6; l += 1) {
+      for (const offset of [0n, 1n, 7n]) {
+        const id = generationBase(h.profile, l) + offset;
+        const code = h.encode(id);
+        assert.equal(raw(code).length, l);
+        if (l <= 5) assert.equal(calculateChecksum(h.profile, raw(code), 0), "");
+        assert.equal(h.decode(code).id, id);
+        assert.equal(h.decode(code).canonicalCode, code);
+      }
+    }
+  });
+
+  it("a typo at a zero-checksum generation is NOT detected (documented trade-off)", () => {
+    const id = generationBase(h.profile, 4) + 1n;
+    const code = raw(h.encode(id));
+    // Flip the last body symbol to a different body symbol.
+    const last = code[3] as string;
+    const typed = code.slice(0, 3) + (last === "1" ? "2" : "1");
+    const d = h.decode(typed); // no error: there is no checksum to fail
+    assert.notEqual(d.id, id);
+  });
+
+  it("correction at a zero-checksum generation behaves like a no-checksum fixed profile", () => {
+    // With no checksum there is nothing to correct against: any body
+    // decodes as-is and tryCorrection never engages.
+    const id = generationBase(h.profile, 5) + 3n;
+    const code = raw(h.encode(id));
+    const d = h.decode(code, { tryCorrection: true, confusionProfile: "heavy" });
+    assert.equal(d.id, id);
+    assert.equal(d.corrected, false);
+    const last = code[4] as string;
+    const typed = code.slice(0, 4) + (last === "1" ? "2" : "1");
+    const d2 = h.decode(typed, { tryCorrection: true, confusionProfile: "heavy" });
+    assert.notEqual(d2.id, id);
+    assert.equal(d2.corrected, false);
+  });
+
+  it("the repetition scan covers the whole all-body code (spec 22.4)", () => {
+    const filtered = new Baseh({ ...zeroProfile, maxRepetition: 4 });
+    let found: bigint | null = null;
+    for (let id = 0n; id < generationCapacity(h.profile, 4); id += 1n) {
+      const r = raw(h.encode(id));
+      if (new RegExp(`(.)\\1{3}`).test(r)) {
+        found = id;
+        break;
+      }
+    }
+    assert.ok(found !== null, "expected a gen-4 code with a run of 4");
+    assert.throws(
+      () => filtered.encode(found),
+      (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE"
+    );
+  });
+});
+
+describe("short checksum: until-8 window boundary (spec 22 amendment)", async () => {
+  const { Baseh, basehExpandableV1, calculateChecksum, generationBase } = await import("@cloudyventures/baseh");
+
+  const raw = (code: string) => code.replaceAll("-", "");
+  const h = new Baseh({
+    ...basehExpandableV1(),
+    profileId: "short-until-8-test",
+    minLength: 4,
+    checksumLength: 2,
+    shortChecksumLength: 1,
+    shortChecksumUntil: 8,
+    permutation: { enabled: false },
+    profanity: { mode: "none" },
+    maxRepetition: 0
+  });
+
+  it("generation 8 carries one checksum symbol, generation 9 carries two", () => {
+    const id8 = generationBase(h.profile, 8) + 5n;
+    const c8 = raw(h.encode(id8));
+    assert.equal(c8.length, 8);
+    assert.equal(c8.slice(7), calculateChecksum(h.profile, c8.slice(0, 7), 1));
+    assert.equal(h.decode(c8).id, id8);
+    const id9 = generationBase(h.profile, 9) + 5n;
+    const c9 = raw(h.encode(id9));
+    assert.equal(c9.length, 9);
+    assert.equal(c9.slice(7), calculateChecksum(h.profile, c9.slice(0, 7), 2));
+    assert.equal(h.decode(c9).id, id9);
   });
 });
 

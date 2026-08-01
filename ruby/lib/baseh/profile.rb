@@ -73,27 +73,37 @@ module Baseh
         # it off.
         @short_checksum_length = profile[:short_checksum_length] || 0
         @short_checksum_until = profile[:short_checksum_until] || 0
+        # Spec 22. The window field is the switch: shortChecksumUntil of 0
+        # turns the feature off (the codebase convention, like
+        # maxRepetition), and the length field without a window is
+        # INVALID_PROFILE. With a window set, a shortChecksumLength of 0 is
+        # legal: the window's generations carry no checksum symbols at all.
         if @mode == "fixed"
           unless @short_checksum_length == 0 && @short_checksum_until == 0
             self.class.fail_profile!(
               "shortChecksumLength and shortChecksumUntil are expandable-mode only"
             )
           end
-        elsif @short_checksum_length != 0
-          unless @short_checksum_length.is_a?(Integer) && @short_checksum_length >= 1
-            self.class.fail_profile!("shortChecksumLength must be an integer of at least 1")
-          end
-          unless @checksum_length >= 1 && @short_checksum_length < @checksum_length
-            self.class.fail_profile!("shortChecksumLength must be less than checksumLength")
-          end
+        elsif @short_checksum_until != 0
           unless @short_checksum_until.is_a?(Integer) && @short_checksum_until >= @min_length
             self.class.fail_profile!("shortChecksumUntil must be an integer of at least minLength")
+          end
+          # Beyond 8 the window would swallow nearly every practical code,
+          # and long codes genuinely want two checksum symbols.
+          if @short_checksum_until > 8
+            self.class.fail_profile!("shortChecksumUntil must be at most 8")
+          end
+          unless @short_checksum_length.is_a?(Integer) && @short_checksum_length >= 0 &&
+                 @short_checksum_length < @checksum_length
+            self.class.fail_profile!(
+              "shortChecksumLength must be an integer from 0 through checksumLength - 1"
+            )
           end
           unless @min_length > @short_checksum_length
             self.class.fail_profile!("minLength must be greater than shortChecksumLength")
           end
-        elsif @short_checksum_until != 0
-          self.class.fail_profile!("shortChecksumUntil requires shortChecksumLength")
+        elsif @short_checksum_length != 0
+          self.class.fail_profile!("shortChecksumLength requires shortChecksumUntil")
         end
         # Spec 19.3: in expandable mode the checksum alphabet is derived from
         # the body alphabet after every body strip; the configured
@@ -165,9 +175,11 @@ module Baseh
       # Spec 22. The checksum length that applies to a generation of the
       # given total length: short_checksum_length at or below
       # short_checksum_until, checksum_length above it (and always in fixed
-      # mode).
+      # mode). The feature is on exactly when short_checksum_until is
+      # non-zero; a short_checksum_length of 0 then means the window's
+      # generations carry no checksum symbols at all.
       def effective_checksum_length(length)
-        if @mode == "expandable" && @short_checksum_length.positive? &&
+        if @mode == "expandable" && @short_checksum_until.positive? &&
            length <= @short_checksum_until
           @short_checksum_length
         else

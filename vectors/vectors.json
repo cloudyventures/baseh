@@ -433,6 +433,119 @@
           "capacity": "1544804416"
         }
       ]
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "definition": {
+        "profileId": "short0-expandable-test",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 0,
+        "shortChecksumUntil": 5,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0
+      },
+      "generations": [
+        {
+          "length": 4,
+          "base": "0",
+          "capacity": "1336336"
+        },
+        {
+          "length": 5,
+          "base": "1336336",
+          "capacity": "45435424"
+        },
+        {
+          "length": 6,
+          "base": "46771760",
+          "capacity": "1336336"
+        }
+      ]
+    },
+    {
+      "profileId": "short8-expandable-test",
+      "definition": {
+        "profileId": "short8-expandable-test",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 8,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "permutation": {
+          "enabled": false
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0
+      },
+      "generations": [
+        {
+          "length": 4,
+          "base": "0",
+          "capacity": "39304"
+        },
+        {
+          "length": 5,
+          "base": "39304",
+          "capacity": "1336336"
+        },
+        {
+          "length": 6,
+          "base": "1375640",
+          "capacity": "45435424"
+        },
+        {
+          "length": 7,
+          "base": "46811064",
+          "capacity": "1544804416"
+        },
+        {
+          "length": 8,
+          "base": "1591615480",
+          "capacity": "52523350144"
+        },
+        {
+          "length": 9,
+          "base": "54114965624",
+          "capacity": "52523350144"
+        }
+      ]
     }
   ],
   "vectors": [
@@ -2532,6 +2645,103 @@
       "id": "2",
       "canonicalCode": "DCZ0",
       "note": "typed O in checksum position aliases to 0"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "0",
+      "canonicalCode": "1111",
+      "rawBody": "1111",
+      "rawChecksum": "",
+      "note": "zero-checksum generation: all body"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "1336335",
+      "canonicalCode": "ZZZZ",
+      "rawBody": "ZZZZ",
+      "rawChecksum": "",
+      "note": "zero-checksum generation: all body"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "7",
+      "canonicalCode": "1118",
+      "rawBody": "1118",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "1336336",
+      "canonicalCode": "11111",
+      "rawBody": "11111",
+      "rawChecksum": "",
+      "note": "zero-checksum generation: all body"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "46771759",
+      "canonicalCode": "ZZZZZ",
+      "rawBody": "ZZZZZ",
+      "rawChecksum": "",
+      "note": "zero-checksum generation: all body"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "1336343",
+      "canonicalCode": "11118",
+      "rawBody": "11118",
+      "rawChecksum": ""
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "46771760",
+      "canonicalCode": "111-1EE",
+      "rawBody": "1111",
+      "rawChecksum": "EE"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "48108095",
+      "canonicalCode": "ZZZ-ZUJ",
+      "rawBody": "ZZZZ",
+      "rawChecksum": "UJ"
+    },
+    {
+      "profileId": "short0-expandable-test",
+      "id": "46771767",
+      "canonicalCode": "111-8EL",
+      "rawBody": "1118",
+      "rawChecksum": "EL"
+    },
+    {
+      "profileId": "short8-expandable-test",
+      "id": "54114965623",
+      "canonicalCode": "ZZZZ-ZZZA",
+      "rawBody": "ZZZZZZZ",
+      "rawChecksum": "A",
+      "note": "last id of the until-8 window: one checksum symbol"
+    },
+    {
+      "profileId": "short8-expandable-test",
+      "id": "54114965624",
+      "canonicalCode": "11111-113J",
+      "rawBody": "1111111",
+      "rawChecksum": "3J",
+      "note": "first id above the window: two checksum symbols"
+    },
+    {
+      "profileId": "short8-expandable-test",
+      "id": "1591615491",
+      "canonicalCode": "1111-11CV",
+      "rawBody": "111111C",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "short8-expandable-test",
+      "id": "54114965635",
+      "canonicalCode": "11111-1C3V",
+      "rawBody": "111111C",
+      "rawChecksum": "3V"
     }
   ],
   "errors": [
@@ -2686,6 +2896,177 @@
       "profileId": "rep16-sep-test",
       "id": "43690",
       "error": "BLOCKED_CODE"
+    }
+  ],
+  "profileErrors": [
+    {
+      "note": "until above 8",
+      "error": "INVALID_PROFILE",
+      "definition": {
+        "profileId": "bad-until-9",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 9,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0,
+        "permutation": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "note": "until below minLength",
+      "error": "INVALID_PROFILE",
+      "definition": {
+        "profileId": "bad-until-3",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 3,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0,
+        "permutation": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "note": "length without until",
+      "error": "INVALID_PROFILE",
+      "definition": {
+        "profileId": "bad-length-no-until",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 0,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0,
+        "permutation": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "note": "length >= checksumLength",
+      "error": "INVALID_PROFILE",
+      "definition": {
+        "profileId": "bad-length-2",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "shortChecksumLength": 2,
+        "shortChecksumUntil": 5,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "profanity": {
+          "mode": "none"
+        },
+        "maxRepetition": 0,
+        "permutation": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "note": "fixed mode rejects the fields",
+      "error": "INVALID_PROFILE",
+      "definition": {
+        "profileId": "baseh-medium-v1",
+        "mode": "fixed",
+        "bodyAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACDEFGHJKMPQRUVXY",
+        "checksumLength": 2,
+        "caseSensitive": false,
+        "separator": "-",
+        "grouping": [
+          4,
+          4
+        ],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "B": "8",
+          "S": "5",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "profanity": {
+          "mode": "blocklist"
+        },
+        "maxRepetition": 4,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 5,
+        "permutation": {
+          "enabled": false
+        }
+      }
     }
   ]
 }

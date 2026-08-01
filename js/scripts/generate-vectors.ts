@@ -620,10 +620,124 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
   }
 }
 
+// --- Spec 22 amendment: zero-checksum and until-8 windows -------------------
+// Append-only: every entry above is untouched. These profiles pin the amended
+// validation matrix and the effective-K=0 codec paths. Both are permutation-
+// off, so the Feistel vector set gains no entries.
+const profileErrors: unknown[] = [];
+{
+  function shortTestProfile(
+    profileId: string,
+    shortChecksumLength: number,
+    shortChecksumUntil: number
+  ): BasehProfile {
+    return {
+      ...basehExpandableV1(),
+      profileId,
+      minLength: 4,
+      checksumLength: 2,
+      shortChecksumLength,
+      shortChecksumUntil,
+      permutation: { enabled: false },
+      profanity: { mode: "none" },
+      maxRepetition: 0
+    };
+  }
+
+  function expandableEntry(profile: BasehProfile, prepared: ReturnType<typeof prepareProfile>, maxGen: number): Record<string, unknown> {
+    return {
+      profileId: profile.profileId,
+      definition: {
+        profileId: profile.profileId,
+        mode: "expandable",
+        bodyAlphabet: profile.bodyAlphabet,
+        minLength: prepared.minLength,
+        checksumAlphabet: profile.checksumAlphabet,
+        checksumLength: profile.checksumLength,
+        shortChecksumLength: profile.shortChecksumLength,
+        shortChecksumUntil: profile.shortChecksumUntil,
+        caseSensitive: profile.caseSensitive,
+        separator: profile.separator,
+        separatorMinLength: prepared.separatorMinLength,
+        grouping: profile.grouping,
+        aliases: profile.aliases,
+        permutation: { enabled: false },
+        profanity: { mode: "none" },
+        maxRepetition: 0
+      },
+      generations: Array.from({ length: maxGen - prepared.minLength + 1 }, (_, i) => prepared.minLength + i).map((l) => ({
+        length: l,
+        base: generationBase(prepared, l).toString(10),
+        capacity: generationCapacity(prepared, l).toString(10)
+      }))
+    };
+  }
+
+  function pushRoundTrip(h: Baseh, id: bigint, note?: string): void {
+    const canonical = h.encode(id);
+    const rawCode = canonical.replaceAll("-", "");
+    const bodyLength = rawCode.length - effectiveChecksumLength(h.profile, rawCode.length);
+    codecVectors.push({
+      profileId: h.profile.profileId,
+      id: id.toString(10),
+      canonicalCode: canonical,
+      rawBody: rawCode.slice(0, bodyLength),
+      rawChecksum: rawCode.slice(bodyLength),
+      ...(note ? { note } : {})
+    } as never);
+  }
+
+  // Zero-checksum window: checksumLength 2, short 0 through length 5. Round
+  // trips at generations 4-6; window codes are all body (rawChecksum "").
+  const short0 = shortTestProfile("short0-expandable-test", 0, 5);
+  const hShort0 = new Baseh(short0);
+  profileEntries.push(expandableEntry(short0, hShort0.profile, 6));
+  for (const l of [4, 5, 6]) {
+    pushRoundTrip(hShort0, generationBase(hShort0.profile, l), l <= 5 ? "zero-checksum generation: all body" : undefined);
+    pushRoundTrip(hShort0, generationBase(hShort0.profile, l + 1) - 1n, l <= 5 ? "zero-checksum generation: all body" : undefined);
+    pushRoundTrip(hShort0, generationBase(hShort0.profile, l) + 7n);
+  }
+
+  // Until-8 window: short 1 through length 8. Round trips at the 8/9
+  // boundary pin effective K of 1 at length 8 and 2 at length 9.
+  const short8 = shortTestProfile("short8-expandable-test", 1, 8);
+  const hShort8 = new Baseh(short8);
+  profileEntries.push(expandableEntry(short8, hShort8.profile, 9));
+  pushRoundTrip(hShort8, generationBase(hShort8.profile, 9) - 1n, "last id of the until-8 window: one checksum symbol");
+  pushRoundTrip(hShort8, generationBase(hShort8.profile, 9), "first id above the window: two checksum symbols");
+  pushRoundTrip(hShort8, generationBase(hShort8.profile, 8) + 11n);
+  pushRoundTrip(hShort8, generationBase(hShort8.profile, 9) + 11n);
+
+  // Validation error vectors (spec 22.2 amended matrix).
+  const invalidDefinitions: [string, BasehProfile][] = [
+    ["until above 8", { ...shortTestProfile("bad-until-9", 1, 9) }],
+    ["until below minLength", { ...shortTestProfile("bad-until-3", 1, 3) }],
+    ["length without until", { ...shortTestProfile("bad-length-no-until", 1, 0) }],
+    ["length >= checksumLength", { ...shortTestProfile("bad-length-2", 2, 5) }],
+    ["fixed mode rejects the fields", { ...basehMediumV1(), shortChecksumLength: 1, shortChecksumUntil: 5 }]
+  ];
+  for (const [note, definition] of invalidDefinitions) {
+    try {
+      void new Baseh(definition);
+      throw new Error(`profile-error vector generation broke: ${note}`);
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code !== "INVALID_PROFILE") throw e;
+    }
+    const { permutation, ...rest } = definition;
+    void permutation;
+    profileErrors.push({
+      note,
+      error: "INVALID_PROFILE",
+      definition: { ...rest, permutation: { enabled: false } }
+    });
+  }
+}
+
 writeFileSync(
   new URL("../../vectors/vectors.json", import.meta.url),
   JSON.stringify(
-    { version: "1", profiles: profileEntries, vectors: codecVectors, errors: errorVectors, correction: correctionVectors, encodeErrors },
+    { version: "1", profiles: profileEntries, vectors: codecVectors, errors: errorVectors, correction: correctionVectors, encodeErrors, profileErrors },
     null,
     2
   ) + "\n"

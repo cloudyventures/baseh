@@ -32,6 +32,11 @@ type vectorFile struct {
 		ID        string `json:"id"`
 		Error     string `json:"error"`
 	} `json:"encodeErrors"`
+	ProfileErrors []struct {
+		Note       string  `json:"note"`
+		Error      string  `json:"error"`
+		Definition Profile `json:"definition"`
+	} `json:"profileErrors"`
 	Correction []struct {
 		ProfileID        string `json:"profileId"`
 		ConfusionProfile string `json:"confusionProfile"`
@@ -212,6 +217,24 @@ func TestConformanceEncodeErrors(t *testing.T) {
 			}
 			if e.Error == string(BLOCKED_CODE) && herr.SafeForCustomer {
 				t.Errorf("BLOCKED_CODE must not be safe for customer")
+			}
+		})
+	}
+}
+
+func TestConformanceProfileErrors(t *testing.T) {
+	var vf vectorFile
+	loadJSON(t, "../vectors/vectors.json", &vf)
+
+	for _, e := range vf.ProfileErrors {
+		t.Run(e.Definition.ProfileID+"/"+strings.ReplaceAll(e.Note, " ", "_"), func(t *testing.T) {
+			_, err := New(e.Definition)
+			if err == nil {
+				t.Fatalf("profile accepted, want %s", e.Error)
+			}
+			var herr *Error
+			if !errors.As(err, &herr) || string(herr.Code) != e.Error {
+				t.Errorf("error = %v, want code %s", err, e.Error)
 			}
 		})
 	}

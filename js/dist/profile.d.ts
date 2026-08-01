@@ -26,14 +26,17 @@ export interface BasehProfile {
     checksumAlphabet: string;
     checksumLength: number;
     /**
-     * Spec 22. Expandable mode only; 0 or absent disables the short checksum.
-     * When set, generations at or below `shortChecksumUntil` use this many
-     * checksum symbols instead of `checksumLength`.
+     * Spec 22. Expandable mode only. The checksum width used by generations at
+     * or below `shortChecksumUntil`; may be 0 (a zero-checksum window: those
+     * generations carry no checksum symbols and no typo detection). Without a
+     * window (`shortChecksumUntil` absent or 0) this must be absent or 0.
      */
     shortChecksumLength?: number;
     /**
-     * Spec 22. Required when `shortChecksumLength` is set: the last generation
-     * (total length) that uses the short checksum.
+     * Spec 22. The last generation (total length) that uses the short
+     * checksum; 0 or absent turns the feature off (the codebase convention,
+     * like maxRepetition). When set it must be an integer from `minLength`
+     * through 8.
      */
     shortChecksumUntil?: number;
     caseSensitive: boolean;
@@ -75,7 +78,9 @@ export interface PreparedProfile extends BasehProfile {
 /**
  * Spec 22. The checksum length that applies to a generation of the given
  * total length: `shortChecksumLength` at or below `shortChecksumUntil`,
- * `checksumLength` above it (and always in fixed mode).
+ * `checksumLength` above it (and always in fixed mode). The feature is on
+ * exactly when `shortChecksumUntil` is non-zero; a `shortChecksumLength` of
+ * 0 then means the window's generations carry no checksum symbols at all.
  */
 export declare function effectiveChecksumLength(profile: PreparedProfile, length: number): number;
 /**

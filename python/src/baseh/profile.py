@@ -63,7 +63,7 @@ def effective_checksum_length(profile: PreparedProfile, length: int) -> int:
     ``checksum_length`` above it (and always in fixed mode)."""
     if (
         profile.mode == "expandable"
-        and profile.short_checksum_length > 0
+        and profile.short_checksum_until > 0
         and length <= profile.short_checksum_until
     ):
         return profile.short_checksum_length
@@ -136,7 +136,10 @@ def prepare_profile(profile) -> PreparedProfile:
         if not _is_int(separator_min_length) or separator_min_length < 0:
             _fail("separatorMinLength must be an integer of at least 0")
 
-    # Spec 22. The short checksum is expandable-only; 0 or absent turns it off.
+    # Spec 22. The short checksum is expandable-only. The window field is the
+    # switch: a shortChecksumUntil of 0 or absent turns the feature off (the
+    # codebase convention, like maxRepetition), and a length without a window
+    # is INVALID_PROFILE.
     short_checksum_length = profile.get("shortChecksumLength")
     if short_checksum_length is None:
         short_checksum_length = 0
@@ -146,17 +149,23 @@ def prepare_profile(profile) -> PreparedProfile:
     if mode == "fixed":
         if short_checksum_length != 0 or short_checksum_until != 0:
             _fail("shortChecksumLength and shortChecksumUntil are expandable-mode only")
-    elif short_checksum_length != 0:
-        if not _is_int(short_checksum_length) or short_checksum_length < 1:
-            _fail("shortChecksumLength must be an integer of at least 1")
-        if checksum_length < 1 or short_checksum_length >= checksum_length:
-            _fail("shortChecksumLength must be less than checksumLength")
+    elif short_checksum_until != 0:
         if not _is_int(profile.get("shortChecksumUntil")) or short_checksum_until < min_length:
             _fail("shortChecksumUntil must be an integer of at least minLength")
+        # Beyond 8 the window would swallow nearly every practical code, and
+        # long codes genuinely want two checksum symbols.
+        if short_checksum_until > 8:
+            _fail("shortChecksumUntil must be at most 8")
+        if (
+            not _is_int(short_checksum_length)
+            or short_checksum_length < 0
+            or short_checksum_length >= checksum_length
+        ):
+            _fail("shortChecksumLength must be an integer from 0 through checksumLength - 1")
         if min_length <= short_checksum_length:
             _fail("minLength must be greater than shortChecksumLength")
-    elif short_checksum_until != 0:
-        _fail("shortChecksumUntil requires shortChecksumLength")
+    elif short_checksum_length != 0:
+        _fail("shortChecksumLength requires shortChecksumUntil")
 
     checksum_alphabet = profile.get("checksumAlphabet") or ""
     if not isinstance(checksum_alphabet, str):

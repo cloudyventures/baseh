@@ -229,11 +229,31 @@ class TestValidation(unittest.TestCase):
             INVALID_PROFILE,
         )
 
-    def test_rejects_until_without_length(self):
+    def test_until_alone_is_a_legal_zero_checksum_window(self):
+        # Spec 22 amendment: the window field is the switch, so until + absent
+        # length (defaults to 0) is the zero-checksum window, not an error.
+        codec = Baseh({**self.base, "shortChecksumLength": 0, "shortChecksumUntil": 5})
+        self.assertEqual(codec.profile.short_checksum_length, 0)
+        self.assertEqual(effective_checksum_length(codec.profile, 4), 0)
+
+    def test_rejects_length_without_until(self):
         plain = {**self.base, "shortChecksumLength": 0, "shortChecksumUntil": 0}
         _expect_error(
-            lambda: Baseh({**plain, "shortChecksumUntil": 5}), INVALID_PROFILE
+            lambda: Baseh({**plain, "shortChecksumLength": 1}), INVALID_PROFILE
         )
+
+    def test_rejects_until_above_8(self):
+        _expect_error(
+            lambda: Baseh(
+                {**self.base, "shortChecksumLength": 1, "shortChecksumUntil": 9}
+            ),
+            INVALID_PROFILE,
+        )
+
+    def test_accepts_until_8(self):
+        codec = Baseh({**self.base, "shortChecksumLength": 1, "shortChecksumUntil": 8})
+        self.assertEqual(effective_checksum_length(codec.profile, 8), 1)
+        self.assertEqual(effective_checksum_length(codec.profile, 9), 2)
 
     def test_rejects_non_integer_short_length(self):
         _expect_error(
@@ -281,6 +301,132 @@ class TestValidation(unittest.TestCase):
                 code = codec.encode(id)
                 self.assertEqual(len(_raw(code)), length)
                 self.assertEqual(codec.decode(code).id, id)
+
+
+class TestZeroChecksumWindow(unittest.TestCase):
+    """Spec 22 amendment: a short_checksum_length of 0 inside a set window
+    means no checksum symbols at those lengths — generations are all body."""
+
+    def setUp(self):
+        self.base = baseh_expandable_v1()
+        self.zero_profile = {
+            **self.base,
+            "profileId": "short-zero-test",
+            "minLength": 4,
+            "checksumLength": 2,
+            "shortChecksumLength": 0,
+            "shortChecksumUntil": 5,
+            "permutation": {"enabled": False},
+            "profanity": {"mode": "none"},
+            "maxRepetition": 0,
+        }
+        self.codec = Baseh(self.zero_profile)
+
+    def test_effective_k_zero_inside_window(self):
+        profile = self.codec.profile
+        self.assertEqual(effective_checksum_length(profile, 4), 0)
+        self.assertEqual(effective_checksum_length(profile, 5), 0)
+        self.assertEqual(effective_checksum_length(profile, 6), 2)
+
+    def test_window_generations_are_all_body(self):
+        profile = self.codec.profile
+        self.assertEqual(generation_capacity(profile, 4), 34**4)
+        self.assertEqual(generation_capacity(profile, 5), 34**5)
+        self.assertEqual(generation_capacity(profile, 6), 34**4)  # K = 2 above
+
+    def test_round_trips_generations_4_to_6(self):
+        profile = self.codec.profile
+        for length in range(4, 7):
+            for id in (
+                generation_base(profile, length),
+                generation_base(profile, length + 1) - 1,
+            ):
+                with self.subTest(length=length, id=id):
+                    code = self.codec.encode(id)
+                    self.assertEqual(len(_raw(code)), length)
+                    result = self.codec.decode(code)
+                    self.assertEqual(result.id, id)
+                    self.assertEqual(result.canonical_code, code)
+
+    def test_checksum_of_zero_symbols_is_empty_string(self):
+        profile = self.codec.profile
+        id = generation_base(profile, 4)
+        code = _raw(self.codec.encode(id))
+        self.assertEqual(len(code), 4)
+        self.assertEqual(calculate_checksum(profile, code, 0), "")
+
+    def test_typo_at_zero_checksum_generation_not_detected(self):
+        # Documented trade-off (spec 22): there is no checksum to fail, so a
+        # mistyped body symbol silently decodes to a different id.
+        profile = self.codec.profile
+        id = generation_base(profile, 4) + 1
+        code = _raw(self.codec.encode(id))
+        last = code[3]
+        replacement = "2" if last == "1" else "1"
+        typed = code[:3] + replacement
+        result = self.codec.decode(typed)  # no error
+        self.assertNotEqual(result.id, id)
+
+    def test_correction_never_engages(self):
+        # With no checksum there is nothing to correct against: any body
+        # decodes as-is, exactly like a no-checksum fixed profile.
+        profile = self.codec.profile
+        id = generation_base(profile, 5) + 3
+        code = _raw(self.codec.encode(id))
+        result = self.codec.decode(
+            code, try_correction=True, confusion_profile="heavy"
+        )
+        self.assertEqual(result.id, id)
+        self.assertFalse(result.corrected)
+        last = code[4]
+        typed = code[:4] + ("2" if last == "1" else "1")
+        result2 = self.codec.decode(
+            typed, try_correction=True, confusion_profile="heavy"
+        )
+        self.assertNotEqual(result2.id, id)
+        self.assertFalse(result2.corrected)
+
+    def test_repetition_scan_covers_all_body_code(self):
+        # Spec 22.4: at a zero-checksum generation the raw code is all body,
+        # so the repetition scan covers the body only.
+        filtered = Baseh({**self.zero_profile, "maxRepetition": 4})
+        found = None
+        for id in range(0, generation_capacity(self.codec.profile, 4)):
+            if re.search(r"(.)\1{3}", _raw(self.codec.encode(id))):
+                found = id
+                break
+        self.assertIsNotNone(found, "expected a gen-4 code with a run of 4")
+        _expect_error(lambda: filtered.encode(found), "BLOCKED_CODE")
+
+
+class TestUntil8WindowBoundary(unittest.TestCase):
+    def setUp(self):
+        self.codec = Baseh(
+            {
+                **baseh_expandable_v1(),
+                "profileId": "short-until-8-test",
+                "minLength": 4,
+                "checksumLength": 2,
+                "shortChecksumLength": 1,
+                "shortChecksumUntil": 8,
+                "permutation": {"enabled": False},
+                "profanity": {"mode": "none"},
+                "maxRepetition": 0,
+            }
+        )
+
+    def test_generation_8_short_generation_9_full(self):
+        profile = self.codec.profile
+        id8 = generation_base(profile, 8) + 5
+        c8 = _raw(self.codec.encode(id8))
+        self.assertEqual(len(c8), 8)
+        self.assertEqual(c8[7:], calculate_checksum(profile, c8[:7], 1))
+        self.assertEqual(self.codec.decode(c8).id, id8)
+        id9 = generation_base(profile, 9) + 5
+        c9 = _raw(self.codec.encode(id9))
+        self.assertEqual(len(c9), 9)
+        self.assertEqual(c9[7:], calculate_checksum(profile, c9[:7], 2))
+        self.assertEqual(self.codec.decode(c9).id, id9)
 
 
 if __name__ == "__main__":

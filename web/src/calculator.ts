@@ -20,6 +20,8 @@ const els = {
   minLen: $<HTMLInputElement>("min-length"),
   shortCheckRow: $("short-checksum-row"),
   shortCheck: $<HTMLSelectElement>("short-checksum"),
+  shortCheckUntilRow: $("short-checksum-until-row"),
+  shortCheckUntil: $<HTMLSelectElement>("short-checksum-until"),
   sepMinRow: $("sep-min-length-row"),
   sepMinLen: $<HTMLInputElement>("sep-min-length"),
   bodyRow: $("body-length-row"),
@@ -59,17 +61,18 @@ interface Preset {
   checksumLength: number;
   /** Spec 22.5: the frozen expandable tier ships 1 short checksum through length 5. */
   shortChecksumLength: number;
+  shortChecksumUntil: number;
   separator: string;
 }
 
 // The frozen tiers. Every control stays editable after loading one,
 // so a preset is a starting point you modify, not a locked view.
 const PRESETS: Record<string, Preset> = {
-  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, shortChecksumLength: 1, separator: "-" },
-  minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, shortChecksumLength: 0, separator: "-" },
-  light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" },
-  medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" },
-  heavy: { codecMode: "fixed", mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" }
+  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 5, separator: "-" },
+  minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },
+  light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },
+  medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },
+  heavy: { codecMode: "fixed", mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" }
 };
 
 function fmt(n: bigint): string {
@@ -91,9 +94,10 @@ function readInput(): CalculatorInput {
     minLength: Number(els.minLen.value),
     separatorMinLength: Number(els.sepMinLen.value),
     checksumLength: Number(els.checksumLen.value),
-    // Spec 22. The UI offers the frozen tier's window: 1 symbol through length 5.
-    shortChecksumLength: Number(els.shortCheck.value),
-    shortChecksumUntil: Number(els.shortCheck.value) > 0 ? 5 : 0,
+    // Spec 22. The window select is the switch (0 = off); a length of 0 inside
+    // a window is the zero-checksum window (all body, no typo detection there).
+    shortChecksumLength: els.shortCheck.value === "off" || Number(els.shortCheckUntil.value) === 0 ? 0 : Number(els.shortCheck.value),
+    shortChecksumUntil: els.shortCheck.value === "off" ? 0 : Number(els.shortCheckUntil.value),
     maxRepetition: Number(els.maxRep.value),
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -116,7 +120,10 @@ function applyPreset(name: string) {
   els.profanity.value = p.profanity;
   els.bodyLen.value = String(p.bodyLength);
   els.checksumLen.value = String(p.checksumLength);
-  els.shortCheck.value = String(p.shortChecksumLength);
+  // A tier with the feature off selects "off"; a zero-checksum window would select "0".
+  els.shortCheck.value = p.shortChecksumUntil === 0 ? "off" : String(p.shortChecksumLength);
+  els.shortCheckUntil.value = String(p.shortChecksumUntil);
+  if (els.shortCheckUntil.value !== String(p.shortChecksumUntil)) els.shortCheckUntil.value = "5";
   els.separator.value = p.separator;
   // Every frozen tier ships maxRepetition 4 (spec 21.4).
   els.maxRep.value = "4";
@@ -132,6 +139,18 @@ function render() {
   els.minLenRow.hidden = input.codecMode !== "expandable";
   els.sepMinRow.hidden = input.codecMode !== "expandable";
   els.shortCheckRow.hidden = input.codecMode !== "expandable";
+  els.shortCheckUntilRow.hidden = input.codecMode !== "expandable" || els.shortCheck.value === "off";
+  {
+    // The short length is bounded by checksumLength - 1 (spec 22.2); options
+    // the current checksum length can't host are disabled.
+    for (const opt of els.shortCheck.options) {
+      opt.disabled = opt.value !== "off" && Number(opt.value) >= input.checksumLength;
+    }
+    // The window runs from minLength through 8 (spec 22.2).
+    for (const opt of els.shortCheckUntil.options) {
+      opt.disabled = Number(opt.value) !== 0 && (Number(opt.value) < input.minLength || Number(opt.value) > 8);
+    }
+  }
   els.bodyRow.hidden = input.codecMode === "expandable";
   els.bodyLenOut.textContent = String(input.bodyLength);
   {
@@ -199,6 +218,7 @@ function render() {
       : `<div>Lifetime at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}</div>`;
   }
   if (input.checksumLength === 0) fit += `<div class="warn">No checksum: typing errors cannot be detected reliably.</div>`;
+  else if (input.shortChecksumUntil > 0 && input.shortChecksumLength === 0) fit += `<div class="warn">Zero checksum through length ${input.shortChecksumUntil}: typing errors on those short codes cannot be detected.</div>`;
   els.fitOut.innerHTML = fit;
   els.fitOut.hidden = fit === "";
 
@@ -298,7 +318,7 @@ els.copyJson.addEventListener("click", async () => {
           minLength: input.minLength,
           checksumAlphabet: deriveExpandableChecksumAlphabet(r.alphabet),
           separatorMinLength: input.separatorMinLength,
-          ...(input.shortChecksumLength > 0
+          ...(input.shortChecksumUntil > 0
             ? { shortChecksumLength: input.shortChecksumLength, shortChecksumUntil: input.shortChecksumUntil }
             : {}),
           grouping: []
@@ -323,7 +343,8 @@ els.copyUrl.addEventListener("click", async () => {
     min: String(input.minLength),
     sepmin: String(input.separatorMinLength),
     check: String(input.checksumLength),
-    short: String(input.shortChecksumLength),
+    short: input.shortChecksumUntil > 0 ? String(input.shortChecksumLength) : "off",
+    shortuntil: String(input.shortChecksumUntil),
     perm: input.permutation ? "1" : "0"
   });
   await navigator.clipboard.writeText(`${location.origin}${location.pathname}?${params}`);
@@ -334,7 +355,7 @@ els.copyUrl.addEventListener("click", async () => {
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "expandable"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.codecMode, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.minLen, els.sepMinLen, els.checksumLen, els.shortCheck, els.maxRep, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
+  els.minLen, els.sepMinLen, els.checksumLen, els.shortCheck, els.shortCheckUntil, els.maxRep, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
   els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
@@ -356,6 +377,7 @@ interface SavedState {
   separatorMinLength: string;
   checksumLength: string;
   shortChecksumLength: string;
+  shortChecksumUntil: string;
   maxRepetition: string;
   permutation: boolean;
   separator: string;
@@ -381,6 +403,7 @@ function readState(): SavedState {
     separatorMinLength: els.sepMinLen.value,
     checksumLength: els.checksumLen.value,
     shortChecksumLength: els.shortCheck.value,
+    shortChecksumUntil: els.shortCheckUntil.value,
     maxRepetition: els.maxRep.value,
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -408,7 +431,10 @@ function applyState(s: SavedState) {
   els.sepMinLen.value = s.separatorMinLength ?? els.sepMinLen.value;
   els.checksumLen.value = s.checksumLength;
   // Older stored states predate the short checksum; keep the control default.
-  els.shortCheck.value = s.shortChecksumLength ?? els.shortCheck.value;
+  // The pre-amendment control stored 0 for "off"; the amendment added a "0
+  // symbols" zero-window option, so a stored 0 still maps to "off".
+  els.shortCheck.value = s.shortChecksumLength === undefined || s.shortChecksumLength === "0" ? "off" : s.shortChecksumLength;
+  els.shortCheckUntil.value = s.shortChecksumUntil ?? els.shortCheckUntil.value;
   // Older stored states predate the repetition filter; keep the control default.
   els.maxRep.value = s.maxRepetition ?? els.maxRep.value;
   els.permutation.checked = s.permutation;
@@ -435,6 +461,10 @@ function applyState(s: SavedState) {
     if (q.get("sepmin")) els.sepMinLen.value = q.get("sepmin") as string;
     if (q.get("check")) els.checksumLen.value = q.get("check") as string;
     if (q.get("short")) els.shortCheck.value = q.get("short") as string;
+    if (q.get("shortuntil")) els.shortCheckUntil.value = q.get("shortuntil") as string;
+    // Legacy links stored short=0 for "off"; 0 only means the zero-checksum
+    // window when a shortuntil accompanies it.
+    if (q.get("short") === "0" && !q.get("shortuntil")) els.shortCheck.value = "off";
     if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
     render();
   } else {

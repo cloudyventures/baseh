@@ -277,6 +277,20 @@ fn error_vectors() {
 }
 
 #[test]
+fn profile_error_vectors() {
+    let fixture = Fixture::load();
+    for v in fixture.root["profileErrors"].as_array().unwrap() {
+        let expected: ErrorCode = v["error"].as_str().unwrap().parse().unwrap();
+        assert_eq!(expected, ErrorCode::InvalidProfile);
+        let profile = profile_from_definition(&v["definition"]);
+        match Baseh::new(profile) {
+            Ok(_) => panic!("profile {:?} must fail with {expected}", v["note"]),
+            Err(err) => assert_eq!(err.code, expected, "profile {:?}", v["note"]),
+        }
+    }
+}
+
+#[test]
 fn encode_error_vectors() {
     let fixture = Fixture::load();
     for v in fixture.root["encodeErrors"].as_array().unwrap() {
