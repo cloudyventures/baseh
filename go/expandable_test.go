@@ -75,9 +75,9 @@ func TestExpandableFrozenTierShape(t *testing.T) {
 
 	// The generation table of spec 17.1.
 	expected := []struct {
-		length    int
-		base      string
-		capacity  string
+		length   int
+		base     string
+		capacity string
 	}{
 		{4, "0", "1156"},
 		{5, "1156", "39304"},
@@ -383,11 +383,11 @@ func TestExpandableSeparatorThreshold(t *testing.T) {
 
 	// The pinned shapes for lengths 6 through 10.
 	shapes := map[int]string{
-		6:  `^..-....$`,
-		7:  `^...-....$`,
+		6:  `^...-...$`,
+		7:  `^....-...$`,
 		8:  `^....-....$`,
-		9:  `^.-....-....$`,
-		10: `^..-....-....$`,
+		9:  `^.....-....$`,
+		10: `^.....-.....$`,
 	}
 	for l, shape := range shapes {
 		re := regexp.MustCompile(shape)
@@ -411,23 +411,29 @@ func TestExpandableSeparatorThreshold(t *testing.T) {
 	}
 }
 
-func TestExpandableGroupingRightAnchored(t *testing.T) {
+func TestExpandableGroupingBalanced(t *testing.T) {
+	// The pinned shapes of spec 19.5.
 	cases := []struct {
-		length  int
-		pattern []int
-		want    []int
+		length int
+		want   []int
 	}{
-		{6, []int{4, 4}, []int{2, 4}},
-		{7, []int{4, 4}, []int{3, 4}},
-		{8, []int{4, 4}, []int{4, 4}},
-		{9, []int{4, 4}, []int{1, 4, 4}},
-		{10, []int{4, 4}, []int{2, 4, 4}},
-		{12, []int{4, 4}, []int{4, 4, 4}},
-		{7, []int{2, 3}, []int{2, 2, 3}},
+		{4, []int{2, 2}},
+		{5, []int{3, 2}},
+		{6, []int{3, 3}},
+		{7, []int{4, 3}},
+		{8, []int{4, 4}},
+		{9, []int{5, 4}},
+		{10, []int{5, 5}},
+		{11, []int{4, 4, 3}},
+		{12, []int{4, 4, 4}},
+		{13, []int{5, 4, 4}},
+		{14, []int{5, 5, 4}},
+		{15, []int{5, 5, 5}},
+		{16, []int{4, 4, 4, 4}},
 	}
 	for _, c := range cases {
-		if got := expandableGrouping(c.length, c.pattern); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("expandableGrouping(%d, %v) = %v, want %v", c.length, c.pattern, got, c.want)
+		if got := expandableGrouping(c.length); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("expandableGrouping(%d) = %v, want %v", c.length, got, c.want)
 		}
 	}
 }
@@ -558,10 +564,17 @@ func TestExpandableMixedModeInterop(t *testing.T) {
 		t.Errorf("expandable accepted fixed-tier code %q", fixedCode)
 	}
 
-	// Grouping validation: expandable accepts a non-summing pattern,
-	// fixed still requires the sum.
+	// Grouping validation: expandable rejects a configured pattern, fixed
+	// still requires the sum.
 	if _, err := New(ExpandableV1()); err != nil {
 		t.Errorf("expandable tier rejected: %v", err)
+	}
+	badExpandable := ExpandableV1()
+	badExpandable.Grouping = []int{4, 4}
+	if _, err := New(badExpandable); err == nil {
+		t.Errorf("expandable profile with non-empty grouping accepted")
+	} else {
+		assertCode(t, err, INVALID_PROFILE)
 	}
 	badGrouping := MediumV1()
 	badGrouping.Grouping = []int{3, 3}

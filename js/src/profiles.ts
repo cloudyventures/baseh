@@ -177,7 +177,7 @@ const EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
  * generation's capacity. The body alphabet is the full alphanumeric set
  * minus 0/O (the zero ban, spec 19.2); the checksum alphabet derives as "0"
  * plus the body (35 symbols, modulus 1225). The hyphen appears from six
- * characters up, grouped right-anchored by the [4, 4] pattern.
+ * characters up, split by the balanced grouping rule of spec 19.5.
  */
 function expandableTier(permutation: BasehProfile["permutation"], pSuffix: boolean): BasehProfile {
   return {
@@ -190,7 +190,7 @@ function expandableTier(permutation: BasehProfile["permutation"], pSuffix: boole
     caseSensitive: false,
     separator: "-",
     separatorMinLength: 6,
-    grouping: [4, 4],
+    grouping: [],
     aliases: { ...OIL_ALIASES, T: "P", N: "M", W: "V" },
     permutation,
     profanity: { mode: "blocklist" }

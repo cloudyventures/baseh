@@ -276,7 +276,7 @@ els.copyJson.addEventListener("click", async () => {
           minLength: input.minLength,
           checksumAlphabet: deriveExpandableChecksumAlphabet(r.alphabet),
           separatorMinLength: input.separatorMinLength,
-          grouping: input.separator ? [4, 4] : []
+          grouping: []
         }
       : {
           ...shared,

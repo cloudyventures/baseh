@@ -134,7 +134,7 @@ module Baseh
     # symbol automatically as issuance climbs past each generation's
     # capacity. The checksum alphabet derives at preparation as "0" plus the
     # body (35 symbols, modulus 1225); the hyphen appears from six
-    # characters up, grouped right-anchored by the [4, 4] pattern.
+    # characters up, split by the balanced grouping of spec 19.5.
     def baseh_expandable_v1
       expandable_tier(frozen_permutation, false)
     end
@@ -186,7 +186,7 @@ module Baseh
         case_sensitive: false,
         separator: "-",
         separator_min_length: 6,
-        grouping: [4, 4],
+        grouping: [],
         aliases: { **OIL_ALIASES, "T" => "P", "N" => "M", "W" => "V" },
         permutation: permutation,
         profanity: { mode: "blocklist" }

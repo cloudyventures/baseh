@@ -321,33 +321,26 @@ export function deriveExpandableChecksumAlphabet(bodyAlphabet: string): string {
 }
 
 /**
- * Spec 19.5. The frozen expandable tier's right-anchored grouping pattern;
- * it repeats at every length, so the sum rule of fixed mode cannot apply.
+ * Spec 19.5. Balanced grouping: the split is a pure function of the total
+ * length — `g = max(2, ceil(L / 5))` groups differing in size by at most
+ * one, larger groups to the left. There is no configurable pattern in
+ * expandable mode (`grouping` must be empty, section 2.2).
  */
-export const EXPANDABLE_GROUPING_PATTERN: number[] = [4, 4];
-
-/** Group sizes for a total length under the right-anchored repeating pattern. */
-export function expandableGroupSizes(totalLen: number, pattern: number[]): number[] {
-  const sizes: number[] = [];
-  let remaining = totalLen;
-  let i = pattern.length - 1;
-  while (remaining > 0) {
-    const p = pattern[i]!;
-    if (remaining <= p) {
-      sizes.unshift(remaining);
-      break;
-    }
-    sizes.unshift(p);
-    remaining -= p;
-    i = (i - 1 + pattern.length) % pattern.length;
-  }
-  return sizes;
+export function expandableGrouping(length: number): number[] {
+  const g = Math.max(2, Math.ceil(length / 5));
+  const base = Math.floor(length / g);
+  if (base < 1) return [length];
+  const rem = length % g;
+  return [
+    ...Array<number>(rem).fill(base + 1),
+    ...Array<number>(g - rem).fill(base)
+  ];
 }
 
 /** Spec 19.5. Displayed length of an expandable code; the separator appears only from separatorMinLength up. */
 export function expandableDisplayedLength(totalLen: number, separator: string, separatorMinLength: number): number {
   if (!separator || totalLen < separatorMinLength) return totalLen;
-  return totalLen + expandableGroupSizes(totalLen, EXPANDABLE_GROUPING_PATTERN).length - 1;
+  return totalLen + expandableGrouping(totalLen).length - 1;
 }
 
 /** Spec 19.1. Ids held by generation `length`: A^(length - checksumLength). */
@@ -446,7 +439,7 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
       caseSensitive: false,
       separator: input.separator,
       separatorMinLength: input.separatorMinLength,
-      grouping: input.separator ? [...EXPANDABLE_GROUPING_PATTERN] : [],
+      grouping: [],
       aliases: { ...baseAliases(canonical), ...spokenAliases(body, input.spokenSafety) },
       profanity: { mode: input.profanity },
       permutation: previewPermutation(input.permutation)
@@ -708,20 +701,12 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
   };
 }
 
-// Delimiter grouping rule: total displayed length (body + checksum)
-// picks one chunk size; a leftover short group trails. Length 3 or fewer
+// Delimiter grouping rule: the balanced split of spec 19.5 — groups differ
+// in size by at most one, larger groups to the left. Length 3 or fewer
 // gets no delimiter at all.
 export function groupingFor(totalLen: number): number[] {
   if (totalLen <= 3) return [];
-  const size = totalLen <= 4 ? 2 : totalLen <= 6 ? 3 : totalLen <= 8 ? 4 : 5;
-  const groups: number[] = [];
-  let remaining = totalLen;
-  while (remaining > size) {
-    groups.push(size);
-    remaining -= size;
-  }
-  if (remaining > 0) groups.push(remaining);
-  return groups;
+  return expandableGrouping(totalLen);
 }
 
 // ---------------------------------------------------------------- designer
@@ -982,7 +967,7 @@ export function expandableProfile(d: ExpandableDesign, input: DesignerInput, per
     caseSensitive: false,
     separator: input.separator,
     separatorMinLength: d.separatorMinLength,
-    grouping: input.separator ? [...EXPANDABLE_GROUPING_PATTERN] : [],
+    grouping: [],
     aliases: { ...baseAliases(canonical), ...spokenAliases(d.bodyAlphabet, input.spokenSafety) },
     profanity: { mode: input.profanity },
     permutation: previewPermutation(permutation)

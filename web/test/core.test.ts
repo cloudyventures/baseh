@@ -463,7 +463,7 @@ describe("expandable generation arithmetic (spec 19.1/19.6)", async () => {
 });
 
 describe("expandable separator shape (spec 19.5)", async () => {
-  const { expandableDisplayedLength, expandableGroupSizes } = await import("../src/core.js");
+  const { expandableDisplayedLength, expandableGrouping } = await import("../src/core.js");
 
   it("is bare below separatorMinLength and hyphenated from it up", () => {
     assert.equal(expandableDisplayedLength(4, "-", 6), 4);
@@ -474,10 +474,62 @@ describe("expandable separator shape (spec 19.5)", async () => {
   it("with no separator the length is the raw length", () => {
     assert.equal(expandableDisplayedLength(9, "", 6), 9);
   });
-  it("groups right-anchored by the [4, 4] pattern", () => {
-    assert.deepEqual(expandableGroupSizes(6, [4, 4]), [2, 4]);
-    assert.deepEqual(expandableGroupSizes(8, [4, 4]), [4, 4]);
-    assert.deepEqual(expandableGroupSizes(9, [4, 4]), [1, 4, 4]);
+  it("expandableGrouping follows the balanced rule (pinned table, spec 19.5)", () => {
+    const pinned: Array<[number, number[]]> = [
+      [4, [2, 2]],
+      [5, [3, 2]],
+      [6, [3, 3]],
+      [7, [4, 3]],
+      [8, [4, 4]],
+      [9, [5, 4]],
+      [10, [5, 5]],
+      [11, [4, 4, 3]],
+      [12, [4, 4, 4]],
+      [13, [5, 4, 4]],
+      [14, [5, 5, 4]],
+      [15, [5, 5, 5]],
+      [16, [4, 4, 4, 4]]
+    ];
+    for (const [length, sizes] of pinned) {
+      assert.deepEqual(expandableGrouping(length), sizes, `length ${length}`);
+    }
+  });
+  it("rendered codes carry the balanced shapes", async () => {
+    const { Baseh, basehExpandableV1, generationBase } = await import("@cloudyventures/baseh");
+    const h = new Baseh(basehExpandableV1());
+    // Bare 4 and 5 below the tier's separatorMinLength of 6; from 6 up the
+    // balanced split shows: 6 XXX-XXX, 7 XXXX-XXX, 9 XXXXX-XXXX, 10 XXXXX-XXXXX.
+    const shapes: Record<number, RegExp> = {
+      4: /^....$/,
+      5: /^.....$/,
+      6: /^...-...$/,
+      7: /^....-...$/,
+      9: /^.....-....$/,
+      10: /^.....-.....$/
+    };
+    for (const [l, shape] of Object.entries(shapes)) {
+      const length = Number(l);
+      const id = generationBase(h.profile, length);
+      let code: string | null = null;
+      for (let probe = id; probe < id + 5000n; probe += 1n) {
+        try {
+          code = h.encode(probe);
+          break;
+        } catch {
+          continue;
+        }
+      }
+      assert.ok(code, `no issuable id found at generation ${length}`);
+      assert.match(code, shape, `generation ${length}: ${code}`);
+      assert.equal(h.decode(code).canonicalCode, code);
+    }
+  });
+  it("a non-empty grouping makes an expandable profile invalid", async () => {
+    const { Baseh, BasehError, basehExpandableV1 } = await import("@cloudyventures/baseh");
+    assert.throws(
+      () => new Baseh({ ...basehExpandableV1(), grouping: [4, 4] }),
+      (e: unknown) => e instanceof BasehError && e.code === "INVALID_PROFILE"
+    );
   });
 });
 

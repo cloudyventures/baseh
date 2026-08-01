@@ -23,11 +23,12 @@ export interface ValidateResult {
 export declare function normalize(input: string, profile: PreparedProfile, acceptSpaces?: boolean): string;
 export declare function formatRaw(raw: string, profile: PreparedProfile): string;
 /**
- * Spec 19.5. Group sizes for a total length under the right-anchored
- * repeating pattern: consume groups from the right, cycling the pattern from
- * its last element backwards; a short remainder forms the leftmost group.
+ * Spec 19.5. Balanced grouping: the split is a pure function of the total
+ * length — `g = max(2, ceil(L / 5))` groups differing in size by at most
+ * one, larger groups to the left. There is no configurable pattern in
+ * expandable mode (`grouping` must be empty, section 2.2).
  */
-export declare function expandableGrouping(length: number, pattern: number[]): number[];
+export declare function expandableGrouping(length: number): number[];
 /**
  * Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
  * minLength through L-1.

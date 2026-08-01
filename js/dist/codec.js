@@ -83,30 +83,26 @@ export function formatRaw(raw, profile) {
     if (profile.mode === "expandable") {
         if (raw.length < profile.separatorMinLength)
             return raw;
-        return formatWith(raw, expandableGrouping(raw.length, profile.grouping), profile.separator);
+        return formatWith(raw, expandableGrouping(raw.length), profile.separator);
     }
     return formatWith(raw, profile.grouping, profile.separator);
 }
 /**
- * Spec 19.5. Group sizes for a total length under the right-anchored
- * repeating pattern: consume groups from the right, cycling the pattern from
- * its last element backwards; a short remainder forms the leftmost group.
+ * Spec 19.5. Balanced grouping: the split is a pure function of the total
+ * length — `g = max(2, ceil(L / 5))` groups differing in size by at most
+ * one, larger groups to the left. There is no configurable pattern in
+ * expandable mode (`grouping` must be empty, section 2.2).
  */
-export function expandableGrouping(length, pattern) {
-    const sizes = [];
-    let remaining = length;
-    let i = pattern.length - 1;
-    while (remaining > 0) {
-        const p = pattern[i];
-        if (remaining <= p) {
-            sizes.unshift(remaining);
-            break;
-        }
-        sizes.unshift(p);
-        remaining -= p;
-        i = (i - 1 + pattern.length) % pattern.length;
-    }
-    return sizes;
+export function expandableGrouping(length) {
+    const g = Math.max(2, Math.ceil(length / 5));
+    const base = Math.floor(length / g);
+    if (base < 1)
+        return [length];
+    const rem = length % g;
+    return [
+        ...Array(rem).fill(base + 1),
+        ...Array(g - rem).fill(base)
+    ];
 }
 /**
  * Spec 19.1. First id of generation L: the sum of A^(k-K) for k from

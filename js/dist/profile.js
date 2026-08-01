@@ -169,11 +169,10 @@ export function prepareProfile(profile) {
             fail("grouping must be empty when separator is empty");
     }
     else if (mode === "expandable") {
-        // Spec 19.5: the sum rule cannot hold at every length; grouping is a
-        // right-anchored repeating pattern and only needs positive sizes.
-        if (total < 1 || profile.grouping.length === 0) {
-            fail("expandable grouping must be non-empty with positive integer sizes");
-        }
+        // Spec 19.5: the balanced grouping rule is a pure function of the total
+        // length, so a configurable grouping is meaningless in expandable mode.
+        if (profile.grouping.length !== 0)
+            fail("grouping must be empty in expandable mode");
     }
     else if (total !== profile.bodyLength + profile.checksumLength) {
         fail("group sizes must sum to bodyLength + checksumLength");

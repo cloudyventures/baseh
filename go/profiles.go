@@ -222,8 +222,8 @@ const expandableBodyAlphabet = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 // four characters while the namespace is small, gaining one symbol
 // automatically as issuance climbs past each generation's capacity. The
 // checksum alphabet derives as "0" plus the body (35 symbols, modulus
-// 1225). The hyphen appears from six characters up, grouped
-// right-anchored by the [4, 4] pattern.
+// 1225). The hyphen appears from six characters up, with the balanced
+// grouping of spec 19.5 (no configurable pattern; grouping stays empty).
 func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
 	id := "baseh-expandable-v1"
 	if pSuffix {
@@ -239,7 +239,7 @@ func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
 		CaseSensitive:      false,
 		Separator:          "-",
 		SeparatorMinLength: 6,
-		Grouping:           []int{4, 4},
+		Grouping:           nil,
 		Aliases:            tierAliases("T", "P", "N", "M", "W", "V"),
 		Permutation:        permutation,
 		Profanity:          Profanity{Mode: ProfanityBlocklist},

@@ -284,10 +284,10 @@ module Baseh
             self.class.fail_profile!("group sizes must be positive integers")
           end
           if @mode == "expandable"
-            # Spec 19.5: the sum rule cannot hold at every length; grouping is
-            # a right-anchored repeating pattern and only needs positive sizes.
-            if grouping.empty?
-              self.class.fail_profile!("expandable grouping must be non-empty with positive integer sizes")
+            # Spec 2.2/19.5: the split is derived from the total length; a
+            # configurable pattern no longer exists in expandable mode.
+            unless grouping.empty?
+              self.class.fail_profile!("grouping must be empty in expandable mode")
             end
           elsif grouping.sum != body_length + checksum_length
             self.class.fail_profile!("group sizes must sum to bodyLength + checksumLength")

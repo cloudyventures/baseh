@@ -342,12 +342,11 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
             return Err(fail("grouping must be empty when separator is empty"));
         }
     } else if mode == Mode::Expandable {
-        // Spec 19.5: the sum rule cannot hold at every length; grouping is a
-        // right-anchored repeating pattern and only needs positive sizes.
-        if profile.grouping.is_empty() || profile.grouping.iter().any(|g| *g == 0) {
-            return Err(fail(
-                "expandable grouping must be non-empty with positive integer sizes",
-            ));
+        // Spec 19.5: the balanced grouping rule is a pure function of the
+        // total length, so a configurable grouping is meaningless in
+        // expandable mode.
+        if !profile.grouping.is_empty() {
+            return Err(fail("grouping must be empty in expandable mode"));
         }
     } else {
         let total = profile.grouping.iter().try_fold(0usize, |acc, g| {

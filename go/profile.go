@@ -17,7 +17,7 @@ type Profile struct {
 	Mode         string `json:"mode,omitempty"`
 	BodyAlphabet string `json:"bodyAlphabet"`
 	// BodyLength applies to fixed mode only; ignored in expandable mode.
-	BodyLength       int               `json:"bodyLength"`
+	BodyLength int `json:"bodyLength"`
 	// MinLength applies to expandable mode only; the zero value selects
 	// the spec default of 4. It must exceed ChecksumLength.
 	MinLength int `json:"minLength,omitempty"`
@@ -25,13 +25,13 @@ type Profile struct {
 	// length the separator is omitted. The zero value selects 0 (the
 	// separator always applies). It must be 0 in fixed mode.
 	SeparatorMinLength int               `json:"separatorMinLength,omitempty"`
-	ChecksumAlphabet string            `json:"checksumAlphabet"`
-	ChecksumLength   int               `json:"checksumLength"`
-	CaseSensitive    bool              `json:"caseSensitive"`
-	Separator        string            `json:"separator"`
-	Grouping         []int             `json:"grouping"`
-	Aliases          map[string]string `json:"aliases"`
-	Permutation      Permutation       `json:"permutation"`
+	ChecksumAlphabet   string            `json:"checksumAlphabet"`
+	ChecksumLength     int               `json:"checksumLength"`
+	CaseSensitive      bool              `json:"caseSensitive"`
+	Separator          string            `json:"separator"`
+	Grouping           []int             `json:"grouping"`
+	Aliases            map[string]string `json:"aliases"`
+	Permutation        Permutation       `json:"permutation"`
 	// Profanity is the optional spec-18 configuration. The zero value
 	// (mode "") selects mode "none".
 	Profanity Profanity `json:"profanity,omitempty"`
@@ -82,14 +82,14 @@ type prepared struct {
 	separatorMinLength int
 	bodyNorm           string
 	checksumNorm       string
-	aliasesNorm     map[byte]byte
-	bodyIndex       map[byte]int64
-	checksumModulus *big.Int
-	capacity        *big.Int
-	permutationKey  feistelKey
-	blocklist       []string
-	allowedByte     [128]bool
-	rawLength       int
+	aliasesNorm        map[byte]byte
+	bodyIndex          map[byte]int64
+	checksumModulus    *big.Int
+	capacity           *big.Int
+	permutationKey     feistelKey
+	blocklist          []string
+	allowedByte        [128]bool
+	rawLength          int
 }
 
 // prepareProfile validates a profile per spec section 2.2 (plus the spec-18
@@ -286,11 +286,10 @@ func prepareProfile(p Profile) (*prepared, error) {
 			groupTotal += g
 		}
 		if mode == "expandable" {
-			// Spec 19.5: the sum rule cannot hold at every length; grouping
-			// is a right-anchored repeating pattern and only needs positive
-			// sizes.
-			if len(p.Grouping) == 0 {
-				return nil, invalidProfile("expandable grouping must be non-empty with positive integer sizes")
+			// Spec 19.5/2.2: expandable grouping is a balanced function of
+			// the total length, so a configured pattern is rejected.
+			if len(p.Grouping) != 0 {
+				return nil, invalidProfile("grouping must be empty in expandable mode")
 			}
 		} else if len(p.Grouping) == 0 || groupTotal != p.BodyLength+p.ChecksumLength {
 			return nil, invalidProfile("group sizes must sum to bodyLength + checksumLength")

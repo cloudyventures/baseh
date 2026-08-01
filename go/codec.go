@@ -381,7 +381,7 @@ func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 }
 
 // formatRaw applies the presentation grouping of spec 11 (fixed mode) or
-// the right-anchored pattern of spec 19.5 (expandable mode). An empty
+// the balanced grouping of spec 19.5 (expandable mode). An empty
 // separator skips grouping entirely, and expandable codes shorter than
 // separatorMinLength render bare.
 func formatRaw(raw string, prep *prepared) string {
@@ -393,7 +393,7 @@ func formatRaw(raw string, prep *prepared) string {
 		if len(raw) < prep.separatorMinLength {
 			return raw
 		}
-		grouping = expandableGrouping(len(raw), prep.profile.Grouping)
+		grouping = expandableGrouping(len(raw))
 	}
 	parts := make([]string, 0, len(grouping))
 	offset := 0
@@ -404,22 +404,26 @@ func formatRaw(raw string, prep *prepared) string {
 	return strings.Join(parts, prep.profile.Separator)
 }
 
-// expandableGrouping implements spec 19.5: consume groups from the right,
-// cycling the pattern from its last element backwards; a short remainder
-// forms the leftmost group.
-func expandableGrouping(length int, pattern []int) []int {
-	var sizes []int
-	remaining := length
-	i := len(pattern) - 1
-	for remaining > 0 {
-		p := pattern[i]
-		if remaining <= p {
-			sizes = append([]int{remaining}, sizes...)
-			break
-		}
-		sizes = append([]int{p}, sizes...)
-		remaining -= p
-		i = (i - 1 + len(pattern)) % len(pattern)
+// expandableGrouping implements spec 19.5: the balanced split is a pure
+// function of the total length — g = max(2, ceil(L/5)) groups differing in
+// size by at most one, larger groups on the left. There is no configurable
+// pattern in expandable mode (grouping must be empty, spec 2.2).
+func expandableGrouping(length int) []int {
+	g := (length + 4) / 5
+	if g < 2 {
+		g = 2
+	}
+	base := length / g
+	if base < 1 {
+		return []int{length}
+	}
+	rem := length % g
+	sizes := make([]int, 0, g)
+	for i := 0; i < rem; i++ {
+		sizes = append(sizes, base+1)
+	}
+	for i := 0; i < g-rem; i++ {
+		sizes = append(sizes, base)
 	}
 	return sizes
 }

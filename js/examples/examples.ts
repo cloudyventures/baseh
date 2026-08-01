@@ -87,8 +87,9 @@ show("capacity", () => orders.capacity());
 
 // 5. Customized expandable: start from the expandable tier and tune how
 // codes grow. `mode` is already "expandable" on this profile; `minLength`
-// sets the starting length and `separatorMinLength` sets when hyphen
-// grouping kicks in. Also part of the next release, like section 0.
+// sets the starting length and `separatorMinLength` sets when hyphenated
+// rendering kicks in (the balanced split of spec 19.5, nothing to
+// configure). Also part of the next release, like section 0.
 console.log("== customized expandable ==");
 const growable = basehExpandableV1();
 growable.profileId = "invoices-v1";

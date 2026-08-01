@@ -287,11 +287,11 @@ describe("expandable: separator threshold (spec 20.5)", () => {
 
   it("renders the pinned shapes for lengths 6 through 10", () => {
     const shapes: Record<number, RegExp> = {
-      6: /^..-....$/,
-      7: /^...-....$/,
+      6: /^...-...$/,
+      7: /^....-...$/,
       8: /^....-....$/,
-      9: /^.-....-....$/,
-      10: /^..-....-....$/
+      9: /^.....-....$/,
+      10: /^.....-.....$/
     };
     for (const [l, shape] of Object.entries(shapes)) {
       const length = Number(l);
@@ -311,14 +311,25 @@ describe("expandable: separator threshold (spec 20.5)", () => {
     }
   });
 
-  it("expandableGrouping consumes the pattern right-anchored", () => {
-    assert.deepEqual(expandableGrouping(6, [4, 4]), [2, 4]);
-    assert.deepEqual(expandableGrouping(7, [4, 4]), [3, 4]);
-    assert.deepEqual(expandableGrouping(8, [4, 4]), [4, 4]);
-    assert.deepEqual(expandableGrouping(9, [4, 4]), [1, 4, 4]);
-    assert.deepEqual(expandableGrouping(10, [4, 4]), [2, 4, 4]);
-    assert.deepEqual(expandableGrouping(12, [4, 4]), [4, 4, 4]);
-    assert.deepEqual(expandableGrouping(7, [2, 3]), [2, 2, 3]);
+  it("expandableGrouping follows the balanced rule (pinned table, spec 19.5)", () => {
+    const pinned: Array<[number, number[]]> = [
+      [4, [2, 2]],
+      [5, [3, 2]],
+      [6, [3, 3]],
+      [7, [4, 3]],
+      [8, [4, 4]],
+      [9, [5, 4]],
+      [10, [5, 5]],
+      [11, [4, 4, 3]],
+      [12, [4, 4, 4]],
+      [13, [5, 4, 4]],
+      [14, [5, 5, 4]],
+      [15, [5, 5, 5]],
+      [16, [4, 4, 4, 4]]
+    ];
+    for (const [length, sizes] of pinned) {
+      assert.deepEqual(expandableGrouping(length), sizes, `length ${length}`);
+    }
   });
 });
 
@@ -426,9 +437,15 @@ describe("expandable: mixed-mode interop (spec 20.7)", () => {
     assert.equal(result.valid, false);
   });
 
-  it("grouping validation: expandable accepts a non-summing pattern, fixed still requires the sum", () => {
-    // [4, 4] does not sum to every expandable length and must validate.
+  it("grouping validation: grouping must be empty in expandable mode, fixed still requires the sum", () => {
+    // The frozen expandable tier ships an empty grouping and must validate.
     assert.doesNotThrow(() => new Baseh(basehExpandableV1()));
+    // Spec 19.5: the split is a pure function of total length, so any
+    // configured grouping is rejected in expandable mode.
+    expectError(
+      () => new Baseh({ ...basehExpandableV1(), grouping: [4, 4] }),
+      "INVALID_PROFILE"
+    );
     expectError(
       () => new Baseh({ ...basehMediumV1(), grouping: [3, 3] }),
       "INVALID_PROFILE"
