@@ -72,11 +72,11 @@ A profile is valid only when all conditions are true:
 - Alias chains are forbidden.
 - In fixed mode, group sizes sum to `bodyLength + checksumLength`, and
   `separatorMinLength` must be 0. In expandable mode the sum rule does not
-  apply: when the separator is non-empty, `grouping` must be non-empty with
-  every group size a positive integer, interpreted as a right-anchored
-  repeating pattern (section 19.5); `separatorMinLength` is an integer of
-  at least 0 (default 0). In either mode, when the separator is empty,
-  `grouping` must be empty.
+  apply and `grouping` must be empty: the split is a pure function of the
+  total length under the balanced grouping rule (section 19.5), so a
+  configurable pattern would be meaningless; `separatorMinLength` is an
+  integer of at least 0 (default 0). In either mode, when the separator is
+  empty, `grouping` must be empty.
 - A permutation key is present when permutation is enabled.
 - Feistel rounds are an even integer from 4 through 16.
 
@@ -563,7 +563,7 @@ Formatted:
 
 The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
 
-In expandable mode the separator applies only at or above `separatorMinLength`: when the presented or emitted total length `L` is below `separatorMinLength`, the code renders bare and the decoder accepts (and expects) no separators, regardless of the configured `separator` and `grouping`. At or above the threshold the configured separator and grouping apply to that length per section 19.5.
+In expandable mode the separator applies only at or above `separatorMinLength`: when the presented or emitted total length `L` is below `separatorMinLength`, the code renders bare and the decoder accepts (and expects) no separators, regardless of the configured `separator`. At or above the threshold the configured separator applies and the balanced grouping rule of section 19.5 splits that length.
 
 The web tools pick `grouping` from the total displayed length (`bodyLength + checksumLength`) with one fixed rule, so a configuration transferred between the tools and a frozen profile keeps the same visual rhythm: no delimiter at 3 or fewer characters; groups of 2 at 4; groups of 3 up to 6; groups of 4 up to 8; groups of 5 beyond that, with any leftover short group trailing. Every frozen tier uses this rule directly: Minimum at 6 characters is `[3, 3]` and Light, Medium and Heavy at 8 characters are `[4, 4]`, all hyphen-delimited (section 17).
 
@@ -753,7 +753,7 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
   "caseSensitive": false,
   "separator": "-",
   "separatorMinLength": 6,
-  "grouping": [4, 4],
+  "grouping": [],
   "aliases": {
     "O": "0",
     "I": "1",
@@ -775,7 +775,7 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
 }
 ```
 
-The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3), giving a checksum modulus of `35^2 = 1225`. Since `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well, at every generation (section 6.3). The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, length 6 renders `XX-XXXX`, 7 renders `XXX-XXXX`, 8 renders `XXXX-XXXX` and the `[4, 4]` pattern repeats right-anchored beyond that (section 19.5).
+The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3), giving a checksum modulus of `35^2 = 1225`. Since `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well, at every generation (section 6.3). The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, and at or above six the balanced grouping rule of section 19.5 splits the length — 6 renders `XXX-XXX`, 7 `XXXX-XXX`, 8 `XXXX-XXXX`, 9 `XXXXX-XXXX`, 10 `XXXXX-XXXXX`, and so on per the pinned table.
 
 Generation capacities (body alphabet 34, checksum length 2, so generation `L` holds `34^(L-2)` ids; section 19.1):
 
@@ -966,35 +966,58 @@ byte-for-byte unchanged.
 `separatorMinLength` is an integer of at least 0 (default 0, meaning the
 separator always applies, as fixed mode behaves today). When the total
 length `L` is below `separatorMinLength`, the separator is empty and the
-grouping is empty for that length, regardless of the configured `separator`
-and `grouping`: the code renders bare and the decoder expects no
-separators. At or above the threshold, the configured separator and
-grouping apply to that length.
+grouping is empty for that length, regardless of the configured
+`separator`: the code renders bare and the decoder expects no
+separators. At or above the threshold, the configured separator applies and
+the balanced grouping rule below splits that length.
 
 In expandable mode the fixed-mode rule "group sizes sum to `bodyLength +
-checksumLength`" cannot hold for every length, so `grouping` is interpreted
-as a **right-anchored repeating pattern**. For a pattern `[p0, p1, ...,
-p(m-1)]` and a total length `L >= separatorMinLength`, groups are consumed
-from the right end of the code, cycling through the pattern from its last
-element backwards (`p(m-1)`, `p(m-2)`, ..., `p0`, `p(m-1)`, ...); when the
-remaining leading symbols are fewer than the next pattern element they form
-the leftmost group on their own. Validation requires only that the pattern
-be non-empty with positive integer sizes (section 2.2).
-
-Worked example for the frozen pattern `[4, 4]`, which reduces to groups of
-four from the right with any short group leading:
+checksumLength`" cannot hold for every length, and the split must be a pure
+function of the total length so encoder and decoder agree without
+configuration. `grouping` is therefore meaningless in expandable mode and
+must be empty (section 2.2). Instead the **balanced grouping rule**
+applies: for a total length `L >= separatorMinLength` with a non-empty
+separator, the number of groups is
 
 ```text
-L = 6    XX-XXXX
-L = 7    XXX-XXXX
-L = 8    XXXX-XXXX
-L = 9    X-XXXX-XXXX
-L = 10   XX-XXXX-XXXX
+g = max(2, ceil(L / 5))
 ```
 
-Right-anchoring keeps the trailing visual rhythm — including the checksum
-group — stable as codes grow, so a customer who has seen eight-character
-codes reads a nine-character one without relearning the shape.
+and group sizes differ by at most one, with the larger groups to the left:
+
+```text
+base = floor(L / g)
+rem  = L mod g
+sizes = [base + 1] repeated rem times, then [base] repeated (g - rem) times
+```
+
+For `L` below 2 the split is trivial (a single group); in practice
+`separatorMinLength` is at least 2 whenever a separator is in effect.
+
+Pinned shapes for total length 4 through 16:
+
+```text
+L = 4    XX-XX
+L = 5    XXX-XX
+L = 6    XXX-XXX
+L = 7    XXXX-XXX
+L = 8    XXXX-XXXX
+L = 9    XXXXX-XXXX
+L = 10   XXXXX-XXXXX
+L = 11   XXXX-XXXX-XXX
+L = 12   XXXX-XXXX-XXXX
+L = 13   XXXXX-XXXX-XXXX
+L = 14   XXXXX-XXXXX-XXXX
+L = 15   XXXXX-XXXXX-XXXXX
+L = 16   XXXX-XXXX-XXXX-XXXX
+```
+
+Balanced groups keep the visual weight centered as codes grow, and because
+the split depends only on `L`, every implementation derives it identically
+with nothing to configure. Note that the frozen fixed tiers' `[3, 3]` and
+`[4, 4]` happen to satisfy the balanced rule at their single length, but
+fixed mode imposes no such rule — its `grouping` stays user-configured with
+the sum validation of section 2.2.
 
 ### 19.6 Encode flow
 
@@ -1031,8 +1054,7 @@ function encodeExpandable(id, profile):
     if L < profile.separatorMinLength:
         return raw
 
-    return format(raw, expandableGrouping(L, profile.grouping),
-                  profile.separator)
+    return format(raw, expandableGrouping(L), profile.separator)
 ```
 
 ### 19.7 Decode flow

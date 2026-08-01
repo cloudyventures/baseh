@@ -292,7 +292,7 @@ fn separator_threshold() {
         let code = code.unwrap_or_else(|| panic!("no issuable id found at generation {l}"));
         assert_eq!(
             group_sizes(&code),
-            expandable_grouping(l, &[4, 4]),
+            expandable_grouping(l),
             "generation {l}: {code}"
         );
         assert_eq!(h.decode(&code, &strict()).unwrap().canonical_code, code);
@@ -300,14 +300,26 @@ fn separator_threshold() {
 }
 
 #[test]
-fn expandable_grouping_is_right_anchored() {
-    assert_eq!(expandable_grouping(6, &[4, 4]), vec![2, 4]);
-    assert_eq!(expandable_grouping(7, &[4, 4]), vec![3, 4]);
-    assert_eq!(expandable_grouping(8, &[4, 4]), vec![4, 4]);
-    assert_eq!(expandable_grouping(9, &[4, 4]), vec![1, 4, 4]);
-    assert_eq!(expandable_grouping(10, &[4, 4]), vec![2, 4, 4]);
-    assert_eq!(expandable_grouping(12, &[4, 4]), vec![4, 4, 4]);
-    assert_eq!(expandable_grouping(7, &[2, 3]), vec![2, 2, 3]);
+fn expandable_grouping_is_balanced() {
+    // The pinned table of spec 19.5.
+    let expected: [(usize, &[usize]); 13] = [
+        (4, &[2, 2]),
+        (5, &[3, 2]),
+        (6, &[3, 3]),
+        (7, &[4, 3]),
+        (8, &[4, 4]),
+        (9, &[5, 4]),
+        (10, &[5, 5]),
+        (11, &[4, 4, 3]),
+        (12, &[4, 4, 4]),
+        (13, &[5, 4, 4]),
+        (14, &[5, 5, 4]),
+        (15, &[5, 5, 5]),
+        (16, &[4, 4, 4, 4]),
+    ];
+    for (l, sizes) in expected {
+        assert_eq!(expandable_grouping(l), sizes, "length {l}");
+    }
 }
 
 #[test]
@@ -443,8 +455,16 @@ fn expandable_decoder_does_not_sniff_mode_from_input() {
 
 #[test]
 fn mode_specific_profile_validation() {
-    // [4, 4] does not sum to every expandable length and must validate.
+    // The frozen expandable tier carries an empty grouping and validates.
     Baseh::new(baseh_expandable_v1()).expect("expandable tier valid");
+    // Grouping is not configurable in expandable mode (spec 19.5).
+    expect_error(
+        Baseh::new(Profile {
+            grouping: vec![4, 4],
+            ..baseh_expandable_v1()
+        }),
+        ErrorCode::InvalidProfile,
+    );
     // Fixed still requires the sum.
     expect_error(
         Baseh::new(Profile {

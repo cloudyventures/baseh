@@ -115,29 +115,21 @@ def format_raw(raw: str, profile: PreparedProfile) -> str:
     if profile.mode == "expandable":
         if not profile.separator or len(raw) < profile.separator_min_length:
             return raw
-        return _format_with(
-            raw, expandable_grouping(len(raw), profile.grouping), profile.separator
-        )
+        return _format_with(raw, expandable_grouping(len(raw)), profile.separator)
     return _format_with(raw, profile.grouping, profile.separator)
 
 
-def expandable_grouping(length: int, pattern) -> list:
-    """Spec 19.5. Group sizes for a total length under the right-anchored
-    repeating pattern: consume groups from the right, cycling the pattern
-    from its last element backwards; a short remainder forms the leftmost
-    group."""
-    sizes: list = []
-    remaining = length
-    i = len(pattern) - 1
-    while remaining > 0:
-        p = pattern[i]
-        if remaining <= p:
-            sizes.insert(0, remaining)
-            break
-        sizes.insert(0, p)
-        remaining -= p
-        i = (i - 1 + len(pattern)) % len(pattern)
-    return sizes
+def expandable_grouping(length: int) -> list:
+    """Spec 19.5. Balanced grouping: the split is a pure function of the
+    total length — g = max(2, ceil(L / 5)) groups differing in size by at
+    most one, larger groups to the left. There is no configurable pattern
+    in expandable mode (grouping must be empty, section 2.2)."""
+    g = max(2, -(-length // 5))
+    base = length // g
+    if base < 1:
+        return [length]
+    rem = length % g
+    return [base + 1] * rem + [base] * (g - rem)
 
 
 def generation_base(profile: PreparedProfile, length: int) -> int:

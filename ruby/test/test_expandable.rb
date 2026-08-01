@@ -259,11 +259,11 @@ class TestExpandable < Minitest::Test
 
   def test_separator_shapes_for_lengths_6_through_10
     shapes = {
-      6 => /\A..-....\z/,
-      7 => /\A...-....\z/,
+      6 => /\A...-...\z/,
+      7 => /\A....-...\z/,
       8 => /\A....-....\z/,
-      9 => /\A.-....-....\z/,
-      10 => /\A..-....-....\z/
+      9 => /\A.....-....\z/,
+      10 => /\A.....-.....\z/
     }
     shapes.each do |length, shape|
       base = expandable.generation_base(length)
@@ -282,15 +282,22 @@ class TestExpandable < Minitest::Test
     end
   end
 
-  def test_expandable_grouping_consumes_the_pattern_right_anchored
-    group = ->(length, pattern) { Baseh::Baseh.expandable_grouping(length, pattern) }
-    assert_equal [2, 4], group.call(6, [4, 4])
-    assert_equal [3, 4], group.call(7, [4, 4])
-    assert_equal [4, 4], group.call(8, [4, 4])
-    assert_equal [1, 4, 4], group.call(9, [4, 4])
-    assert_equal [2, 4, 4], group.call(10, [4, 4])
-    assert_equal [4, 4, 4], group.call(12, [4, 4])
-    assert_equal [2, 2, 3], group.call(7, [2, 3])
+  # Spec 19.5: the balanced grouping, pinned for total lengths 4 through 16.
+  def test_expandable_grouping_is_a_balanced_function_of_length
+    group = ->(length) { Baseh::Baseh.expandable_grouping(length) }
+    assert_equal [2, 2], group.call(4)
+    assert_equal [3, 2], group.call(5)
+    assert_equal [3, 3], group.call(6)
+    assert_equal [4, 3], group.call(7)
+    assert_equal [4, 4], group.call(8)
+    assert_equal [5, 4], group.call(9)
+    assert_equal [5, 5], group.call(10)
+    assert_equal [4, 4, 3], group.call(11)
+    assert_equal [4, 4, 4], group.call(12)
+    assert_equal [5, 4, 4], group.call(13)
+    assert_equal [5, 5, 4], group.call(14)
+    assert_equal [5, 5, 5], group.call(15)
+    assert_equal [4, 4, 4, 4], group.call(16)
   end
 
   # Spec 19.7: a code presented at the wrong length can never alias a valid
@@ -390,8 +397,11 @@ class TestExpandable < Minitest::Test
   end
 
   def test_grouping_validation_is_mode_conditional
-    # [4, 4] does not sum to every expandable length and must validate.
+    # Expandable derives the split from the length; grouping must be empty.
     Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+    assert_error("INVALID_PROFILE") do
+      Baseh::Baseh.new(Baseh.baseh_expandable_v1.merge(grouping: [4, 4]))
+    end
     # Fixed mode still requires the sum.
     assert_error("INVALID_PROFILE") do
       Baseh::Baseh.new(Baseh.baseh_medium_v1.merge(grouping: [3, 3]))

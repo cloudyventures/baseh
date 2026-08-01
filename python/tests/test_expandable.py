@@ -305,11 +305,11 @@ class TestSeparatorThreshold(unittest.TestCase):
 
     def test_pinned_shapes(self):
         shapes = {
-            6: (2, 4),
-            7: (3, 4),
+            6: (3, 3),
+            7: (4, 3),
             8: (4, 4),
-            9: (1, 4, 4),
-            10: (2, 4, 4),
+            9: (5, 4),
+            10: (5, 5),
         }
         for length, groups in shapes.items():
             with self.subTest(length=length):
@@ -327,14 +327,26 @@ class TestSeparatorThreshold(unittest.TestCase):
                 )
                 self.assertEqual(self.codec.decode(code).canonical_code, code)
 
-    def test_expandable_grouping_right_anchored(self):
-        self.assertEqual(expandable_grouping(6, [4, 4]), [2, 4])
-        self.assertEqual(expandable_grouping(7, [4, 4]), [3, 4])
-        self.assertEqual(expandable_grouping(8, [4, 4]), [4, 4])
-        self.assertEqual(expandable_grouping(9, [4, 4]), [1, 4, 4])
-        self.assertEqual(expandable_grouping(10, [4, 4]), [2, 4, 4])
-        self.assertEqual(expandable_grouping(12, [4, 4]), [4, 4, 4])
-        self.assertEqual(expandable_grouping(7, [2, 3]), [2, 2, 3])
+    def test_expandable_grouping_balanced(self):
+        # Spec 19.5 pinned table: balanced sizes, larger groups on the left.
+        pinned = {
+            4: [2, 2],
+            5: [3, 2],
+            6: [3, 3],
+            7: [4, 3],
+            8: [4, 4],
+            9: [5, 4],
+            10: [5, 5],
+            11: [4, 4, 3],
+            12: [4, 4, 4],
+            13: [5, 4, 4],
+            14: [5, 5, 4],
+            15: [5, 5, 5],
+            16: [4, 4, 4, 4],
+        }
+        for length, sizes in pinned.items():
+            with self.subTest(length=length):
+                self.assertEqual(expandable_grouping(length), sizes)
 
 
 class TestWrongGenerationRejection(unittest.TestCase):
@@ -448,8 +460,12 @@ class TestMixedModeInterop(unittest.TestCase):
         self.assertFalse(result["valid"])
 
     def test_grouping_validation_by_mode(self):
-        # [4, 4] does not sum to every expandable length and must validate.
+        # Spec 2.2/19.5: expandable grouping must be empty; a non-empty
+        # grouping fails INVALID_PROFILE.
         Baseh(baseh_expandable_v1())
+        with self.assertRaises(BasehError) as ctx:
+            Baseh({**baseh_expandable_v1(), "grouping": [4, 4]})
+        self.assertEqual(ctx.exception.code, INVALID_PROFILE)
         with self.assertRaises(BasehError) as ctx:
             Baseh({**baseh_medium_v1(), "grouping": [3, 3]})
         self.assertEqual(ctx.exception.code, INVALID_PROFILE)

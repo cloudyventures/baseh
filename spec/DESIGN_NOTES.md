@@ -438,3 +438,14 @@ exists only because humans drop zero glyphs they were shown. With the zero
 ban, no expandable code ever displays a leading zero, so the leniency has
 nothing to rescue — and keeping it would make short inputs ambiguous across
 generations. Short input is simply `INVALID_LENGTH`.
+
+### Why balanced grouping instead of a right-anchored pattern
+
+Expandable grouping was first specified as a configurable right-anchored
+repeating pattern (the frozen tiers used `[4, 4]`). That was ruled a
+regression: it made the shape a second, configurable source of truth that
+encoder and decoder could disagree on, and the leading short group read
+badly. The balanced grouping rule of `IMPLEMENTATION_CODEC.md` section 19.5
+replaces it: group count `max(2, ceil(L / 5))`, sizes differing by at most
+one with larger groups to the left, derived purely from the total length —
+so `grouping` is meaningless in expandable mode and must be empty there.

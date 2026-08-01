@@ -218,11 +218,7 @@ fn format_raw(raw: &[char], profile: &PreparedProfile) -> String {
         if raw.len() < profile.separator_min_length {
             return raw.iter().collect();
         }
-        return format_with(
-            raw,
-            &expandable_grouping(raw.len(), &p.grouping),
-            &p.separator,
-        );
+        return format_with(raw, &expandable_grouping(raw.len()), &p.separator);
     }
     format_with(raw, &p.grouping, &p.separator)
 }
@@ -237,23 +233,19 @@ fn format_with(raw: &[char], sizes: &[usize], separator: &str) -> String {
     parts.join(separator)
 }
 
-/// Spec 19.5. Group sizes for a total length under the right-anchored
-/// repeating pattern: consume groups from the right, cycling the pattern from
-/// its last element backwards; a short remainder forms the leftmost group.
-pub fn expandable_grouping(length: usize, pattern: &[usize]) -> Vec<usize> {
-    let mut sizes: Vec<usize> = Vec::new();
-    let mut remaining = length;
-    let mut i = pattern.len() - 1;
-    while remaining > 0 {
-        let p = pattern[i];
-        if remaining <= p {
-            sizes.insert(0, remaining);
-            break;
-        }
-        sizes.insert(0, p);
-        remaining -= p;
-        i = (i + pattern.len() - 1) % pattern.len();
+/// Spec 19.5. Group sizes for a total length under the balanced rule:
+/// `g = max(2, ceil(L / 5))` groups whose sizes differ by at most one, the
+/// larger groups on the left.
+pub fn expandable_grouping(length: usize) -> Vec<usize> {
+    let g = (length + 4) / 5;
+    let g = g.max(2);
+    let base = length / g;
+    if base < 1 {
+        return vec![length];
     }
+    let rem = length % g;
+    let mut sizes = vec![base + 1; rem];
+    sizes.extend(std::iter::repeat(base).take(g - rem));
     sizes
 }
 

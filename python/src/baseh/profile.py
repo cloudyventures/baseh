@@ -207,13 +207,11 @@ def prepare_profile(profile) -> PreparedProfile:
         if len(grouping) != 0:
             _fail("grouping must be empty when separator is empty")
     elif mode == "expandable":
-        # Spec 19.5: the sum rule cannot hold at every length; grouping is a
-        # right-anchored repeating pattern and only needs positive sizes.
-        if len(grouping) == 0:
-            _fail("expandable grouping must be non-empty with positive integer sizes")
-        for g in grouping:
-            if not _is_int(g) or g < 1:
-                _fail("expandable grouping must be non-empty with positive integer sizes")
+        # Spec 19.5: the balanced grouping rule is a pure function of the
+        # total length, so a configurable grouping is meaningless in
+        # expandable mode.
+        if len(grouping) != 0:
+            _fail("grouping must be empty in expandable mode")
     else:
         group_sum = 0
         for g in grouping:

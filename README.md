@@ -104,9 +104,11 @@ The `baseh-expandable-v1` tier is the recommended starting point:
 - **Permuted per length**: the Feistel permutation runs within each code
   length's range with the length mixed into the key derivation, so codes
   look random at every size even though issuance is sequential.
-- **Separator on a threshold**: the shipped tier introduces the hyphen
-  grouping at six characters (the profile field `separatorMinLength`);
-  shorter codes print bare.
+- **Separator on a threshold**: the shipped tier introduces the hyphen at
+  six characters (the profile field `separatorMinLength`); shorter codes
+  print bare. The split is a balanced function of the code length —
+  `XXX-XXX` at six, `XXXX-XXX` at seven, `XXXX-XXXX` at eight — so there
+  is no grouping to configure in expandable mode.
 
 A keyed variant `baseh-expandable-p-v1` takes your own key for a private
 mapping, like the other `-p` tiers.

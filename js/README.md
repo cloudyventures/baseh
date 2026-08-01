@@ -54,7 +54,9 @@ Expandable mode differs from the fixed tiers as follows:
   Presentation only, not encryption — same caveat as the fixed tiers.
 - Separators only appear once codes reach `separatorMinLength` characters
   (6 in the shipped tier). Below that threshold there is no separator and no
-  grouping.
+  grouping. Above it the split is the balanced rule of codec spec 19.5 —
+  a pure function of the code length (`XXX-XXX` at 6, `XXXX-XXX` at 7,
+  `XXXX-XXXX` at 8) — so expandable profiles carry no `grouping` field.
 - All other profile options — visual/spoken safety levels, profanity modes,
   blocklists — compose with expandable unchanged.
 

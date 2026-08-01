@@ -170,8 +170,9 @@ const EXPANDABLE_BODY: &str = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
 /// past each generation's capacity. The body alphabet is the full
 /// alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
 /// alphabet derives as "0" plus the body (35 symbols, modulus 1225). The
-/// hyphen appears from six characters up, grouped right-anchored by the
-/// [4, 4] pattern.
+/// hyphen appears from six characters up, split by the balanced grouping
+/// rule (6 -> XXX-XXX, 7 -> XXXX-XXX, and so on per the pinned table of
+/// spec 19.5).
 fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
     Profile {
         profile_id: format!("baseh-expandable{}-v1", if p_suffix { "-p" } else { "" }),
@@ -184,7 +185,7 @@ fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
         case_sensitive: false,
         separator: "-".to_string(),
         separator_min_length: 6,
-        grouping: vec![4, 4],
+        grouping: Vec::new(),
         aliases: vec![
             ('O', '0'),
             ('I', '1'),

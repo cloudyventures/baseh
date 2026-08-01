@@ -475,9 +475,12 @@ For `baseh-expandable-v1` and at least one custom expandable profile:
 
 - Below `separatorMinLength` the encoder emits no separator and the
   decoder rejects one: for the frozen tier, lengths 4 and 5 render bare.
-- At and above the threshold the right-anchored pattern applies: pin the
-  exact rendered shapes for lengths 6 through 10 (`XX-XXXX`,
-  `XXX-XXXX`, `XXXX-XXXX`, `X-XXXX-XXXX`, `XX-XXXX-XXXX`).
+- At and above the threshold the balanced grouping rule of codec spec
+  section 19.5 applies: pin the exact rendered shapes for lengths 6 through
+  10 (`XXX-XXX`, `XXXX-XXX`, `XXXX-XXXX`, `XXXXX-XXXX`, `XXXXX-XXXXX`),
+  and unit-test the grouping split against the pinned table for total
+  lengths 4 through 16 (2+2, 3+2, 3+3, 4+3, 4+4, 5+4, 5+5, 4+4+3,
+  4+4+4, 5+4+4, 5+5+4, 5+5+5, 4+4+4+4).
 
 ### 20.6 Cross-generation wrong-length rejection
 

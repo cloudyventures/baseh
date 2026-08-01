@@ -85,25 +85,17 @@ module Baseh
       l
     end
 
-    # Spec 19.5. Group sizes for a total length under the right-anchored
-    # repeating pattern: consume groups from the right, cycling the pattern
-    # from its last element backwards; a short remainder forms the leftmost
-    # group.
-    def self.expandable_grouping(length, pattern)
-      sizes = []
-      remaining = length
-      i = pattern.length - 1
-      while remaining.positive?
-        p = pattern[i]
-        if remaining <= p
-          sizes.unshift(remaining)
-          break
-        end
-        sizes.unshift(p)
-        remaining -= p
-        i = (i - 1) % pattern.length
-      end
-      sizes
+    # Spec 19.5. Balanced grouping: the split is a pure function of the total
+    # length — g = max(2, ceil(L / 5)) groups differing in size by at most
+    # one, larger groups to the left. There is no configurable pattern in
+    # expandable mode (grouping must be empty, section 2.2).
+    def self.expandable_grouping(length)
+      g = [2, (length + 4) / 5].max
+      base = length / g
+      return [length] if base < 1
+
+      rem = length % g
+      [base + 1] * rem + [base] * (g - rem)
     end
 
     # Spec section 8 (fixed mode) / 19.6 (expandable mode), with the spec
@@ -425,8 +417,8 @@ module Baseh
     end
 
     # Spec 11/19.5. In expandable mode the separator applies only at or above
-    # separatorMinLength, with the grouping interpreted as a right-anchored
-    # repeating pattern for the total length.
+    # separatorMinLength, with the balanced grouping derived from the total
+    # length.
     def format_raw(raw)
       return raw if @profile.separator.empty?
 
@@ -434,7 +426,7 @@ module Baseh
         if @profile.mode == "expandable"
           return raw if raw.length < @profile.separator_min_length
 
-          self.class.expandable_grouping(raw.length, @profile.grouping)
+          self.class.expandable_grouping(raw.length)
         else
           @profile.grouping
         end
