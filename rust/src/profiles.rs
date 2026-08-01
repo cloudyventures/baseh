@@ -4,23 +4,33 @@
 //! and spoken strips; the spoken strips interact with the visual ones exactly
 //! as the web tools derive them, so the tool capacities match.
 //!
-//!   Minimum  36 symbols, no checksum           2,176,782,336 ids
-//!   Light    31 symbols, 1 checksum              887,503,681 ids
-//!   Medium   28 symbols, 1 checksum              481,890,304 ids (default)
-//!   Heavy    26 symbols, 1 checksum              308,915,776 ids
+//!   Minimum  36 symbols, no checksum, XXX-XXX      2,176,782,336 ids
+//!   Light    31 symbols, 2 checksums, XXXX-XXXX      887,503,681 ids
+//!   Medium   28 symbols, 2 checksums, XXXX-XXXX      481,890,304 ids (default)
+//!   Heavy    26 symbols, 2 checksums, XXXX-XXXX      308,915,776 ids
 //!
-//! All four keep the typed O/I/L aliases where possible and run the default
-//! profanity blocklist. Minimum also uses a hyphen delimiter; the rest have
-//! none. The `_p_` variants are identical but with feistel-v1 permutation and
-//! require caller-supplied key material.
+//! All four keep the typed O/I/L aliases where possible, use a hyphen
+//! delimiter at the midpoint and run the default profanity blocklist. Every
+//! tier permutes with the frozen published key ([`FROZEN_KEY_BYTES`]): the
+//! key is public, so the permutation obscures sequence but is not secrecy.
+//! The `_p_` variants are identical but permute with caller-supplied key
+//! material instead.
 //!
 //! Every helper returns a freshly-built profile on each call, so callers can
 //! load a default and modify it.
 
 use crate::profile::{Permutation, Profanity, ProfanityMode, Profile};
 
+const FROZEN_KEY_ID: &str = "frozen";
 const DEFAULT_KEY_ID: &str = "default";
 const DEFAULT_ROUNDS: u32 = 8;
+
+/// The frozen published permutation key. Public by design: it makes issued
+/// codes look non-sequential but offers no secrecy, since anyone can read it
+/// here. Never swap it on a live namespace; codes only decode with the key
+/// they were issued under. Use the `_p_` variants to supply private key
+/// material.
+pub const FROZEN_KEY_BYTES: &[u8] = b"baseh-frozen-key-v1";
 
 const MINIMUM_BODY: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LIGHT_BODY: &str = "0123456789ABCEFGHJKMNPQRSUVWXYZ";
@@ -55,9 +65,9 @@ const LIGHT: TierShape = TierShape {
     profile_id: "baseh-light",
     body_alphabet: LIGHT_BODY,
     checksum_alphabet: LIGHT_CHECK,
-    checksum_length: 1,
-    separator: "",
-    grouping: &[],
+    checksum_length: 2,
+    separator: "-",
+    grouping: &[4, 4],
     aliases: &[('O', '0'), ('I', '1'), ('L', '1'), ('D', 'B'), ('T', 'P')],
 };
 
@@ -65,9 +75,9 @@ const MEDIUM: TierShape = TierShape {
     profile_id: "baseh-medium",
     body_alphabet: MEDIUM_BODY,
     checksum_alphabet: MEDIUM_CHECK,
-    checksum_length: 1,
-    separator: "",
-    grouping: &[],
+    checksum_length: 2,
+    separator: "-",
+    grouping: &[4, 4],
     aliases: &[
         // B and S are dropped for looking like 8 and 5; since they can never
         // be issued, a typed B is always an 8 and a typed S always a 5.
@@ -86,9 +96,9 @@ const HEAVY: TierShape = TierShape {
     profile_id: "baseh-heavy",
     body_alphabet: HEAVY_BODY,
     checksum_alphabet: HEAVY_CHECK,
-    checksum_length: 1,
-    separator: "",
-    grouping: &[],
+    checksum_length: 2,
+    separator: "-",
+    grouping: &[4, 4],
     aliases: &[
         ('O', '0'),
         ('I', '1'),
@@ -138,47 +148,56 @@ fn keyed(key_bytes: &[u8], key_id: &str, rounds: u32) -> Permutation {
     }
 }
 
+/// Permutation every plain tier applies, built from the frozen published key.
+fn frozen() -> Permutation {
+    keyed(FROZEN_KEY_BYTES, FROZEN_KEY_ID, DEFAULT_ROUNDS)
+}
+
 /// Tier `baseh-minimum-v1`: alphanumeric, no safety strips, no checksum,
 /// hyphen-delimited XXX-XXX.
 pub fn baseh_minimum_v1() -> Profile {
-    tier(&MINIMUM, Permutation::Disabled, false)
+    tier(&MINIMUM, frozen(), false)
 }
 
-/// `baseh-minimum` with feistel-v1 permutation. Key material is required;
-/// pass an empty `key_id` or `0` rounds for the defaults ("default", 8).
+/// `baseh-minimum` permuted with caller-supplied key material instead of the
+/// frozen key. Key material is required; pass an empty `key_id` or `0` rounds
+/// for the defaults ("default", 8).
 pub fn baseh_minimum_p_v1(key_bytes: &[u8], key_id: &str, rounds: u32) -> Profile {
     tier(&MINIMUM, keyed(key_bytes, key_id, rounds), true)
 }
 
-/// Tier `baseh-light-v1`: visual light plus spoken light, one checksum
-/// symbol.
+/// Tier `baseh-light-v1`: visual light plus spoken light, two checksum
+/// symbols, hyphen-delimited.
 pub fn baseh_light_v1() -> Profile {
-    tier(&LIGHT, Permutation::Disabled, false)
+    tier(&LIGHT, frozen(), false)
 }
 
-/// `baseh-light` with feistel-v1 permutation. Key material is required.
+/// `baseh-light` permuted with caller-supplied key material. Key material is
+/// required.
 pub fn baseh_light_p_v1(key_bytes: &[u8], key_id: &str, rounds: u32) -> Profile {
     tier(&LIGHT, keyed(key_bytes, key_id, rounds), true)
 }
 
-/// Tier `baseh-medium-v1`: visual medium plus spoken medium, one checksum
-/// symbol. The default.
+/// Tier `baseh-medium-v1`: visual medium plus spoken medium, two checksum
+/// symbols, hyphen-delimited. The default.
 pub fn baseh_medium_v1() -> Profile {
-    tier(&MEDIUM, Permutation::Disabled, false)
+    tier(&MEDIUM, frozen(), false)
 }
 
-/// `baseh-medium` with feistel-v1 permutation. Key material is required.
+/// `baseh-medium` permuted with caller-supplied key material. Key material is
+/// required.
 pub fn baseh_medium_p_v1(key_bytes: &[u8], key_id: &str, rounds: u32) -> Profile {
     tier(&MEDIUM, keyed(key_bytes, key_id, rounds), true)
 }
 
-/// Tier `baseh-heavy-v1`: conservative alphabet plus spoken heavy, one
-/// checksum symbol.
+/// Tier `baseh-heavy-v1`: conservative alphabet plus spoken heavy, two
+/// checksum symbols, hyphen-delimited.
 pub fn baseh_heavy_v1() -> Profile {
-    tier(&HEAVY, Permutation::Disabled, false)
+    tier(&HEAVY, frozen(), false)
 }
 
-/// `baseh-heavy` with feistel-v1 permutation. Key material is required.
+/// `baseh-heavy` permuted with caller-supplied key material. Key material is
+/// required.
 pub fn baseh_heavy_p_v1(key_bytes: &[u8], key_id: &str, rounds: u32) -> Profile {
     tier(&HEAVY, keyed(key_bytes, key_id, rounds), true)
 }

@@ -141,7 +141,7 @@ For at least 100,000 sampled bodies:
             Record whether the checksum fails.
 ```
 
-None of the frozen tiers asserts totality at one checksum symbol; instead the measured miss counts must match the spec section 6.3 analysis exactly per tier (10 undetected cases per 756 per position at Medium, 14 per 930 at Light, 10 per 650 at Heavy). A custom two-symbol profile at Medium or Heavy must assert total detection in the same sweep.
+Every checksummed frozen tier ships two checksum symbols and must assert total single-substitution detection in this sweep (spec section 6.3): zero misses at Light, Medium and Heavy. An adjacent-transposition sweep must likewise record zero misses at Medium and Heavy, and exactly the documented Light misses (swapped values differing by a multiple of 16). A custom one-symbol profile records the measured miss counts instead of asserting totality.
 
 ## 7. Alias tests
 
@@ -324,7 +324,7 @@ Use a shared JSON file:
 Rules:
 
 - Large integers are decimal strings.
-- Keys are hexadecimal strings in test-only profiles.
+- Keys are hexadecimal strings, used in test-only profiles and in the published frozen tier key.
 - JSON is ASCII.
 - Vectors are reviewed and versioned.
 - A release fails if any supported implementation disagrees.

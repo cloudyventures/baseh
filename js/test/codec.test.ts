@@ -92,9 +92,28 @@ describe("profile validation", () => {
     assert.equal(new Baseh(basehLightV1()).capacity(), 887_503_681n);
     assert.equal(new Baseh(basehMediumV1()).capacity(), 481_890_304n);
     assert.equal(new Baseh(basehHeavyV1()).capacity(), 308_915_776n);
-    assert.equal(basehMinimumV1().permutation.enabled, false);
+    // Every plain tier permutes with the frozen published key; only the -p
+    // variants take caller key material.
+    for (const tier of [basehMinimumV1(), basehLightV1(), basehMediumV1(), basehHeavyV1()]) {
+      assert.equal(tier.permutation.enabled, true);
+      if (tier.permutation.enabled) assert.equal(tier.permutation.keyId, "frozen");
+    }
     assert.equal(basehMediumPV1({ keyBytes: TEST_KEY }).permutation.enabled, true);
     assert.equal(basehMediumPV1({ keyBytes: TEST_KEY }).profileId, "baseh-medium-p-v1");
+    // The frozen key and a private key scramble differently.
+    const frozen = new Baseh(basehMediumV1());
+    const privy = new Baseh(basehMediumPV1({ keyBytes: TEST_KEY }));
+    assert.equal(frozen.decode(frozen.encode(123456n)).id, 123456n);
+    assert.notEqual(frozen.encode(123456n), privy.encode(123456n));
+    // New frozen shapes: no-separator was retired; minimum keeps zero
+    // checksums at [3,3], the rest carry two at [4,4].
+    assert.deepEqual(basehMinimumV1().grouping, [3, 3]);
+    assert.equal(basehMinimumV1().checksumLength, 0);
+    for (const tier of [basehLightV1(), basehMediumV1(), basehHeavyV1()]) {
+      assert.equal(tier.checksumLength, 2);
+      assert.equal(tier.separator, "-");
+      assert.deepEqual(tier.grouping, [4, 4]);
+    }
   });
 });
 
@@ -200,19 +219,22 @@ describe("aliases and normalization", () => {
 });
 
 describe("stripped leading zeros (spec 3.4)", () => {
-  const medium = new Baseh(basehMediumV1());
-  const minimum = new Baseh(basehMinimumV1());
+  // The frozen tiers permute, so spec 3.4 padding is exercised against
+  // non-permuting clones of the new 8-char Medium and 6-char Minimum shapes.
+  const medium = new Baseh({ ...basehMediumV1(), profileId: "test-medium", permutation: { enabled: false } });
+  const minimum = new Baseh({ ...basehMinimumV1(), profileId: "test-minimum", permutation: { enabled: false } });
   it("re-pads a code that lost leading zero body symbols", () => {
-    assert.equal(medium.decode("C").id, 0n); // "000000C"
-    assert.equal(medium.decode("1D").id, 1n); // "000001D"
-    assert.equal(medium.decode("ZG").id, 27n); // "00000ZG"
+    assert.equal(medium.decode("XR").id, 0n);   // "000000XR"
+    assert.equal(medium.decode("1XU").id, 1n);  // "000001XU"
+    assert.equal(medium.decode("ZYY").id, 27n); // "00000ZYY"
   });
-  it("works with lowercase and aliases in the stripped form", () => {
-    assert.equal(medium.decode("c").id, 0n);
-    assert.equal(medium.decode("zg").id, 27n);
+  it("works with lowercase in the stripped form", () => {
+    assert.equal(medium.decode("xr").id, 0n);
+    assert.equal(medium.decode("zyy").id, 27n);
   });
   it("full-width input is unchanged", () => {
-    assert.equal(medium.decode("000001D").id, 1n);
+    assert.equal(medium.decode("000001XU").id, 1n);
+    assert.equal(medium.decode("0000-01XU").id, 1n);
   });
   it("a short code that is not a stripped valid code fails the checksum, not the length", () => {
     assert.throws(() => medium.decode("12"), (e: unknown) =>
@@ -223,7 +245,7 @@ describe("stripped leading zeros (spec 3.4)", () => {
       e instanceof BasehError && e.code === "INVALID_LENGTH");
   });
   it("over-long input stays a length error", () => {
-    assert.throws(() => medium.decode("0000000C"), (e: unknown) =>
+    assert.throws(() => medium.decode("00000000XR"), (e: unknown) =>
       e instanceof BasehError && e.code === "INVALID_LENGTH");
   });
   it("no-checksum profiles pad too, except a fully stripped (empty) code", () => {
@@ -232,7 +254,7 @@ describe("stripped leading zeros (spec 3.4)", () => {
       e instanceof BasehError && e.code === "INVALID_LENGTH");
   });
   it("canonical output stays fixed width", () => {
-    assert.equal(medium.encode(0n), "000000C");
+    assert.equal(medium.encode(0n), "0000-00XR");
   });
 });
 

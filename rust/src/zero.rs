@@ -4,8 +4,8 @@
 //! when it does not want to think about configuration.
 //!
 //! ```text
-//! to_code(id)    -> "7KM4Q2H"
-//! from_code(code) -> id
+//! to_code(123456789) -> "C8XP-8J49"
+//! from_code(code)    -> id
 //! ```
 //!
 //! `to_code` accepts any unsigned integer type, a [`BigUint`] or a decimal

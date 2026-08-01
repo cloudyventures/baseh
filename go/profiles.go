@@ -4,18 +4,21 @@ package basehuman
 // visual and spoken strips; the spoken strips interact with the visual ones
 // exactly as the web tools derive them, so the tool capacities match.
 //
-//	Minimum  36 symbols, no checksum           2,176,782,336 ids
-//	Light    31 symbols, 1 checksum              887,503,681 ids
-//	Medium   28 symbols, 1 checksum              481,890,304 ids (default)
-//	Heavy    26 symbols, 1 checksum              308,915,776 ids
+//	Minimum  36 symbols, no checksum, XXX-XXX      2,176,782,336 ids
+//	Light    31 symbols, 2 checksums, XXXX-XXXX      887,503,681 ids
+//	Medium   28 symbols, 2 checksums, XXXX-XXXX      481,890,304 ids (default)
+//	Heavy    26 symbols, 2 checksums, XXXX-XXXX      308,915,776 ids
 //
-// All four keep the typed O/I/L aliases where possible and run the default
-// profanity blocklist. Minimum also uses a hyphen delimiter; the rest have
-// none. The -p variants are identical but with feistel-v1 permutation and
-// require caller-supplied key material.
+// All four keep the typed O/I/L aliases where possible, use a hyphen
+// delimiter at the midpoint and run the default profanity blocklist. Every
+// tier permutes with the frozen published key (FrozenKeyBytes below): the
+// key is public, so the permutation obscures sequence but is not secrecy.
+// The -p variants are identical but permute with caller-supplied key
+// material instead.
 //
-// Every helper returns a freshly-built Profile value (fresh maps and
-// slices), so callers can load a default and modify it before NewBaseh.
+// Every helper returns a freshly-built Profile value (fresh maps, slices
+// and key bytes), so callers can load a default and modify it before
+// NewBaseh.
 
 const (
 	minimumBodyAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -57,9 +60,9 @@ func lightShape() tierShape {
 		profileID:        "baseh-light",
 		bodyAlphabet:     lightBodyAlphabet,
 		checksumAlphabet: lightChecksumAlphabet,
-		checksumLength:   1,
-		separator:        "",
-		grouping:         nil,
+		checksumLength:   2,
+		separator:        "-",
+		grouping:         []int{4, 4},
 		aliases:          tierAliases("D", "B", "T", "P"),
 	}
 }
@@ -69,9 +72,9 @@ func mediumShape() tierShape {
 		profileID:        "baseh-medium",
 		bodyAlphabet:     mediumBodyAlphabet,
 		checksumAlphabet: mediumChecksumAlphabet,
-		checksumLength:   1,
-		separator:        "",
-		grouping:         nil,
+		checksumLength:   2,
+		separator:        "-",
+		grouping:         []int{4, 4},
 		// B and S are dropped for looking like 8 and 5; since they can never be
 		// issued, a typed B is always an 8 and a typed S always a 5.
 		aliases: tierAliases("B", "8", "S", "5", "T", "P", "N", "M", "W", "V"),
@@ -83,9 +86,9 @@ func heavyShape() tierShape {
 		profileID:        "baseh-heavy",
 		bodyAlphabet:     heavyBodyAlphabet,
 		checksumAlphabet: heavyChecksumAlphabet,
-		checksumLength:   1,
-		separator:        "",
-		grouping:         nil,
+		checksumLength:   2,
+		separator:        "-",
+		grouping:         []int{4, 4},
 		aliases:          tierAliases("D", "B", "T", "P", "N", "M", "W", "V", "S", "F", "G", "C"),
 	}
 }
@@ -100,11 +103,18 @@ func tierAliases(pairs ...string) map[string]string {
 	return m
 }
 
+// FrozenKeyBytes is the frozen published permutation key. Public by design:
+// it makes issued codes look non-sequential but offers no secrecy, since
+// anyone can read it here. Never swap it on a live namespace; codes only
+// decode with the key they were issued under. Use the -p variants to supply
+// private key material.
+var FrozenKeyBytes = []byte("baseh-frozen-key-v1")
+
 // keyedPermutation builds the feistel-v1 permutation block for the -p
 // variants. keyID defaults to "default" and rounds to 8 when zero. Key
 // bytes are required: an empty keyBytes yields a profile that NewBaseh
 // rejects with INVALID_PROFILE. Key material is application-specific and
-// never part of the frozen profile; see spec 7.4.
+// never part of the frozen profile.
 func keyedPermutation(keyBytes []byte, keyID string, rounds int) Permutation {
 	if keyID == "" {
 		keyID = "default"
@@ -119,6 +129,15 @@ func keyedPermutation(keyBytes []byte, keyID string, rounds int) Permutation {
 		KeyBytes:  keyBytes,
 		Rounds:    rounds,
 	}
+}
+
+// frozenPermutation is the permutation every plain tier applies, built from
+// the frozen published key. The key bytes are copied so a caller mutating
+// the returned profile cannot corrupt the shared constant.
+func frozenPermutation() Permutation {
+	key := make([]byte, len(FrozenKeyBytes))
+	copy(key, FrozenKeyBytes)
+	return keyedPermutation(key, "frozen", 8)
 }
 
 func buildTier(shape tierShape, permutation Permutation, pSuffix bool) Profile {
@@ -141,11 +160,11 @@ func buildTier(shape tierShape, permutation Permutation, pSuffix bool) Profile {
 	}
 }
 
-// BasehMinimumV1 returns the frozen baseh-minimum-v1 profile: the full 36
-// symbol alphanumeric alphabet, no checksum, hyphen-delimited XXX-XXX.
-// Capacity 2,176,782,336 ids.
+// BasehMinimumV1 returns the frozen baseh-minimum-v1 profile: alphanumeric,
+// no safety strips, no checksum, hyphen-delimited XXX-XXX. Capacity
+// 2,176,782,336 ids.
 func BasehMinimumV1() Profile {
-	return buildTier(minimumShape(), Permutation{Enabled: false}, false)
+	return buildTier(minimumShape(), frozenPermutation(), false)
 }
 
 // BasehMinimumPV1 is baseh-minimum with feistel-v1 permutation. Key bytes
@@ -155,9 +174,10 @@ func BasehMinimumPV1(keyBytes []byte, keyID string, rounds int) Profile {
 }
 
 // BasehLightV1 returns the frozen baseh-light-v1 profile: visual light plus
-// spoken light strips, one checksum symbol. Capacity 887,503,681 ids.
+// spoken light, two checksum symbols, hyphen-delimited. Capacity
+// 887,503,681 ids.
 func BasehLightV1() Profile {
-	return buildTier(lightShape(), Permutation{Enabled: false}, false)
+	return buildTier(lightShape(), frozenPermutation(), false)
 }
 
 // BasehLightPV1 is baseh-light with feistel-v1 permutation. Key bytes
@@ -167,10 +187,10 @@ func BasehLightPV1(keyBytes []byte, keyID string, rounds int) Profile {
 }
 
 // BasehMediumV1 returns the frozen baseh-medium-v1 profile: visual medium
-// plus spoken medium, one checksum symbol. Capacity 481,890,304 ids. The
-// default tier.
+// plus spoken medium, two checksum symbols, hyphen-delimited. Capacity
+// 481,890,304 ids. The default tier.
 func BasehMediumV1() Profile {
-	return buildTier(mediumShape(), Permutation{Enabled: false}, false)
+	return buildTier(mediumShape(), frozenPermutation(), false)
 }
 
 // BasehMediumPV1 is baseh-medium with feistel-v1 permutation. Key bytes
@@ -180,10 +200,10 @@ func BasehMediumPV1(keyBytes []byte, keyID string, rounds int) Profile {
 }
 
 // BasehHeavyV1 returns the frozen baseh-heavy-v1 profile: the most
-// conservative alphabet plus spoken heavy, one checksum symbol. Capacity
-// 308,915,776 ids.
+// conservative alphabet plus spoken heavy, two checksum symbols,
+// hyphen-delimited. Capacity 308,915,776 ids.
 func BasehHeavyV1() Profile {
-	return buildTier(heavyShape(), Permutation{Enabled: false}, false)
+	return buildTier(heavyShape(), frozenPermutation(), false)
 }
 
 // BasehHeavyPV1 is baseh-heavy with feistel-v1 permutation. Key bytes

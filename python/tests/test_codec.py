@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from baseh import (  # noqa: E402
     AMBIGUOUS_INPUT,
     BLOCKED_CODE,
+    FROZEN_KEY_BYTES,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
@@ -58,10 +59,38 @@ def _base_profile() -> dict:
 
 
 class TestProfileHelpers(unittest.TestCase):
-    def test_plain_helpers_disable_permutation(self):
+    def test_plain_helpers_permute_with_the_frozen_key(self):
         for helper in _ALL_HELPERS:
             with self.subTest(helper=helper.__name__):
-                self.assertEqual(helper()["permutation"], {"enabled": False})
+                permutation = helper()["permutation"]
+                self.assertEqual(
+                    permutation,
+                    {
+                        "enabled": True,
+                        "algorithm": "feistel-v1",
+                        "keyId": "frozen",
+                        "keyBytes": FROZEN_KEY_BYTES,
+                        "rounds": 8,
+                    },
+                )
+
+    def test_frozen_tier_shapes(self):
+        # No-separator was retired; minimum keeps zero checksums at [3, 3],
+        # the rest carry two at [4, 4].
+        self.assertEqual(baseh_minimum_v1()["checksumLength"], 0)
+        self.assertEqual(baseh_minimum_v1()["grouping"], [3, 3])
+        for helper in (baseh_light_v1, baseh_medium_v1, baseh_heavy_v1):
+            with self.subTest(helper=helper.__name__):
+                tier = helper()
+                self.assertEqual(tier["checksumLength"], 2)
+                self.assertEqual(tier["separator"], "-")
+                self.assertEqual(tier["grouping"], [4, 4])
+
+    def test_frozen_key_and_private_key_scramble_differently(self):
+        frozen = Baseh(baseh_medium_v1())
+        privy = Baseh(baseh_medium_p_v1(_TEST_KEY))
+        self.assertEqual(frozen.decode(frozen.encode(123456)).id, 123456)
+        self.assertNotEqual(frozen.encode(123456), privy.encode(123456))
 
     def test_keyed_helpers_enable_feistel_v1(self):
         permutation = baseh_medium_p_v1(_TEST_KEY)["permutation"]
@@ -145,12 +174,12 @@ class TestProfileValidation(_ProfileCase):
 
         def separator_in_body(p):
             p["separator"] = "-"
-            p["grouping"] = [3, 3, 1]
+            p["grouping"] = [3, 3, 2]
             p["bodyAlphabet"] = "0123456789ACDEFGHJKMPQRUVXY-"
 
         def separator_in_checksum(p):
             p["separator"] = "-"
-            p["grouping"] = [3, 3, 1]
+            p["grouping"] = [3, 3, 2]
             p["checksumAlphabet"] = "234679ACDEFGHJKMPQRUVXY"[:23] + "-"
 
         def group_sum_mismatch(p):
@@ -174,7 +203,8 @@ class TestProfileValidation(_ProfileCase):
             (lambda p: p.update(aliases={"B": "X", "X": "0"}), "alias chain"),
             (lambda p: p.update(aliases={"A": "A"}), "alias cycle (source canonical)"),
             (group_sum_mismatch, "group total mismatch"),
-            (lambda p: p.update(grouping=[3]), "grouping with empty separator"),
+            (lambda p: p.update(separator="", grouping=[4, 4]),
+             "grouping with empty separator"),
             (lambda p: p["permutation"].pop("keyBytes"), "missing permutation key"),
             (lambda p: p["permutation"].update(rounds=5), "odd rounds"),
             (lambda p: p["permutation"].update(rounds=2), "too few rounds"),
@@ -194,12 +224,13 @@ class TestProfileValidation(_ProfileCase):
         profile = _base_profile()
         profile["checksumLength"] = 0
         profile["checksumAlphabet"] = ""
+        profile["grouping"] = [3, 3]
         Baseh(profile)
 
     def test_separated_profile_grouping_accepted(self):
         profile = _base_profile()
         profile["separator"] = "-"
-        profile["grouping"] = [3, 3, 1]
+        profile["grouping"] = [3, 3, 2]
         codec = Baseh(profile)
         code = codec.encode(1)
         self.assertEqual(code[3], "-")
@@ -252,7 +283,8 @@ class TestProfanity(unittest.TestCase):
         # Medium drops three vowels (A, E, U) from its 28 symbols.
         self.assertEqual(codec.capacity(), 25 ** 6)
         code = codec.encode(0)
-        self.assertEqual(len(code), 7)
+        # 6 body + hyphen + 2 checksum symbols.
+        self.assertEqual(len(code), 9)
         self.assertEqual(codec.decode(code).id, 0)
 
     def test_no_vowels_rejects_vowel_input(self):
@@ -266,10 +298,11 @@ class TestRoundTrip(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.codec = Baseh(_base_profile())
-        # A two-checksum variant built by mutating a fresh helper profile.
+        # A three-checksum variant built by mutating a fresh helper profile.
         profile_s = _base_profile()
-        profile_s["profileId"] = "baseh-medium-p2-test"
-        profile_s["checksumLength"] = 2
+        profile_s["profileId"] = "baseh-medium-p3-test"
+        profile_s["checksumLength"] = 3
+        profile_s["grouping"] = [4, 2, 3]
         cls.codec_s = Baseh(profile_s)
 
     def test_boundary_ids(self):
@@ -303,10 +336,12 @@ class TestRoundTrip(unittest.TestCase):
             self.assertEqual(result.canonical_code, code)
 
     def test_raw_length(self):
+        # 6 body + 2 checksum symbols with one hyphen: XXXX-XXXX.
         code = self.codec.encode(0)
-        self.assertEqual(len(code), 7)
+        self.assertEqual(len(code), 9)
+        # 6 body + 3 checksum symbols with two hyphens.
         code_s = self.codec_s.encode(0)
-        self.assertEqual(len(code_s), 8)
+        self.assertEqual(len(code_s), 11)
 
     def test_aliases(self):
         value = None
@@ -327,7 +362,7 @@ class TestRoundTrip(unittest.TestCase):
 
     def test_validate_never_raises(self):
         self.assertEqual(
-            self.codec.validate("0000000"),
+            self.codec.validate("00000000"),
             {"valid": False, "reason": INVALID_CHECKSUM},
         )
         ok = self.codec.validate(self.codec.encode(7))
@@ -341,7 +376,7 @@ class TestRoundTrip(unittest.TestCase):
             self.codec.decode("00000")
         self.assertEqual(ctx.exception.code, INVALID_CHECKSUM)
         with self.assertRaises(BasehError) as ctx:
-            self.codec.decode("00000000")
+            self.codec.decode("000000000")
         self.assertEqual(ctx.exception.code, INVALID_LENGTH)
         with self.assertRaises(BasehError) as ctx:
             self.codec.decode("0000@0X")

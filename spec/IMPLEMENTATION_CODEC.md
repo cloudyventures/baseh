@@ -209,7 +209,7 @@ The checksum must:
 - Be simple enough to implement consistently.
 - Use only the configured safe checksum alphabet.
 
-Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. All three checksummed frozen tiers (Light, Medium and Heavy, each with `M` between 21 and 24) are in the second category; none of the frozen tiers meets the first, and an application that needs provable total detection raises `checksumLength` in a custom profile rather than reaching for a frozen tier.
+Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions are provably detected; adjacent transpositions are provably detected when `gcd(36, M)` times every possible value difference stays below `M`. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. The three checksummed frozen tiers ship two checksum symbols each (section 17), so their moduli are `S^2` (between 441 and 576): all three provably detect every single-symbol substitution, and Medium and Heavy detect every adjacent transposition as well. Section 6.3 has the per-tier numbers.
 
 ### 6.2 Version 1 checksum
 
@@ -256,12 +256,14 @@ A checksum is error detection, not guaranteed correction. With modulus `M`, a ra
 
 For the version 1 checksum, a single substitution at body position `p` changes the checksum value by `delta * 37^k mod M`, where `k` is the number of body positions after `p` and `delta` is the symbol-value change. Since `gcd(37, M) = 1` for every frozen tier, the substitution evades detection exactly when `delta` is a multiple of `M`. An adjacent transposition of values `a` and `b` changes the checksum by `36 * (a - b) * 37^k mod M`.
 
-- `baseh-minimum-v1`: no checksum. Typo detection is impossible; every displayed string is a valid code.
-- `baseh-light-v1` (`M = 24`, body values 0..30): deltas of `24` evade detection. That is 14 undetected cases out of `31 * 30 = 930` possible single-substitution errors per position, a structured miss rate of about 1.5 percent, plus the random `1/24` rate for other errors. Adjacent transpositions evade detection whenever the swapped values differ by an even number, since `36 * (a - b)` is always divisible by 24 when `a - b` is even. This is the weakest detection posture of the checksummed tiers and is why Light is aimed at typed, not spoken, workflows.
-- `baseh-medium-v1` (`M = 23`, body values 0..27): deltas of `23` evade detection. That is 10 undetected cases out of `28 * 27 = 756` possible single-substitution errors per position, a structured miss rate of about 1.3 percent, plus the random `1/23` rate. Adjacent transpositions evade detection only when the swapped values differ by a multiple of 23, which is rare within a 28-symbol alphabet.
-- `baseh-heavy-v1` (`M = 21`, body values 0..25): deltas of `21` evade detection. That is 10 undetected cases out of `26 * 25 = 650` possible single-substitution errors per position, a structured miss rate of about 1.5 percent, plus the random `1/21` rate. Adjacent transpositions evade detection when the swapped values differ by a multiple of 7.
+The three checksummed frozen tiers ship two checksum symbols, so each modulus is the square of its checksum alphabet size (section 17).
 
-All three checksummed tiers are suitable for assisted support where a human can ask for the code again after a failure. For unattended self-service lookup, configure a custom profile with `checksumLength` 2: at Medium (`M = 529`) or Heavy (`M = 441`) the modulus exceeds every possible symbol-value delta and adjacent-transposition change, so detection of both classes is provably total. Light at two symbols (`M = 576`) reaches total substitution detection but not total transposition detection, because `gcd(36, 576) = 36` leaves deltas that are multiples of 16 undetected.
+- `baseh-minimum-v1`: no checksum. Typo detection is impossible; every displayed string is a valid code.
+- `baseh-light-v1` (`M = 576`, body values 0..30): a substitution needs a delta that is a multiple of 576 to evade detection, which no 31-symbol alphabet can produce, so single-substitution detection is provably total. A random invalid body matches with about a `1/576` chance. Adjacent transpositions evade detection when the swapped values differ by a multiple of 16, because `gcd(36, 576) = 36` reduces the escape condition to `16 | (a - b)`. This is why Light remains aimed at typed, not spoken, workflows.
+- `baseh-medium-v1` (`M = 529`, body values 0..27): substitution detection is provably total and, since `gcd(36, 529) = 1`, an adjacent transposition escapes only for a value difference that is a multiple of 529, which cannot occur in a 28-symbol alphabet. Both structured error classes are provably detected; the random match rate is about `1/529`.
+- `baseh-heavy-v1` (`M = 441`, body values 0..25): substitution detection is provably total and, since the escape condition reduces to `49 | (a - b)`, adjacent transposition detection is total as well. The random match rate is about `1/441`.
+
+Every checksummed frozen tier is now suitable for unattended self-service lookup, which is exactly why version 2 ships two checksum symbols on all three. Multi-symbol edits (for example two wrong symbols in one code) are still only caught at the random-match rate.
 
 ### 6.4 Recommended production choice
 
@@ -338,9 +340,21 @@ Cycle walking inverts identically: apply the inverse round sequence repeatedly u
 - Assign a stable `keyId`.
 - Never change key material for an existing profile.
 - Keep retired keys available for decoding.
-- Do not put keys in frontend code.
+- Do not put keys in frontend code. (The frozen published key of section 7.5 is the deliberate exception; it is not a secret.)
 
-### 7.5 Round function
+### 7.5 The frozen published key
+
+The four frozen tiers (section 17) all permute with a published key so the zero-argument profile helpers work without key provisioning:
+
+```text
+FROZEN_KEY_BYTES = ASCII("baseh-frozen-key-v1")
+keyId            = "frozen"
+rounds           = 8
+```
+
+This key is public on purpose and is embedded in every implementation. It provides obscurity only: codes do not follow the database sequence, but anyone can invert the mapping, so it adds zero secrecy. Applications that need a private mapping use the keyed `-p` tier variants with their own key material and manage that key per section 7.4. The frozen key must never change; doing so would re-map every issued code.
+
+### 7.6 Round function
 
 The round function, message encoding and half-width rules are defined normatively in section 7.3. This subsection is kept only to note the origin of the construction: a standard HMAC-based Feistel network. Do not implement HMAC or SHA-256 manually; use the platform cryptographic library.
 
@@ -488,7 +502,7 @@ Formatted:
 
 The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
 
-The web tools pick `grouping` from the total displayed length (`bodyLength + checksumLength`) with one fixed rule, so a configuration transferred between the tools and a frozen profile keeps the same visual rhythm: no delimiter at 3 or fewer characters; groups of 2 at 4; groups of 3 up to 6; groups of 4 up to 8; groups of 5 beyond that, with any leftover short group trailing. The frozen Minimum tier uses this rule directly: 6 characters with a hyphen, `[3, 3]`.
+The web tools pick `grouping` from the total displayed length (`bodyLength + checksumLength`) with one fixed rule, so a configuration transferred between the tools and a frozen profile keeps the same visual rhythm: no delimiter at 3 or fewer characters; groups of 2 at 4; groups of 3 up to 6; groups of 4 up to 8; groups of 5 beyond that, with any leftover short group trailing. Every frozen tier uses this rule directly: Minimum at 6 characters is `[3, 3]` and Light, Medium and Heavy at 8 characters are `[4, 4]`, all hyphen-delimited (section 17).
 
 ## 12. Public API
 
@@ -606,14 +620,16 @@ Each language implementation must:
 
 ## 17. Reference defaults
 
-Four frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all four run the default profanity blocklist (section 18) and keep the typed `O`/`I`/`L` aliases. `baseh-medium-v1` is the documented default.
+Four frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all four run the default profanity blocklist (section 18) and keep their typed aliases. `baseh-medium-v1` is the documented default.
 
-| Tier | Symbols | Checksum | Delimiter | Capacity | Use for |
-|---|---|---|---|---|---|
-| `baseh-minimum-v1` | 36 | none | hyphen, `[3, 3]` | 2,176,782,336 | Typed contexts where typos are caught downstream |
-| `baseh-light-v1` | 31 | 1 | none | 887,503,681 | Typed workflows with light safety |
-| `baseh-medium-v1` | 28 | 1 | none | 481,890,304 | General use; the default |
-| `baseh-heavy-v1` | 26 | 1 | none | 308,915,776 | Spoken-first workflows |
+Version 2 shapes: all four tiers permute with the frozen published key (section 7.5) and carry a hyphen at the midpoint; Light, Medium and Heavy carry two checksum symbols, Minimum carries none. Capacities are unchanged from version 1 because body length stays 6 everywhere. Codes issued under the version 1 shapes do not decode under these profiles.
+
+| Tier | Symbols | Checksum | Delimiter | Permutation | Capacity | Use for |
+|---|---|---|---|---|---|---|
+| `baseh-minimum-v1` | 36 | none | hyphen, `[3, 3]` | frozen key | 2,176,782,336 | Typed contexts where typos are caught downstream |
+| `baseh-light-v1` | 31 | 2 | hyphen, `[4, 4]` | frozen key | 887,503,681 | Typed workflows with light safety |
+| `baseh-medium-v1` | 28 | 2 | hyphen, `[4, 4]` | frozen key | 481,890,304 | General use; the default |
+| `baseh-heavy-v1` | 26 | 2 | hyphen, `[4, 4]` | frozen key | 308,915,776 | Spoken-first workflows |
 
 `baseh-medium-v1`, the default:
 
@@ -623,10 +639,10 @@ Four frozen tiers ship with the library. Each is the full alphanumeric set with 
   "bodyAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
   "bodyLength": 6,
   "checksumAlphabet": "234679ACDEFGHJKMPQRUVXY",
-  "checksumLength": 1,
+  "checksumLength": 2,
   "caseSensitive": false,
-  "separator": "",
-  "grouping": [],
+  "separator": "-",
+  "grouping": [4, 4],
   "aliases": {
     "O": "0",
     "I": "1",
@@ -636,7 +652,11 @@ Four frozen tiers ship with the library. Each is the full alphanumeric set with 
     "W": "V"
   },
   "permutation": {
-    "enabled": false
+    "enabled": true,
+    "algorithm": "feistel-v1",
+    "keyId": "frozen",
+    "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
+    "rounds": 8
   },
   "profanity": {
     "mode": "blocklist"
@@ -644,13 +664,13 @@ Four frozen tiers ship with the library. Each is the full alphanumeric set with 
 }
 ```
 
-`baseh-minimum-v1`: `bodyAlphabet` is the full `"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"`, `checksumAlphabet` is empty, `checksumLength` is 0, `separator` is `"-"`, `grouping` is `[3, 3]` and `aliases` is empty, because every alphanumeric symbol is canonical.
+`baseh-minimum-v1`: `bodyAlphabet` is the full `"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"`, `checksumAlphabet` is empty, `checksumLength` is 0, `separator` is `"-"`, `grouping` is `[3, 3]` and `aliases` is empty, because every alphanumeric symbol is canonical. Permutation is the same frozen key as the other tiers.
 
-`baseh-light-v1`: `bodyAlphabet` `"0123456789ABCEFGHJKMNPQRSUVWXYZ"`, `checksumAlphabet` `"234679ACEFGHJKMNPQRUVWXY"`, no separator or grouping, aliases adding `"D": "B"` and `"T": "P"` to the `O`/`I`/`L` set.
+`baseh-light-v1`: `bodyAlphabet` `"0123456789ABCEFGHJKMNPQRSUVWXYZ"`, `checksumAlphabet` `"234679ACEFGHJKMNPQRUVWXY"`, `checksumLength` 2, `separator` `"-"`, `grouping` `[4, 4]`, aliases adding `"D": "B"` and `"T": "P"` to the `O`/`I`/`L` set.
 
-`baseh-heavy-v1`: `bodyAlphabet` `"0123456789ABCEFHJKMPQRVXYZ"`, `checksumAlphabet` `"234679ACEFHJKMPQRUVXY"`, no separator or grouping, aliases adding `"D": "B"`, `"T": "P"`, `"N": "M"`, `"W": "V"`, `"S": "F"` and `"G": "C"` to the `O`/`I`/`L` set.
+`baseh-heavy-v1`: `bodyAlphabet` `"0123456789ABCEFHJKMPQRVXYZ"`, `checksumAlphabet` `"234679ACEFHJKMPQRUVXY"`, `checksumLength` 2, `separator` `"-"`, `grouping` `[4, 4]`, aliases adding `"D": "B"`, `"T": "P"`, `"N": "M"`, `"W": "V"`, `"S": "F"` and `"G": "C"` to the `O`/`I`/`L` set.
 
-Each tier also ships a keyed variant whose `profileId` gains a `-p` segment (`baseh-minimum-p-v1` through `baseh-heavy-p-v1`): identical to the plain tier but with Feistel-v1 permutation enabled, requiring caller-supplied key material (section 7). Application-specific permutation keys are never part of a frozen profile and each application assigns its own `keyId` and key material. Profile helpers return a freshly built, mutable profile object on every call, so an application can load a default and then modify it (longer body, custom separator, no profanity blocklist) without mutating the frozen definition from which it started. Freeze the tiers' checksum and Feistel test vectors before production use.
+Each tier also ships a keyed variant whose `profileId` gains a `-p` segment (`baseh-minimum-p-v1` through `baseh-heavy-p-v1`): identical to the plain tier but with Feistel-v1 permutation keyed by caller-supplied key material (section 7) instead of the frozen published key. Application-specific permutation keys are never part of a frozen profile and each application assigns its own `keyId` and key material. Profile helpers return a freshly built, mutable profile object on every call, so an application can load a default and then modify it (longer body, custom separator, no profanity blocklist) without mutating the frozen definition from which it started. The shared `vectors.json` pins every tier's checksum, formatting and frozen-key Feistel behaviour; implementations must match it before release.
 
 ## 18. Profanity safety
 

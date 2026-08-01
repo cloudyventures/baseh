@@ -22,30 +22,51 @@ function show(label: string, fn: () => unknown): void {
 console.log("== zero config ==");
 show("toCode(123456789n)", () => toCode(123456789n));
 show('toCode("123456789")', () => toCode("123456789"));
-show('fromCode("74UYC19")', () => fromCode("74UYC19"));
-show('fromCode("74uyc 19")', () => fromCode("74uyc 19"));
-show('fromCode("74UYC1X")', () => fromCode("74UYC1X"));
-show("toCode(481890304n)", () => toCode(481890304n));
+show('fromCode("C8XP-8J49")', () => fromCode("C8XP-8J49"));
+show('fromCode("c8xp 8j4 9")', () => fromCode("c8xp 8j4 9"));
+show('fromCode("C8XP-8J4X") (checksum typo)', () => fromCode("C8XP-8J4X"));
+show("toCode(481890304n) (out of range)", () => toCode(481890304n));
 
 // 2. A frozen preset: load baseh-medium-v1 and use the full codec.
 console.log("== preset ==");
 const medium = new Baseh(basehMediumV1());
 show("encode(123456789n)", () => medium.encode(123456789n));
-show('decode("74UYC19").id', () => medium.decode("74UYC19").id);
-show('decode("OOOOOOC").id (typed aliases)', () => medium.decode("OOOOOOC").id);
-show("encode(1131n) (blocked word)", () => medium.encode(1131n));
-show('decode("742YC19") (checksum typo)', () => medium.decode("742YC19"));
+show('decode("C8XP-8J49").id', () => medium.decode("C8XP-8J49").id);
+show('decode("UORY-PDCA").id (typed O reads as 0)', () => medium.decode("UORY-PDCA").id);
+show("encode(813n) (blocked word)", () => medium.encode(813n));
+show('decode("C8XP-8JX9") (checksum typo)', () => medium.decode("C8XP-8JX9"));
 show("capacity", () => medium.capacity());
 
-// 3. Customized: load a preset, extend the body and add a delimiter.
+// 3. Correction: when a typo fails the checksum but a spoken-confusion swap
+// fixes exactly one candidate, decode returns the amended code. The frozen
+// Medium tier absorbs common swaps as direct aliases, so this demo uses a
+// custom full-alphabet profile like the spec's correction vectors.
+console.log("== correction ==");
+const tickets = new Baseh({
+  profileId: "tickets-v1",
+  bodyAlphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+  bodyLength: 6,
+  checksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+  checksumLength: 2,
+  caseSensitive: false,
+  separator: "-",
+  grouping: [4, 4],
+  aliases: { O: "0", I: "1", L: "1" },
+  permutation: { enabled: false }
+});
+show('decode("00000BKD") (heard B for D)', () => {
+  const r = tickets.decode("00000BKD", { tryCorrection: true, confusionProfile: "light" });
+  return `Identifier: ${r.id}${r.corrected ? `, corrected to ${r.canonicalCode}` : ""}`;
+});
+
+// 4. Customized: load a preset, extend the body and keep the hyphen.
 console.log("== customized ==");
 const custom = basehMediumV1();
 custom.profileId = "orders-v1";
 custom.bodyLength = 7;
-custom.separator = "-";
-custom.grouping = [4, 4];
+custom.grouping = [5, 4];
 const orders = new Baseh(custom);
 show("encode(123456789n)", () => orders.encode(123456789n));
 show('decode(...) round trip', () => orders.decode(orders.encode(123456789n)).id);
-show('decode("D4UY-C190") (bad check)', () => orders.decode("D4UY-C190"));
+show('decode("ZC8VR-EMJX") (bad check)', () => orders.decode("ZC8VR-EMJX"));
 show("capacity", () => orders.capacity());

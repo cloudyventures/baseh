@@ -55,12 +55,16 @@ profile_id: baseh-medium-v1
 body_alphabet: "0123456789ACDEFGHJKMPQRUVXYZ"
 body_length: 6
 checksum_alphabet: "234679ACDEFGHJKMPQRUVXY"
-checksum_length: 1
+checksum_length: 2
 case_sensitive: false
-grouping: []
-separator: ""
+grouping: [4, 4]
+separator: "-"
 permutation:
-  enabled: false
+  enabled: true
+  algorithm: feistel-v1
+  key_id: frozen
+  key_bytes_hex: "62617365682d66726f7a656e2d6b65792d7631"
+  rounds: 8
 profanity:
   mode: blocklist
 aliases:
@@ -75,16 +79,16 @@ aliases:
 Example rendered shape:
 
 ```text
-7KM4Q2H
+C8XP-8J49
 ```
 
 This profile has `28^6 = 481,890,304` body combinations. The checksum adds validation but does not add identifier capacity.
 
-The other tiers bracket it: `baseh-minimum-v1` (full 36-symbol alphanumeric, no checksum, hyphen grouped, `36^6 = 2,176,782,336` combinations) for typed contexts, `baseh-light-v1` (31 symbols, 1 checksum, `31^6 = 887,503,681`) for typed workflows with light safety and `baseh-heavy-v1` (26 symbols, 1 checksum, `26^6 = 308,915,776`) for spoken-first workflows. All four run the default profanity blocklist. Each tier also has a `-p` keyed variant with Feistel permutation for sequence hiding.
+The other tiers bracket it: `baseh-minimum-v1` (full 36-symbol alphanumeric, no checksum, hyphen grouped `[3, 3]`, `36^6 = 2,176,782,336` combinations) for typed contexts, `baseh-light-v1` (31 symbols, 2 checksums, hyphen grouped `[4, 4]`, `31^6 = 887,503,681`) for typed workflows with light safety and `baseh-heavy-v1` (26 symbols, 2 checksums, hyphen grouped `[4, 4]`, `26^6 = 308,915,776`) for spoken-first workflows. All four run the default profanity blocklist and all four permute with the same frozen published key.
 
-None of the one-checksum tiers provably detects every error class; for unattended self-service lookup, configure a custom profile with `checksumLength` 2 at Medium or Heavy, where detection of single substitutions and adjacent transpositions is provably total (see `IMPLEMENTATION_CODEC.md` section 6.3).
+With two checksum symbols the checksummed tiers provably detect every single-symbol substitution, and Medium and Heavy detect every adjacent transposition as well (see `IMPLEMENTATION_CODEC.md` section 6.3). That is what makes the frozen tiers suitable for unattended self-service lookup.
 
-Permutation is off in the plain tiers. An application that wants sequence hiding uses a `-p` variant and passes its own key; key material is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
+Permutation is always on in the plain tiers, keyed with the published frozen key (`IMPLEMENTATION_CODEC.md` section 7.5) so the zero-argument helpers work out of the box. The frozen key hides sequence only; it is not a secret. An application that wants a private mapping uses a `-p` variant and passes its own key; that key is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
 
 ## Terminology
 

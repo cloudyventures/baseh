@@ -6,8 +6,10 @@
 import { writeFileSync } from "node:fs";
 import {
   Baseh, basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
-  prepareProfile, calculateChecksum, permute, inversePermute
+  FROZEN_KEY_BYTES, prepareProfile, calculateChecksum, permute, inversePermute
 } from "../src/index.js";
+
+const FROZEN_KEY_HEX = [...FROZEN_KEY_BYTES].map((b) => b.toString(16).padStart(2, "0")).join("");
 import type { BasehProfile } from "../src/index.js";
 
 const TEST_KEY_HEX = "746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031"; // "test-only-key-material-0001"
@@ -47,8 +49,8 @@ function alpha32TestProfile(profileId: string, permutation: BasehProfile["permut
 }
 
 function profiles(): VectorProfile[] {
-  // Frozen tiers ship permutation-off; the keyed -p variants are exercised by
-  // the dedicated perm-test profile below.
+  // Frozen tiers permute with the published frozen key; a caller-keyed mapping
+  // is exercised by the dedicated perm-test profile below.
   const noPerm = alpha32TestProfile("baseh32-noperm-test", { enabled: false });
   const permTest = alpha32TestProfile("baseh32-perm-test", {
     enabled: true,
@@ -58,10 +60,10 @@ function profiles(): VectorProfile[] {
     rounds: 8
   });
   return [
-    { profile: basehMinimumV1(), keyHex: null },
-    { profile: basehLightV1(), keyHex: null },
-    { profile: basehMediumV1(), keyHex: null },
-    { profile: basehHeavyV1(), keyHex: null },
+    { profile: basehMinimumV1(), keyHex: FROZEN_KEY_HEX },
+    { profile: basehLightV1(), keyHex: FROZEN_KEY_HEX },
+    { profile: basehMediumV1(), keyHex: FROZEN_KEY_HEX },
+    { profile: basehHeavyV1(), keyHex: FROZEN_KEY_HEX },
     { profile: noPerm, keyHex: null },
     { profile: permTest, keyHex: TEST_KEY_HEX }
   ];
@@ -145,11 +147,14 @@ for (const { profile, keyHex } of profiles()) {
 }
 
 // Decode-side vectors: stripped leading zero body symbols (spec 3.4). The
-// canonical code is unchanged; the decoder re-pads before validation.
+// decoder re-pads the body before validation; the frozen permutation then maps
+// the zero-padded body to its identifier.
 {
   const base = basehMediumV1();
   const h = new Baseh(base);
-  for (const [stripped, id] of [["C", 0n], ["1D", 1n], ["ZG", 27n]] as const) {
+  for (const body of ["000000", "000001", "00000Z"]) {
+    const stripped = body.replace(/^0+(?=.)/, "") + calculateChecksum(h.profile, body);
+    const id = h.decode(stripped).id;
     codecVectors.push({
       profileId: base.profileId,
       input: stripped,
@@ -161,11 +166,13 @@ for (const { profile, keyHex } of profiles()) {
 }
 {
   const base = basehMinimumV1();
+  const h = new Baseh(base);
+  const id = h.decode("0").id;
   codecVectors.push({
     profileId: base.profileId,
     input: "0",
-    id: "0",
-    canonicalCode: "000-000",
+    id: id.toString(10),
+    canonicalCode: h.encode(id),
     note: "stripped leading zeros, no checksum"
   } as never);
 }
@@ -204,7 +211,7 @@ const errorVectors: unknown[] = [
   { profileId: "baseh-medium-v1", input: "00000", error: "INVALID_CHECKSUM" },
   { profileId: "baseh-medium-v1", input: "0000@0X", error: "INVALID_CHARACTER" },
   { profileId: "baseh-medium-v1", input: "0000PD", error: "INVALID_CHECKSUM" },
-  { profileId: "baseh-medium-v1", input: "0000000C", error: "INVALID_LENGTH" },
+  { profileId: "baseh-medium-v1", input: "00000000C", error: "INVALID_LENGTH" },
   { profileId: "baseh-medium-v1", input: "", error: "INVALID_LENGTH" },
   // U exists only in the heavy checksum alphabet; placed in the body region
   // it must fail as INVALID_CHARACTER (spec 9), not crash and not pass through.
@@ -217,7 +224,7 @@ const errorVectors: unknown[] = [
   const canonical = h.encode(77n);
   const raw = canonical.replaceAll("-", "");
   const badCheck = raw[6] === "2" ? "3" : "2";
-  const bad = raw.slice(0, 6) + badCheck;
+  const bad = raw.slice(0, 6) + badCheck + raw[7];
   errorVectors.push({ profileId: base.profileId, input: bad, error: "INVALID_CHECKSUM" });
   void h;
 }

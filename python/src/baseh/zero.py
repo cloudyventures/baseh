@@ -3,7 +3,7 @@
 No profile object, no key: just the two functions an application needs
 when it does not want to think about configuration.
 
-    to_code(id)    -> "7KM4Q2H"
+    to_code(id)    -> "UJEA-4MA7"
     from_code(code) -> id
 
 to_code accepts an int or a decimal string of digits. from_code strips

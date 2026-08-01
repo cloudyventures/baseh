@@ -135,7 +135,7 @@ jobs:
         id: gemstate
         run: |
           V=$(ruby -e 'require_relative "ruby/lib/baseh/version"; print Baseh::VERSION')
-          if curl -sf "https://rubygems.org/api/v1/gems/baseh.json" | grep -q "\"number\":\"$V\""; then
+          if curl -sf "https://rubygems.org/api/v1/versions/baseh.json" | grep -q "\"number\":\"$V\""; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"

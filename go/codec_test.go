@@ -1,6 +1,7 @@
 package basehuman
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -163,8 +164,13 @@ func plainTiers() map[string]Profile {
 
 func TestShippedProfilesAccepted(t *testing.T) {
 	for id, p := range plainTiers() {
-		if p.Permutation.Enabled {
-			t.Errorf("%s: plain tier has permutation enabled", id)
+		// Every plain tier permutes with the frozen published key.
+		perm := p.Permutation
+		if !perm.Enabled || perm.Algorithm != "feistel-v1" || perm.KeyID != "frozen" || perm.Rounds != 8 {
+			t.Errorf("%s: permutation = %+v, want frozen defaults", id, perm)
+		}
+		if !bytes.Equal(perm.KeyBytes, FrozenKeyBytes) {
+			t.Errorf("%s: permutation key diverges from FrozenKeyBytes", id)
 		}
 		if _, err := NewBaseh(p); err != nil {
 			t.Errorf("%s: %v", id, err)
@@ -206,6 +212,11 @@ func TestHelpersReturnFreshProfiles(t *testing.T) {
 	k.Permutation.KeyBytes = nil
 	if got := BasehMediumPV1(testKey, "test-01", 8); len(got.Permutation.KeyBytes) == 0 {
 		t.Errorf("keyed tier returned a shared key slice")
+	}
+	f := BasehLightV1()
+	f.Permutation.KeyBytes[0] ^= 0xff
+	if got := BasehLightV1().Permutation.KeyBytes[0]; got != FrozenKeyBytes[0] {
+		t.Errorf("frozen key mutation leaked into a fresh profile")
 	}
 }
 

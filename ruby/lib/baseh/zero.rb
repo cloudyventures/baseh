@@ -5,8 +5,8 @@ module Baseh
   # object, no key: just the two functions an application needs when it
   # does not want to think about configuration.
   #
-  #   Baseh.to_code(481890303)     -> "ZZZZZZV"
-  #   Baseh.from_code("ZZZZZZV")   -> 481890303
+  #   Baseh.to_code(481890303)     -> "H3C9-2PEM"
+  #   Baseh.from_code("H3C9-2PEM") -> 481890303
   #
   # to_code accepts an Integer or a decimal string of digits. from_code
   # strips every whitespace character (edges and internal), accepts

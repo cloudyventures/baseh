@@ -5,7 +5,7 @@
 use baseh::{
     baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1,
     baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1, Baseh, ConfusionProfile, DecodeOptions,
-    ErrorCode, Permutation, Profanity, ProfanityMode, Profile,
+    ErrorCode, Permutation, Profanity, ProfanityMode, Profile, FROZEN_KEY_BYTES,
 };
 use num_bigint::BigUint;
 
@@ -271,11 +271,40 @@ fn frozen_tiers_have_documented_capacities() {
 
 #[test]
 fn frozen_profile_permutation_shape() {
-    // Permutation is opt-in: the plain helpers disable it.
-    assert_eq!(baseh_minimum_v1().permutation, Permutation::Disabled);
-    assert_eq!(baseh_light_v1().permutation, Permutation::Disabled);
-    assert_eq!(baseh_medium_v1().permutation, Permutation::Disabled);
-    assert_eq!(baseh_heavy_v1().permutation, Permutation::Disabled);
+    // Every plain tier permutes with the frozen published key; only the -p
+    // variants take caller key material.
+    let frozen = Permutation::FeistelV1 {
+        key_id: "frozen".to_string(),
+        key_bytes: FROZEN_KEY_BYTES.to_vec(),
+        rounds: 8,
+    };
+    for profile in [
+        baseh_minimum_v1(),
+        baseh_light_v1(),
+        baseh_medium_v1(),
+        baseh_heavy_v1(),
+    ] {
+        assert_eq!(profile.permutation, frozen);
+    }
+    // The frozen key and a private key scramble differently.
+    let frozen_codec = Baseh::new(baseh_medium_v1()).unwrap();
+    let private = Baseh::new(baseh_medium_p_v1(KEY, "test-01", 8)).unwrap();
+    let options = DecodeOptions::default();
+    let id = BigUint::from(123456u64);
+    let code = frozen_codec.encode(&id).unwrap();
+    assert_eq!(frozen_codec.decode(&code, &options).unwrap().id, id);
+    assert_ne!(code, private.encode(&id).unwrap());
+    // New frozen shapes: minimum keeps zero checksums at [3, 3]; the rest
+    // carry two at [4, 4] with a hyphen delimiter.
+    let minimum = baseh_minimum_v1();
+    assert_eq!(minimum.checksum_length, 0);
+    assert_eq!(minimum.separator, "-");
+    assert_eq!(minimum.grouping, vec![3, 3]);
+    for profile in [baseh_light_v1(), baseh_medium_v1(), baseh_heavy_v1()] {
+        assert_eq!(profile.checksum_length, 2);
+        assert_eq!(profile.separator, "-");
+        assert_eq!(profile.grouping, vec![4, 4]);
+    }
     // The keyed helpers enable feistel-v1 and gain the "-p" profile id.
     assert_eq!(
         baseh_medium_p_v1(KEY, "test-01", 8).permutation,
@@ -530,11 +559,17 @@ fn look_alike_aliases_on_frozen_medium() {
     // Typed S decodes as 5, uppercase or lowercase.
     let (id, code) = first_medium_code_with(&baseh, '5');
     assert_eq!(
-        baseh.decode(&code.replacen('5', "S", 1), &options).unwrap().id,
+        baseh
+            .decode(&code.replacen('5', "S", 1), &options)
+            .unwrap()
+            .id,
         id
     );
     assert_eq!(
-        baseh.decode(&code.replacen('5', "s", 1), &options).unwrap().id,
+        baseh
+            .decode(&code.replacen('5', "s", 1), &options)
+            .unwrap()
+            .id,
         id
     );
 
