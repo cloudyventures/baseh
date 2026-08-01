@@ -97,6 +97,44 @@ pub struct ValidateOutcome {
     pub reason: Option<ErrorCode>,
 }
 
+/// Live as-you-type inspection result (spec 12.5). `inspect` never panics on
+/// user input and never reports [`InspectResult::Valid`] for an incomplete
+/// code. There is deliberately no `suggest` variant: the frozen profiles
+/// alias confusable characters during normalization.
+#[derive(Debug, Clone, PartialEq)]
+pub enum InspectResult {
+    /// Nothing typed yet, after separator and whitespace removal.
+    Empty,
+    /// Incomplete input, every symbol valid so far. `typed` carries the
+    /// normalized symbols with separators inserted as far as the groups go;
+    /// `progress` is the fraction toward a complete code, in `(0, 1)`.
+    Typing { typed: String, progress: f64 },
+    /// A symbol outside the union of the body and checksum alphabets.
+    BadChar,
+    /// More symbols than the profile accepts (fixed: `bodyLength +
+    /// checksumLength`; expandable: 32).
+    TooLong,
+    /// A complete code that failed validation; `reason` is the error code
+    /// reported by validate.
+    Invalid { reason: ErrorCode },
+    /// A complete, valid code with its decoded id and canonical rendering.
+    Valid { id: BigUint, canonical_code: String },
+}
+
+impl InspectResult {
+    /// The spec 12.5 state name, identical across implementations.
+    pub fn state(&self) -> &'static str {
+        match self {
+            InspectResult::Empty => "empty",
+            InspectResult::Typing { .. } => "typing",
+            InspectResult::BadChar => "bad-char",
+            InspectResult::TooLong => "too-long",
+            InspectResult::Invalid { .. } => "invalid",
+            InspectResult::Valid { .. } => "valid",
+        }
+    }
+}
+
 const MAX_CANDIDATES: usize = 64;
 
 fn is_ascii_ws(c: char) -> bool {
@@ -233,6 +271,35 @@ fn format_with(raw: &[char], sizes: &[usize], separator: &str) -> String {
         offset += size;
     }
     parts.join(separator)
+}
+
+/// Spec 12.5. Separators inserted into a partially typed code, as far as the
+/// groups go. Fixed mode walks the configured grouping, emitting a partial
+/// final group as-is and no separator for a group the symbols do not reach;
+/// expandable mode uses the balanced grouping rule of spec 19.5 for the typed
+/// length, bare below separatorMinLength.
+fn format_partial(raw: &[char], profile: &PreparedProfile) -> String {
+    let p = &profile.profile;
+    if p.separator.is_empty() {
+        return raw.iter().collect();
+    }
+    if p.mode == Mode::Expandable {
+        if raw.len() < profile.separator_min_length {
+            return raw.iter().collect();
+        }
+        return format_with(raw, &expandable_grouping(raw.len()), &p.separator);
+    }
+    let mut parts: Vec<String> = Vec::new();
+    let mut offset = 0;
+    for size in &p.grouping {
+        if offset >= raw.len() {
+            break;
+        }
+        let end = (offset + size).min(raw.len());
+        parts.push(raw[offset..end].iter().collect());
+        offset = end;
+    }
+    parts.join(&p.separator)
 }
 
 /// Spec 19.5. Group sizes for a total length under the balanced rule:
@@ -626,6 +693,107 @@ impl Baseh {
             canonical_code,
             corrected: raw != canonical_raw,
         })
+    }
+
+    /// Spec 12.5. Live as-you-type inspection. Gates on the typed length
+    /// before validating, so spec 3.4 re-padding can never paint an
+    /// incomplete fixed-mode code valid (or invalid): a short fixed input is
+    /// typing, never checked. Never panics on user input.
+    pub fn inspect(&self, input: &str) -> InspectResult {
+        let p = &self.profile.profile;
+        // Step 1: remove every occurrence of the separator string (literal
+        // substring removal), then drop ASCII whitespace anywhere.
+        let no_sep = if p.separator.is_empty() {
+            input.to_string()
+        } else {
+            input.replace(&p.separator, "")
+        };
+        let cleaned: Vec<char> = no_sep.chars().filter(|c| !is_ascii_ws(*c)).collect();
+        let typed_count = cleaned.len();
+        if typed_count == 0 {
+            return InspectResult::Empty;
+        }
+
+        // Step 3: completeness bounds per mode. Expandable mode is complete
+        // for every length from minLength through 32 (the length selects the
+        // generation), so the over-length bound is 32.
+        let fixed = p.mode == Mode::Fixed;
+        let expected = if fixed {
+            p.body_length + p.checksum_length
+        } else {
+            32
+        };
+        if typed_count > expected {
+            return InspectResult::TooLong;
+        }
+
+        // Step 4: spec 3.1 steps 4-6 without the length checks and without
+        // re-padding — case normalization, aliases, then union membership. A
+        // symbol outside both alphabets is bad-char; a symbol valid only in
+        // the other region passes here and fails later under validate.
+        let allowed: HashSet<char> = self
+            .profile
+            .body_alphabet_norm
+            .iter()
+            .chain(self.profile.checksum_alphabet_norm.iter())
+            .copied()
+            .collect();
+        let normalized: Vec<char> = cleaned
+            .iter()
+            .map(|c| {
+                let c = if p.case_sensitive {
+                    *c
+                } else {
+                    c.to_ascii_uppercase()
+                };
+                if allowed.contains(&c) {
+                    c
+                } else {
+                    *self.profile.aliases_norm.get(&c).unwrap_or(&c)
+                }
+            })
+            .collect();
+        if normalized.iter().any(|c| !allowed.contains(c)) {
+            return InspectResult::BadChar;
+        }
+
+        // Step 5: incomplete inputs report typing. Fixed mode: complete means
+        // exactly bodyLength + checksumLength symbols; expandable mode: every
+        // length at or above minLength is complete.
+        let complete = if fixed {
+            typed_count == expected
+        } else {
+            typed_count >= self.profile.min_length
+        };
+        if !complete {
+            let denominator = if fixed {
+                expected
+            } else {
+                self.profile.min_length
+            };
+            return InspectResult::Typing {
+                typed: format_partial(&normalized, &self.profile),
+                progress: typed_count as f64 / denominator as f64,
+            };
+        }
+
+        // Step 6: judge the normalized string (no separator, no whitespace,
+        // case- and alias-normalized).
+        let raw: String = normalized.iter().collect();
+        let options = DecodeOptions::default();
+        let outcome = self.validate(&raw, &options);
+        if !outcome.valid {
+            return InspectResult::Invalid {
+                reason: outcome.reason.unwrap_or(ErrorCode::InvalidChecksum),
+            };
+        }
+        let decoded = self
+            .decode(&raw, &options)
+            .expect("validate passed, so decode cannot fail on the same input");
+        InspectResult::Valid {
+            id: decoded.id,
+            canonical_code: decoded.canonical_code,
+        }
     }
 
     /// Spec 12.4. Never fails on user input; never exposes an internal ID.

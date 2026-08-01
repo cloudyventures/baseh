@@ -9,7 +9,7 @@ export {
   generateCandidates,
   CONFUSION_MAPS
 } from "./codec.js";
-export type { DecodeOptions, DecodeResult, ValidateResult, ConfusionProfileName } from "./codec.js";
+export type { DecodeOptions, DecodeResult, ValidateResult, InspectResult, ConfusionProfileName } from "./codec.js";
 export { encodeBaseN, decodeBaseN, alphabetIndex } from "./basen.js";
 export { calculateChecksum, checksumValue } from "./checksum.js";
 export { permute, inversePermute } from "./feistel.js";
@@ -21,6 +21,6 @@ export {
   type FrozenKeyOptions
 } from "./profiles.js";
 export { generationBase, generationCapacity, generationForId, expandableGrouping } from "./codec.js";
-export { encode, decode, validate } from "./facade.js";
+export { encode, decode, validate, inspect } from "./facade.js";
 export { DEFAULT_BLOCKLIST, effectiveBlocklist, stripVowels } from "./blocklist.js";
 export type { BasehProfanity, BasehProfanityMode } from "./blocklist.js";

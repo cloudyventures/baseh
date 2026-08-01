@@ -5,7 +5,7 @@ exactly, including its error conventions (BasehError with a stable .code)."""
 
 from __future__ import annotations
 
-from .codec import Baseh, DecodeResult
+from .codec import Baseh, DecodeResult, InspectResult
 from .profiles import baseh_expandable_v1
 
 _default: Baseh | None = None
@@ -39,3 +39,9 @@ def decode(
         confusion_profile=confusion_profile,
         max_corrections=max_corrections,
     )
+
+
+def inspect(code: str) -> InspectResult:
+    """Live as-you-type inspection (spec 12.5) with the shared
+    baseh-expandable-v1 codec. Never raises on user input."""
+    return _default_codec().inspect(code)

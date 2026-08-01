@@ -35,7 +35,23 @@ export interface ValidateResult {
   reason?: BasehErrorCode;
 }
 
+/**
+ * Spec 12.5. Live as-you-type feedback for a code entry field. `typing`
+ * carries the normalized typed symbols with separators inserted as far as
+ * the groups go, plus a progress fraction; `invalid` carries the
+ * BasehErrorCode from validate; `valid` is only ever reported for a
+ * complete code.
+ */
+export type InspectResult =
+  | { state: "empty" }
+  | { state: "typing"; typed: string; progress: number }
+  | { state: "bad-char" }
+  | { state: "too-long" }
+  | { state: "invalid"; reason: BasehErrorCode }
+  | { state: "valid"; id: bigint; canonicalCode: string };
+
 const ASCII_WS = /^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g;
+const INSPECT_WS = /[\t\n\v\f\r ]/;
 const MAX_CANDIDATES = 64;
 
 /** Spec 3.1 normalization, steps 1-7. Returns the raw unformatted string. */
@@ -366,4 +382,74 @@ export class Baseh {
       throw err;
     }
   }
+
+  /**
+   * Spec 12.5. Live as-you-type inspection. Gates on the typed length before
+   * validating, so spec 3.4 re-padding can never paint an incomplete fixed-mode
+   * code `valid` (or `invalid`): a short fixed input is `typing`, never
+   * checked. Never throws on user input.
+   */
+  inspect(input: string): InspectResult {
+    const p = this.profile;
+    // Remove every occurrence of the separator string, then drop ASCII
+    // whitespace anywhere (a paste can carry either inside the code).
+    const noSep = p.separator.length > 0 ? input.split(p.separator).join("") : input;
+    const cleaned = [...noSep].filter((ch) => !INSPECT_WS.test(ch));
+    const typedCount = cleaned.length;
+    if (typedCount === 0) return { state: "empty" };
+
+    const fixed = p.mode === "fixed";
+    const expected = fixed ? (p.bodyLength as number) + p.checksumLength : 32;
+    if (typedCount > expected) return { state: "too-long" };
+
+    // Spec 3.1 steps 4-6, without the length checks: case normalization,
+    // aliases, then union membership. A symbol outside both alphabets is
+    // bad-char; a symbol valid only in the other region (say a checksum-only
+    // symbol typed into the body) passes here and fails later under validate.
+    const allowed = new Set([...p.bodyAlphabetNorm, ...p.checksumAlphabetNorm]);
+    let s = cleaned.join("");
+    if (!p.caseSensitive) s = s.toUpperCase();
+    const raw = [...s].map((ch) => (allowed.has(ch) ? ch : (p.aliasesNorm[ch] ?? ch))).join("");
+    if ([...raw].some((ch) => !allowed.has(ch))) return { state: "bad-char" };
+
+    // Fixed mode: complete means exactly bodyLength + checksumLength symbols.
+    // Expandable mode: every length from minLength through 32 is a complete
+    // code (the length selects the generation), so typing is only below
+    // minLength.
+    const complete = fixed ? typedCount === expected : typedCount >= p.minLength;
+    if (!complete) {
+      return {
+        state: "typing",
+        typed: formatPartial(raw, p),
+        progress: typedCount / (fixed ? expected : p.minLength)
+      };
+    }
+
+    const result = this.validate(raw);
+    if (!result.valid) return { state: "invalid", reason: result.reason ?? "INVALID_CHECKSUM" };
+    const decoded = this.decode(raw);
+    return { state: "valid", id: decoded.id, canonicalCode: decoded.canonicalCode };
+  }
+}
+
+/**
+ * Spec 12.5. Separators inserted into a partially typed code, as far as the
+ * groups go. Fixed mode walks the configured grouping; expandable mode uses
+ * the balanced grouping rule of spec 19.5 for the typed length, bare below
+ * separatorMinLength.
+ */
+function formatPartial(raw: string, profile: PreparedProfile): string {
+  if (profile.separator.length === 0) return raw;
+  if (profile.mode === "expandable") {
+    if (raw.length < profile.separatorMinLength) return raw;
+    return formatWith(raw, expandableGrouping(raw.length), profile.separator);
+  }
+  const parts: string[] = [];
+  let offset = 0;
+  for (const size of profile.grouping) {
+    if (offset >= raw.length) break;
+    parts.push(raw.slice(offset, offset + size));
+    offset += size;
+  }
+  return parts.join(profile.separator);
 }

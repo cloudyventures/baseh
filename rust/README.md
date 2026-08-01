@@ -144,6 +144,12 @@ Profiles accept an optional `profanity` object with three modes:
   exceed u64). Fixed mode only; expandable profiles fail `INVALID_PROFILE`.
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
+- `inspect(input) -> InspectResult` (spec 12.5) gives live as-you-type
+  feedback: an enum with per-state variants (`Empty`, `Typing { typed,
+  progress }`, `BadChar`, `TooLong`, `Invalid { reason }`, `Valid { id,
+  canonical_code }`); `InspectResult::state()` renders the cross-language
+  state name. It never panics on user input and never reports `Valid` for an
+  incomplete code. `baseh::inspect` applies it to the default profile.
 - `baseh_expandable_v1` builds the recommended expandable tier profile
   (`mode: "expandable"`, `min_length` 4, `separator_min_length` 6), permuting
   per code length with the public frozen key; `baseh_expandable_p_v1` takes
@@ -169,8 +175,11 @@ decision. Applications should advance their sequence by one and re-encode.
 `cargo test` runs:
 
 - `tests/vectors.rs`: every frozen encode, decode, error, encode-error,
-  correction and Feistel vector from `../vectors/`, with profiles (including
-  profanity modes) rebuilt from the embedded definitions.
+  correction, inspect and Feistel vector from `../vectors/`, with profiles
+  (including profanity modes) rebuilt from the embedded definitions.
+- `tests/inspect.rs`: the spec 12.5 state machine in both modes — every
+  state, partial-prefix rendering, aliases while typing and the spec 3.4
+  padded-prefix false-green case.
 - `tests/codec.rs`: profile-validation rejections, boundary round trips,
   normalization, aliases, correction, blocklist and no-vowels behavior, a
   10k sequential-id round-trip smoke and a fixed-seed fuzz smoke.

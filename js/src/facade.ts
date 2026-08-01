@@ -1,4 +1,4 @@
-import { Baseh, type DecodeOptions, type DecodeResult, type ValidateResult } from "./codec.js";
+import { Baseh, type DecodeOptions, type DecodeResult, type InspectResult, type ValidateResult } from "./codec.js";
 import { basehExpandableV1 } from "./profiles.js";
 
 /**
@@ -28,4 +28,9 @@ export function decode(input: string, options: DecodeOptions = {}): DecodeResult
 /** Validate a code with the default expandable v1 profile. Never throws on user input. */
 export function validate(input: string, options: DecodeOptions = {}): ValidateResult {
   return sharedInstance().validate(input, options);
+}
+
+/** Live as-you-type inspection with the default expandable v1 profile. Never throws on user input. */
+export function inspect(input: string): InspectResult {
+  return sharedInstance().inspect(input);
 }

@@ -114,6 +114,13 @@ check = codec.validate("00000000")
 check.valid                                # => false
 check.reason                               # => "INVALID_CHECKSUM"
 
+# Live as-you-type feedback for a code entry field (never raises)
+look = codec.inspect("C8XP8")
+look.state                                 # => "typing" (or "empty", "bad-char",
+                                           #     "too-long", "invalid", "valid")
+look.typed                                 # => "C8XP-8"
+look.progress                              # => 0.625
+
 # Spoken-confusion correction
 result = codec.decode("TB14QDFU", try_correction: true, confusion_profile: :light)
 ```

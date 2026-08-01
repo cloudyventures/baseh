@@ -658,6 +658,124 @@ validate(
 }
 ```
 
+### 12.5 Inspect
+
+`inspect` gives live as-you-type feedback for a code entry field. Calling
+`validate` per keystroke is subtly wrong: in fixed mode, section 3.4
+re-padding validates a partially typed code as though the user had typed the
+missing leading zero symbols, so nearly every keystroke reports
+`INVALID_CHECKSUM` and the occasional padded prefix passes the checksum and
+reports a false green. `inspect` gates on the typed length first, so an
+incomplete fixed-mode code is never checked at all.
+
+```typescript
+inspect(
+  input: string,
+  profile: BasehProfile
+):
+  | { state: "empty" }
+  | { state: "typing"; typed: string; progress: number }
+  | { state: "bad-char" }
+  | { state: "too-long" }
+  | { state: "invalid"; reason: BasehErrorCode }
+  | { state: "valid"; id: bigint; canonicalCode: string }
+```
+
+The state names and payload field names are part of the contract and must be
+identical across implementations, as the error codes already are. `inspect`
+never throws on user input and never reports `valid` for an incomplete code.
+There is no `suggest` state: the frozen profiles alias confusable characters
+during normalization, so they do not need one.
+
+#### 12.5.1 Algorithm
+
+1. Remove every occurrence of the configured separator string (literal
+   substring removal, exactly as normalization step 2), then drop every ASCII
+   whitespace character (`\t \n \v \f \r` and space) wherever it appears.
+   What remains is the typed input; let `typed` be its symbol count.
+2. If `typed` is 0, return `empty`.
+3. Determine the completeness bounds per mode:
+   - Fixed mode: `expected = bodyLength + checksumLength`. Input is complete
+     exactly when `typed = expected`.
+   - Expandable mode: input is complete for every `typed` from `minLength`
+     through 32 (the length selects the generation, section 19.7), and
+     `expected = 32` for the over-length bound.
+   If `typed > expected`, return `too-long`.
+4. Apply normalization steps 4-6 of section 3.1 to the typed input (case
+   normalization, then direct aliases, then membership in the union of the
+   body and checksum alphabets) — without any length check and without
+   re-padding. If any symbol falls outside the union, return `bad-char`.
+   Note that a symbol belonging only to the other region (a checksum-only
+   symbol typed into the body region, or a `0` in an expandable body
+   position) passes this union check and is caught in step 6, so it surfaces
+   as `invalid` with `INVALID_CHARACTER`, not `bad-char`.
+5. If the input is not complete (fixed: `typed < expected`; expandable:
+   `typed < minLength`), return `typing` with:
+   - `typed`: the normalized typed symbols (the result of step 4) with
+     separators inserted as far as the groups go:
+     - Fixed mode: walk the configured `grouping`, emitting one group at a
+       time while symbols remain, joined by the separator; a partial final
+       group is emitted as-is. No separator is emitted for a group the
+       symbols do not reach.
+     - Expandable mode: bare when `typed < separatorMinLength`; otherwise
+       split the `typed` symbols by the balanced grouping rule of
+       section 19.5 for length `typed` and join with the separator.
+   - `progress`: the fraction toward a complete code. Fixed mode:
+     `typed / (bodyLength + checksumLength)`. Expandable mode:
+     `typed / minLength`. Both lie in `(0, 1)`.
+6. The input is complete. Run `validate` on the normalized string from
+   step 4 (no separator, no whitespace, case- and alias-normalized):
+   - If it fails, return `invalid` with the `BasehErrorCode` from validate.
+   - If it passes, run `decode` on the same string and return `valid` with
+     the decoded `id` and `canonicalCode`.
+
+Judging the normalized string rather than the raw input means interior
+whitespace and stray separators can never turn a complete code into
+`invalid`, matching normalization's leniency (section 11).
+
+#### 12.5.2 Per-mode semantics
+
+Fixed mode follows the reference recipe exactly: every proper prefix of a
+code is `typing`, only the full `bodyLength + checksumLength` symbols are
+ever judged, and the spec 3.4 padding interaction can never produce a false
+`valid` or a spurious `invalid` — a short input is never validated.
+
+Expandable mode has no padding and no incomplete lengths at or above
+`minLength`: every length from `minLength` through 32 is a complete code, so
+a wrong checksum at any of those lengths is `invalid`, never `typing`.
+`typing` exists only below `minLength`. The consequence is deliberate: a
+proper prefix of a longer code is a complete shorter code, so as the user
+types past a generation boundary the field reports the verdict of the
+shorter generation (`valid` when its checksum happens to pass, `invalid`
+otherwise) until the next symbol arrives.
+
+#### 12.5.3 Shared vectors
+
+The shared `vectors.json` carries an `inspect` array pinning the state
+machine. Each entry is:
+
+```json
+{ "profileId": "baseh-medium-v1", "input": "C8XP8", "state": "typing",
+  "typed": "C8XP-8", "progress": 0.625 }
+```
+
+- `profileId` and `input` are always present; the profile definitions live
+  in the same file's `profiles` array.
+- `state` is one of `empty`, `typing`, `bad-char`, `too-long`, `invalid`,
+  `valid`.
+- Payload fields appear exactly when the state carries them: `typed`
+  (string) and `progress` (number) for `typing`, `reason` (a
+  `BasehErrorCode`) for `invalid`, `id` (decimal string) and
+  `canonicalCode` for `valid`. `empty`, `bad-char` and `too-long` carry no
+  payload.
+- `progress` must match within 1e-9 (ratios such as `1 / 6` are not exact
+  in binary floating point).
+- An optional `note` documents the case and is ignored by tests.
+
+A conforming implementation must reproduce the state and every payload
+field for every entry.
+
+
 ## 13. Error object
 
 ```json

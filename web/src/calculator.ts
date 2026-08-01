@@ -1,5 +1,5 @@
-import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, escapeHtml, friendlyError, parseIdentifier, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
-import { renderTryList } from "./try-list.js";
+import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, escapeHtml, friendlyError, lookupCode, parseIdentifier, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
+import { renderCodeLookup, renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -271,29 +271,14 @@ function render() {
       els.convIdOut.textContent = friendlyError(e);
     }
   }
-  const codeRaw = els.convCode.value.replace(/\s+/g, "");
-  if (codeRaw === "") {
+  // The code field is judged by inspect() (spec 12.5) via lookupCode, so a
+  // half-typed fixed code reads as still-typing instead of a padded decode.
+  if (els.convCode.value.trim() === "") {
     els.convCodeOut.textContent = "";
   } else if (!h) {
     els.convCodeOut.textContent = "the configuration is invalid, fix it to convert";
   } else {
-    try {
-      const result = h.decode(codeRaw, { tryCorrection: true, confusionProfile: "heavy" });
-      els.convCodeOut.innerHTML = "";
-      const lab = document.createElement("span");
-      lab.textContent = "Identifier: ";
-      const val = document.createElement("code");
-      val.textContent = String(result.id);
-      if (result.corrected) {
-        const canonical = document.createElement("code");
-        canonical.textContent = result.canonicalCode;
-        els.convCodeOut.append(lab, val, " - corrected to ", canonical);
-      } else {
-        els.convCodeOut.append(lab, val);
-      }
-    } catch (e) {
-      els.convCodeOut.textContent = friendlyError(e);
-    }
+    renderCodeLookup(els.convCodeOut, lookupCode(h, els.convCode.value));
   }
 
   // Pertinent things to try against the Code converter, rebuilt from the

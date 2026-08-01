@@ -101,6 +101,27 @@ describe("frozen feistel vectors", () => {
   }
 });
 
+describe("frozen inspect vectors (spec 12.5)", () => {
+  for (const v of vectors.inspect ?? []) {
+    it(`${v.profileId} ${JSON.stringify(v.input)} -> ${v.state}`, () => {
+      const h = codecs.get(v.profileId) as Baseh;
+      const r = h.inspect(v.input);
+      assert.equal(r.state, v.state);
+      if (v.state === "typing") {
+        assert.equal(r.state, "typing");
+        assert.equal((r as { typed: string }).typed, v.typed);
+        assert.ok(Math.abs((r as { progress: number }).progress - v.progress) < 1e-9,
+          `progress ${(r as { progress: number }).progress} != ${v.progress}`);
+      } else if (v.state === "invalid") {
+        assert.equal((r as { reason: string }).reason, v.reason);
+      } else if (v.state === "valid") {
+        assert.equal((r as { id: bigint }).id.toString(10), v.id);
+        assert.equal((r as { canonicalCode: string }).canonicalCode, v.canonicalCode);
+      }
+    });
+  }
+});
+
 describe("frozen profile-error vectors (spec 22 amended matrix)", () => {
   for (const v of vectors.profileErrors ?? []) {
     it(`${v.note} -> ${v.error}`, () => {

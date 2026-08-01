@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 
 use baseh::{
-    feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Mode, Permutation, Profanity,
-    ProfanityMode, Profile,
+    feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, InspectResult, Mode, Permutation,
+    Profanity, ProfanityMode, Profile,
 };
 use num_bigint::BigUint;
 use serde_json::Value;
@@ -353,6 +353,69 @@ fn correction_vectors() {
             };
             assert_eq!(err.code, expected, "correction of {input:?}");
         }
+    }
+}
+
+#[test]
+fn inspect_vectors() {
+    let fixture = Fixture::load();
+    for v in fixture.root["inspect"].as_array().unwrap() {
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
+        let input = v["input"].as_str().unwrap();
+        let state = v["state"].as_str().unwrap();
+        let result = baseh.inspect(input);
+        let label = || format!("inspect {input:?} ({})", v["profileId"]);
+        assert_eq!(result.state(), state, "{}", label());
+        match (&result, state) {
+            (InspectResult::Typing { typed, progress }, "typing") => {
+                assert_eq!(typed, v["typed"].as_str().unwrap(), "{}", label());
+                let expected = v["progress"].as_f64().unwrap();
+                assert!(
+                    (progress - expected).abs() < 1e-9,
+                    "{}: progress {progress} != {expected}",
+                    label()
+                );
+            }
+            (InspectResult::Invalid { reason }, "invalid") => {
+                assert_eq!(
+                    reason.as_str(),
+                    v["reason"].as_str().unwrap(),
+                    "{}",
+                    label()
+                );
+            }
+            (InspectResult::Valid { id, canonical_code }, "valid") => {
+                assert_eq!(*id, big(&v["id"]), "{}", label());
+                assert_eq!(
+                    canonical_code,
+                    v["canonicalCode"].as_str().unwrap(),
+                    "{}",
+                    label()
+                );
+            }
+            (InspectResult::Empty | InspectResult::BadChar | InspectResult::TooLong, _) => {}
+            (other, _) => panic!(
+                "{}: variant {other:?} does not match state {state}",
+                label()
+            ),
+        }
+        // Spec 12.5.3: payload fields appear exactly when the state carries
+        // them; empty, bad-char and too-long carry no payload.
+        assert_eq!(v.get("typed").is_some(), state == "typing", "{}", label());
+        assert_eq!(
+            v.get("progress").is_some(),
+            state == "typing",
+            "{}",
+            label()
+        );
+        assert_eq!(v.get("reason").is_some(), state == "invalid", "{}", label());
+        assert_eq!(v.get("id").is_some(), state == "valid", "{}", label());
+        assert_eq!(
+            v.get("canonicalCode").is_some(),
+            state == "valid",
+            "{}",
+            label()
+        );
     }
 }
 

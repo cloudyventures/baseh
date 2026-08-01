@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 use num_bigint::BigUint;
 
-use crate::codec::{Baseh, DecodeOptions, DecodeResult};
+use crate::codec::{Baseh, DecodeOptions, DecodeResult, InspectResult};
 use crate::error::BasehError;
 use crate::profiles::baseh_expandable_v1;
 
@@ -40,4 +40,10 @@ pub fn encode(id: &BigUint) -> Result<String, BasehError> {
 /// from [`baseh_expandable_v1`].
 pub fn decode(code: &str) -> Result<DecodeResult, BasehError> {
     default().decode(code, &DecodeOptions::default())
+}
+
+/// Live as-you-type inspection (spec 12.5) with the default expandable v1
+/// profile. Never panics on user input.
+pub fn inspect(input: &str) -> InspectResult {
+    default().inspect(input)
 }

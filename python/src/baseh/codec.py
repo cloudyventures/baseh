@@ -45,6 +45,23 @@ class DecodeResult:
     corrected: bool
 
 
+@dataclass(frozen=True)
+class InspectResult:
+    """Spec 12.5. Live as-you-type feedback for a code entry field. `state`
+    is one of "empty", "typing", "bad-char", "too-long", "invalid" or
+    "valid"; each payload field is set exactly when the state carries it:
+    `typed`/`progress` for typing, `reason` for invalid, `id`/`canonical_code`
+    for valid. `empty`, `bad-char` and `too-long` carry no payload. There is
+    no `suggest` state by design."""
+
+    state: str
+    typed: str | None = None
+    progress: float | None = None
+    reason: str | None = None
+    id: int | None = None
+    canonical_code: str | None = None
+
+
 def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False) -> str:
     """Spec 3.1 normalization, steps 1-7. Returns the raw unformatted string."""
     if not isinstance(input, str):
@@ -118,6 +135,28 @@ def format_raw(raw: str, profile: PreparedProfile) -> str:
             return raw
         return _format_with(raw, expandable_grouping(len(raw)), profile.separator)
     return _format_with(raw, profile.grouping, profile.separator)
+
+
+def _format_partial(raw: str, profile: PreparedProfile) -> str:
+    """Spec 12.5. Separators inserted into a partially typed code, as far as
+    the groups go. Fixed mode walks the configured grouping, emitting a
+    partial final group as-is and no separator for a group the symbols do
+    not reach; expandable mode uses the balanced grouping rule of spec 19.5
+    for the typed length, bare below separatorMinLength."""
+    if not profile.separator:
+        return raw
+    if profile.mode == "expandable":
+        if len(raw) < profile.separator_min_length:
+            return raw
+        return _format_with(raw, expandable_grouping(len(raw)), profile.separator)
+    parts = []
+    offset = 0
+    for size in profile.grouping:
+        if offset >= len(raw):
+            break
+        parts.append(raw[offset : offset + size])
+        offset += size
+    return profile.separator.join(parts)
 
 
 def expandable_grouping(length: int) -> list:
@@ -402,3 +441,60 @@ class Baseh:
             return {"valid": True, "canonical_code": result.canonical_code}
         except BasehError as err:
             return {"valid": False, "reason": err.code}
+
+    def inspect(self, input: str) -> InspectResult:
+        """Spec 12.5. Live as-you-type inspection. Gates on the typed length
+        before validating, so spec 3.4 re-padding can never paint an
+        incomplete fixed-mode code valid (or invalid): a short fixed input is
+        typing, never checked. Never raises on user input."""
+        if not isinstance(input, str):
+            raise TypeError(f"input must be a string, got {type(input).__name__}")
+        profile = self._profile
+        # Step 1: remove every occurrence of the separator string, then drop
+        # ASCII whitespace anywhere (a paste can carry either inside a code).
+        no_sep = input.replace(profile.separator, "") if profile.separator else input
+        cleaned = "".join(ch for ch in no_sep if ch not in _ASCII_WS)
+        typed_count = len(cleaned)
+        # Step 2.
+        if typed_count == 0:
+            return InspectResult(state="empty")
+
+        # Step 3: completeness bounds. Fixed mode is complete exactly at
+        # bodyLength + checksumLength; expandable mode at every length from
+        # minLength through 32 (the length selects the generation).
+        fixed = profile.mode == "fixed"
+        expected = profile.body_length + profile.checksum_length if fixed else 32
+        if typed_count > expected:
+            return InspectResult(state="too-long")
+
+        # Step 4: spec 3.1 steps 4-6, without the length checks — case
+        # normalization, aliases, then union membership. A symbol outside
+        # both alphabets is bad-char; a symbol valid only in the other
+        # region (say a checksum-only symbol typed into the body) passes
+        # here and fails later under validate.
+        allowed = set(profile.body_alphabet_norm) | set(profile.checksum_alphabet_norm)
+        s = cleaned if profile.case_sensitive else cleaned.upper()
+        if profile.aliases_norm:
+            s = "".join(ch if ch in allowed else profile.aliases_norm.get(ch, ch) for ch in s)
+        if any(ch not in allowed for ch in s):
+            return InspectResult(state="bad-char")
+
+        # Step 5: incomplete input is typing, never judged.
+        complete = typed_count == expected if fixed else typed_count >= profile.min_length
+        if not complete:
+            return InspectResult(
+                state="typing",
+                typed=_format_partial(s, profile),
+                progress=typed_count / (expected if fixed else profile.min_length),
+            )
+
+        # Step 6: complete — judge the normalized string itself, so interior
+        # whitespace and stray separators can never turn a complete code
+        # invalid (matching normalization's leniency, spec 11).
+        result = self.validate(s)
+        if not result["valid"]:
+            return InspectResult(state="invalid", reason=result["reason"])
+        decoded = self.decode(s)
+        return InspectResult(
+            state="valid", id=decoded.id, canonical_code=decoded.canonical_code
+        )

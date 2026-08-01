@@ -54,3 +54,13 @@ func Validate(input string, opts *DecodeOptions) ValidateResult {
 	}
 	return h.Validate(input, opts)
 }
+
+// Inspect gives live as-you-type feedback using the shared
+// baseh-expandable-v1 codec; see Codec.Inspect.
+func Inspect(input string) InspectResult {
+	h, err := Default()
+	if err != nil {
+		return InspectResult{State: InspectInvalid, Reason: INVALID_PROFILE}
+	}
+	return h.Inspect(input)
+}

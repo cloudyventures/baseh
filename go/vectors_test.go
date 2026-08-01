@@ -45,6 +45,20 @@ type vectorFile struct {
 		Corrected        bool   `json:"corrected"`
 		Error            string `json:"error"`
 	} `json:"correction"`
+	// Inspect carries the spec-12.5.3 state-machine vectors. Payload fields
+	// are pointers so the test asserts each appears exactly when the state
+	// carries it.
+	Inspect []struct {
+		ProfileID     string   `json:"profileId"`
+		Input         string   `json:"input"`
+		State         string   `json:"state"`
+		Typed         *string  `json:"typed"`
+		Progress      *float64 `json:"progress"`
+		Reason        *string  `json:"reason"`
+		ID            *string  `json:"id"`
+		CanonicalCode *string  `json:"canonicalCode"`
+		Note          string   `json:"note"`
+	} `json:"inspect"`
 }
 
 type vectorProfile struct {
@@ -277,6 +291,63 @@ func TestConformanceCorrection(t *testing.T) {
 			again, err := codecs[c.ProfileID].Encode(res.ID)
 			if err != nil || again != res.CanonicalCode {
 				t.Errorf("re-encode = %q, %v, want %q", again, err, res.CanonicalCode)
+			}
+		})
+	}
+}
+
+func TestConformanceInspect(t *testing.T) {
+	var vf vectorFile
+	loadJSON(t, "../vectors/vectors.json", &vf)
+	codecs := buildVectorProfiles(t, vf)
+
+	for _, v := range vf.Inspect {
+		name := v.ProfileID + "/" + v.Input
+		if v.Note != "" {
+			name += "/" + strings.ReplaceAll(v.Note, " ", "_")
+		}
+		t.Run(name, func(t *testing.T) {
+			r := codecs[v.ProfileID].Inspect(v.Input)
+			if string(r.State) != v.State {
+				t.Fatalf("Inspect(%q).State = %s, want %s", v.Input, r.State, v.State)
+			}
+
+			// Payload fields appear exactly when the state carries them
+			// (spec 12.5.3).
+			if v.Typed == nil {
+				if r.Typed != "" {
+					t.Errorf("Typed = %q, want no payload", r.Typed)
+				}
+			} else if r.Typed != *v.Typed {
+				t.Errorf("Typed = %q, want %q", r.Typed, *v.Typed)
+			}
+			if v.Progress == nil {
+				if r.Progress != 0 {
+					t.Errorf("Progress = %v, want no payload", r.Progress)
+				}
+			} else if d := r.Progress - *v.Progress; d < -1e-9 || d > 1e-9 {
+				t.Errorf("Progress = %v, want %v", r.Progress, *v.Progress)
+			}
+			if v.Reason == nil {
+				if r.Reason != "" {
+					t.Errorf("Reason = %q, want no payload", r.Reason)
+				}
+			} else if string(r.Reason) != *v.Reason {
+				t.Errorf("Reason = %q, want %q", r.Reason, *v.Reason)
+			}
+			if v.ID == nil {
+				if r.ID != nil {
+					t.Errorf("ID = %s, want no payload", r.ID)
+				}
+			} else if r.ID == nil || r.ID.String() != *v.ID {
+				t.Errorf("ID = %v, want %s", r.ID, *v.ID)
+			}
+			if v.CanonicalCode == nil {
+				if r.CanonicalCode != "" {
+					t.Errorf("CanonicalCode = %q, want no payload", r.CanonicalCode)
+				}
+			} else if r.CanonicalCode != *v.CanonicalCode {
+				t.Errorf("CanonicalCode = %q, want %q", r.CanonicalCode, *v.CanonicalCode)
 			}
 		})
 	}

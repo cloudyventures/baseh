@@ -513,20 +513,63 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
 }
 
 /** A plain-language explanation for the converter fields, keyed off the
- * codec's machine error codes. */
+ * codec's machine error codes. Accepts either the thrown BasehError or the
+ * code string carried by inspect()'s invalid state. */
 export function friendlyError(e: unknown): string {
-  if (e instanceof BasehError) {
-    switch (e.code) {
+  const code = e instanceof BasehError ? e.code : typeof e === "string" ? e : null;
+  if (code !== null) {
+    switch (code) {
       case "BLOCKED_CODE": return "blocked: this identifier is never issued (profanity or a long repetition run)";
       case "OUT_OF_RANGE": return "outside this configuration's capacity";
       case "INVALID_CHECKSUM": return "the checksum does not validate";
       case "INVALID_LENGTH": return "the wrong number of characters";
       case "INVALID_CHARACTER": return "contains characters outside this alphabet";
       case "AMBIGUOUS_INPUT": return "matches more than one possible correction";
-      default: return `not a valid code (${e.code.toLowerCase().replaceAll("_", " ")})`;
+      default: return `not a valid code (${code.toLowerCase().replaceAll("_", " ")})`;
     }
   }
   return "invalid input";
+}
+
+/** Outcome of looking a typed or pasted code up in the Code converter. */
+export type CodeLookup =
+  | { kind: "empty" }
+  | { kind: "typing"; typed: string; progress: number }
+  | { kind: "bad-char" }
+  | { kind: "too-long" }
+  | { kind: "invalid"; message: string }
+  | { kind: "ok"; id: bigint; canonicalCode: string; corrected: boolean };
+
+/**
+ * The Code converter's code lookup, built on inspect() (spec 12.5) rather
+ * than a straight decode: an incomplete fixed-mode code is never judged, so
+ * the spec 3.4 re-padding can never decode a half-typed prefix to a wrong
+ * identifier or paint it as a checksum failure. One gap in inspect() is
+ * bridged here: it has no correction pass (spec 12.5: no suggest state), so
+ * a complete code it rejects still gets one tryCorrection decode — the
+ * preview alphabets can keep sound-alike pairs distinct, where correction
+ * genuinely helps — before the failure is reported.
+ */
+export function lookupCode(h: Baseh, raw: string): CodeLookup {
+  const r = h.inspect(raw);
+  switch (r.state) {
+    case "empty": return { kind: "empty" };
+    case "typing": return { kind: "typing", typed: r.typed, progress: r.progress };
+    case "bad-char": return { kind: "bad-char" };
+    case "too-long": return { kind: "too-long" };
+    case "invalid": {
+      try {
+        const d = h.decode(raw, { tryCorrection: true, confusionProfile: "heavy" });
+        return { kind: "ok", id: d.id, canonicalCode: d.canonicalCode, corrected: d.corrected };
+      } catch {
+        return { kind: "invalid", message: friendlyError(r.reason) };
+      }
+    }
+    case "valid":
+      // Case, alias and separator noise is absorbed by normalization, so a
+      // code inspect() accepts outright never counts as corrected.
+      return { kind: "ok", id: r.id, canonicalCode: r.canonicalCode, corrected: false };
+  }
 }
 
 export function calculate(input: CalculatorInput): CalculatorResult {

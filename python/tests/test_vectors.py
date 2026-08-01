@@ -154,7 +154,40 @@ class TestVectors(unittest.TestCase):
                     self.assertEqual(again.id, result.id)
                     self.assertEqual(again.canonical_code, result.canonical_code)
                     self.assertFalse(again.corrected)
-    def test_profile_error_vectors(self):
+    def test_inspect_vectors(self):
+        """Spec 12.5.3: the shared inspect array pins the state machine.
+        State matches exactly, progress within 1e-9, id as a decimal string,
+        and payload fields appear exactly when the state carries them."""
+        count = 0
+        for vector in self.data["inspect"]:
+            with self.subTest(profile_id=vector["profileId"], input=vector["input"]):
+                codec = self.codecs[vector["profileId"]]
+                result = codec.inspect(vector["input"])
+                self.assertEqual(result.state, vector["state"])
+                # Payload fields appear exactly when the state carries them.
+                carried = {
+                    "empty": (),
+                    "typing": ("typed", "progress"),
+                    "bad-char": (),
+                    "too-long": (),
+                    "invalid": ("reason",),
+                    "valid": ("id", "canonical_code"),
+                }[result.state]
+                for field in ("typed", "progress", "reason", "id", "canonical_code"):
+                    if field not in carried:
+                        self.assertIsNone(getattr(result, field))
+                if result.state == "typing":
+                    self.assertEqual(result.typed, vector["typed"])
+                    self.assertAlmostEqual(
+                        result.progress, vector["progress"], delta=1e-9
+                    )
+                elif result.state == "invalid":
+                    self.assertEqual(result.reason, vector["reason"])
+                elif result.state == "valid":
+                    self.assertEqual(str(result.id), vector["id"])
+                    self.assertEqual(result.canonical_code, vector["canonicalCode"])
+            count += 1
+        self.assertEqual(count, 34)
         """Spec 22 amended validation matrix: these definitions must fail
         profile preparation with the pinned error."""
         count = 0

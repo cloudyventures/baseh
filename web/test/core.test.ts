@@ -428,6 +428,112 @@ describe("trySuggestions", async () => {
   });
 });
 
+describe("lookupCode (spec 12.5 inspect behind the Code converter)", async () => {
+  const { calculatorProfile, lookupCode, trySuggestions } = await import("../src/core.js");
+  const { Baseh } = await import("@cloudyventures/baseh");
+
+  const profile = calculatorProfile(calcInput({ visualSafety: "medium", spokenSafety: "medium", checksumLength: 2 }))!;
+  const h = new Baseh(profile);
+  const code = h.encode(123456789n);
+  const raw = code.replaceAll("-", ""); // 8 symbols, grouped 4-4
+
+  it("blank input is empty, even when it is only spaces or separators", () => {
+    assert.equal(lookupCode(h, "").kind, "empty");
+    assert.equal(lookupCode(h, "  \t ").kind, "empty");
+    assert.equal(lookupCode(h, "-").kind, "empty");
+  });
+
+  it("every proper prefix is typing, never a padded decode verdict", () => {
+    for (const n of [1, 3, 5, raw.length - 1]) {
+      const r = lookupCode(h, raw.slice(0, n));
+      assert.equal(r.kind, "typing", `${n} of ${raw.length} symbols`);
+      if (r.kind === "typing") {
+        assert.equal(r.progress, n / raw.length);
+        assert.equal(r.typed.replaceAll("-", ""), raw.slice(0, n));
+      }
+    }
+  });
+
+  it("typing echoes the code back with the separator as far as the groups fill", () => {
+    const r = lookupCode(h, raw.slice(0, 5));
+    assert.equal(r.kind, "typing");
+    if (r.kind === "typing") assert.ok(r.typed.includes("-"), r.typed);
+  });
+
+  it("a symbol outside both alphabets is bad-char", () => {
+    assert.equal(lookupCode(h, `${raw.slice(0, 4)}!`).kind, "bad-char");
+  });
+
+  it("more symbols than a complete code is too-long", () => {
+    assert.equal(lookupCode(h, `${raw}2`).kind, "too-long");
+  });
+
+  it("a complete code with a broken checksum is invalid, with the reason phrased", () => {
+    let broken: string | null = null;
+    for (const c of profile.checksumAlphabet) {
+      if (c === raw.at(-1)) continue;
+      const candidate = raw.slice(0, -1) + c;
+      try {
+        h.decode(candidate, { tryCorrection: true, confusionProfile: "heavy" });
+      } catch {
+        broken = candidate;
+        break;
+      }
+    }
+    assert.ok(broken, "expected an uncorrectable checksum edit");
+    const r = lookupCode(h, broken);
+    assert.equal(r.kind, "invalid");
+    if (r.kind === "invalid") assert.equal(r.message, "the checksum does not validate");
+  });
+
+  it("a complete valid code yields the identifier and is never corrected", () => {
+    const r = lookupCode(h, code);
+    assert.equal(r.kind, "ok");
+    if (r.kind === "ok") {
+      assert.equal(r.id, 123456789n);
+      assert.equal(r.canonicalCode, code);
+      assert.equal(r.corrected, false);
+    }
+  });
+
+  it("lowercase, stray spaces and lookalikes still land on the identifier", () => {
+    const r = lookupCode(h, `${code.slice(0, 3)} ${code.slice(3)}`.toLowerCase());
+    assert.equal(r.kind, "ok");
+    if (r.kind === "ok") assert.equal(r.id, 123456789n);
+  });
+
+  it("an invalid complete code gets one correction try before failing", () => {
+    const pairProfile = calculatorProfile(calcInput({ visualSafety: "none", spokenSafety: "none", checksumLength: 2 }))!;
+    const hc = new Baseh(pairProfile);
+    const sample = hc.encode(123456791n);
+    // The same verified mistyping the try-list chips demonstrate: inspect
+    // rejects it, then the correction pass amends it back.
+    const demo = trySuggestions(pairProfile, sample, hc).find((i) => i.label.startsWith("mistype"));
+    assert.ok(demo?.code, "expected a correction demo on this profile");
+    const r = lookupCode(hc, demo.code);
+    assert.equal(r.kind, "ok");
+    if (r.kind === "ok") {
+      assert.equal(r.id, 123456791n);
+      assert.equal(r.canonicalCode, sample);
+      assert.equal(r.corrected, true);
+    }
+  });
+
+  it("expandable mode holds typing below the minimum length only", () => {
+    const xpProfile = calculatorProfile(calcInput({ codecMode: "expandable" }))!;
+    const hx = new Baseh(xpProfile);
+    const xpRaw = hx.encode(1_000_000n).replaceAll("-", "");
+    assert.ok(xpRaw.length > 4, "the sample should span generations");
+    const short = lookupCode(hx, xpRaw.slice(0, 3));
+    assert.equal(short.kind, "typing");
+    if (short.kind === "typing") assert.equal(short.progress, 3 / 4);
+    // From minLength up every length is a complete shorter code, so the
+    // prefix is judged (valid or invalid), never typing.
+    const atMin = lookupCode(hx, xpRaw.slice(0, 4));
+    assert.ok(atMin.kind === "ok" || atMin.kind === "invalid", atMin.kind);
+  });
+});
+
 describe("expandable derivation (spec 19.2/19.3)", async () => {
   const { deriveExpandableBodyAlphabet, deriveExpandableChecksumAlphabet } = await import("../src/core.js");
 

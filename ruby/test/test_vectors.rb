@@ -189,6 +189,45 @@ class TestVectors < Minitest::Test
     end
   end
 
+  # Spec 12.5.3: the shared `inspect` array pins the as-you-type state
+  # machine. State matches exactly, progress within 1e-9, payloads present
+  # exactly when the state carries them.
+  def test_inspect_vectors
+    self.class.vectors_doc["inspect"].each do |vector|
+      result = codec(vector["profileId"]).inspect(vector["input"])
+      label = "#{vector['profileId']} input=#{vector['input'].inspect}"
+      assert_equal vector["state"], result.state, "state mismatch for #{label}"
+      case vector["state"]
+      when "typing"
+        assert_equal vector["typed"], result.typed, "typed mismatch for #{label}"
+        assert_in_delta vector["progress"], result.progress, 1e-9, "progress mismatch for #{label}"
+        assert_nil result.reason
+        assert_nil result.id
+        assert_nil result.canonical_code
+      when "invalid"
+        assert_equal vector["reason"], result.reason, "reason mismatch for #{label}"
+        assert_nil result.typed
+        assert_nil result.progress
+        assert_nil result.id
+        assert_nil result.canonical_code
+      when "valid"
+        assert_equal vector["id"].to_i, result.id, "id mismatch for #{label}"
+        assert_equal vector["canonicalCode"], result.canonical_code,
+                     "canonical code mismatch for #{label}"
+        assert_nil result.typed
+        assert_nil result.progress
+        assert_nil result.reason
+      else
+        # empty, bad-char and too-long carry no payload
+        assert_nil result.typed
+        assert_nil result.progress
+        assert_nil result.reason
+        assert_nil result.id
+        assert_nil result.canonical_code
+      end
+    end
+  end
+
   def test_feistel_vectors
     self.class.feistel_doc["vectors"].each do |vector|
       key = {

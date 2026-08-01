@@ -31,6 +31,13 @@ module Baseh
     # Result of validate, which never raises on user input.
     ValidateResult = Struct.new(:valid, :canonical_code, :reason, keyword_init: true)
 
+    # Result of inspect (spec 12.5). #state is one of "empty", "typing",
+    # "bad-char", "too-long", "invalid", "valid". Payload fields are present
+    # exactly when the state carries them: #typed and #progress for "typing",
+    # #reason for "invalid", #id and #canonical_code for "valid".
+    InspectResult = Struct.new(:state, :typed, :progress, :reason, :id, :canonical_code,
+                               keyword_init: true)
+
     attr_reader :profile
 
     # @param profile [Hash] profile definition per spec 2.1 (symbol keys)
@@ -276,6 +283,58 @@ module Baseh
       ValidateResult.new(valid: false, reason: e.code)
     end
 
+    # Spec 12.5. Live as-you-type inspection. Gates on the typed length before
+    # validating, so the spec 3.4 re-pad can never paint an incomplete
+    # fixed-mode code "valid" (or "invalid"): a short fixed input is "typing",
+    # never checked. Never raises on user input and never reports "valid" for
+    # an incomplete code.
+    def inspect(input)
+      p = @profile
+      # Step 1: remove every occurrence of the separator string, then drop
+      # ASCII whitespace anywhere (a paste can carry either inside the code).
+      s = p.separator.empty? ? input.dup : input.gsub(p.separator, "")
+      s = s.delete("\t\n\v\f\r ")
+      typed = s.length
+      # Step 2.
+      return InspectResult.new(state: "empty") if typed.zero?
+
+      # Step 3. Fixed: complete exactly at bodyLength + checksumLength.
+      # Expandable: complete at every length from minLength through 32 (the
+      # length selects the generation), 32 is the over-length bound.
+      fixed = p.mode == "fixed"
+      expected = fixed ? p.body_length + p.checksum_length : 32
+      return InspectResult.new(state: "too-long") if typed > expected
+
+      # Step 4: spec 3.1 steps 4-6 without the length checks — case
+      # normalization, aliases, then union membership. A symbol outside both
+      # alphabets is "bad-char"; a symbol valid only in the other region (say
+      # a checksum-only symbol typed into the body) passes here and fails
+      # later under validate as INVALID_CHARACTER.
+      s = s.upcase unless p.case_sensitive
+      raw = s.each_char.map do |ch|
+        inspect_union?(ch) ? ch : p.aliases.fetch(ch, ch)
+      end.join
+      return InspectResult.new(state: "bad-char") if raw.each_char.any? { |ch| !inspect_union?(ch) }
+
+      # Step 5.
+      complete = fixed ? typed == expected : typed >= p.min_length
+      unless complete
+        return InspectResult.new(
+          state: "typing",
+          typed: format_partial(raw),
+          progress: typed.to_f / (fixed ? expected : p.min_length)
+        )
+      end
+
+      # Step 6: judge the normalized string (no separator, no whitespace,
+      # case- and alias-normalized).
+      result = validate(raw)
+      return InspectResult.new(state: "invalid", reason: result.reason) unless result.valid
+
+      decoded = decode(raw)
+      InspectResult.new(state: "valid", id: decoded.id, canonical_code: decoded.canonical_code)
+    end
+
     # Spec 3.1 normalization, steps 1-9, with the spec 3.4 re-pad in fixed
     # mode only. Returns the raw unformatted string.
     def normalize(input, accept_spaces)
@@ -460,6 +519,39 @@ module Baseh
       parts = []
       offset = 0
       grouping.each do |size|
+        parts << raw.slice(offset, size)
+        offset += size
+      end
+      parts.join(@profile.separator)
+    end
+
+    # Spec 12.5 step 4: membership in the union of the body and checksum
+    # alphabets.
+    def inspect_union?(ch)
+      @body_index.key?(ch) || @profile.checksum_alphabet.include?(ch)
+    end
+
+    # Spec 12.5: separators inserted into a partially typed code, as far as
+    # the groups go. Fixed mode walks the configured grouping, emitting no
+    # separator for a group the symbols do not reach; expandable mode uses
+    # the balanced grouping rule of spec 19.5 for the typed length, bare
+    # below separatorMinLength.
+    def format_partial(raw)
+      return raw if @profile.separator.empty?
+
+      grouping =
+        if @profile.mode == "expandable"
+          return raw if raw.length < @profile.separator_min_length
+
+          self.class.expandable_grouping(raw.length)
+        else
+          @profile.grouping
+        end
+      parts = []
+      offset = 0
+      grouping.each do |size|
+        break if offset >= raw.length
+
         parts << raw.slice(offset, size)
         offset += size
       end

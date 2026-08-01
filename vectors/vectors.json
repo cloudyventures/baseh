@@ -3130,5 +3130,240 @@
         }
       }
     }
+  ],
+  "inspect": [
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "",
+      "state": "empty"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "  - ",
+      "state": "empty",
+      "note": "whitespace-only and separator-only input is empty"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C",
+      "state": "typing",
+      "typed": "C",
+      "progress": 0.125,
+      "note": "every proper prefix of a fixed code is typing"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8",
+      "state": "typing",
+      "typed": "C8",
+      "progress": 0.25
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8X",
+      "state": "typing",
+      "typed": "C8X",
+      "progress": 0.375
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP",
+      "state": "typing",
+      "typed": "C8XP",
+      "progress": 0.5
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP8",
+      "state": "typing",
+      "typed": "C8XP-8",
+      "progress": 0.625
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP8J",
+      "state": "typing",
+      "typed": "C8XP-8J",
+      "progress": 0.75
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP8J4",
+      "state": "typing",
+      "typed": "C8XP-8J4",
+      "progress": 0.875
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP-8J49",
+      "state": "valid",
+      "id": "123456789",
+      "canonicalCode": "C8XP-8J49"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": " c8xp8j49 ",
+      "state": "valid",
+      "id": "123456789",
+      "canonicalCode": "C8XP-8J49",
+      "note": "case, whitespace and missing separators still reach valid"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "OIL",
+      "state": "typing",
+      "typed": "011",
+      "progress": 0.375,
+      "note": "aliases normalize while typing"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "BY16HHG7",
+      "state": "valid",
+      "id": "3",
+      "canonicalCode": "8Y16-HHG7",
+      "note": "typed B aliases to 8 and reaches valid"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "C8XP8J29",
+      "state": "invalid",
+      "reason": "INVALID_CHECKSUM",
+      "note": "complete code with a wrong checksum"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "12@",
+      "state": "bad-char"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "0000-0000-C",
+      "state": "too-long"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "CZC6GUF",
+      "state": "typing",
+      "typed": "CZC6-GUF",
+      "progress": 0.875,
+      "note": "spec 3.4: a padded prefix that would validate still reports typing"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "",
+      "state": "empty"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "1",
+      "state": "typing",
+      "typed": "1",
+      "progress": 0.25
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "12",
+      "state": "typing",
+      "typed": "12",
+      "progress": 0.5
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "123",
+      "state": "typing",
+      "typed": "123",
+      "progress": 0.75
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "O",
+      "state": "typing",
+      "typed": "0",
+      "progress": 0.25,
+      "note": "alias O -> 0 normalizes while typing; bare below separatorMinLength"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "R59D",
+      "state": "valid",
+      "id": "0",
+      "canonicalCode": "R59D",
+      "note": "first id: generation 4, the first complete length"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "KFGEE",
+      "state": "valid",
+      "id": "39304",
+      "canonicalCode": "KFGEE",
+      "note": "first id of generation 5"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "1EE-53K",
+      "state": "valid",
+      "id": "1375640",
+      "canonicalCode": "1EE-53K",
+      "note": "first id of generation 6, renders with a hyphen"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": " 1EE - 53K",
+      "state": "valid",
+      "id": "1375640",
+      "canonicalCode": "1EE-53K",
+      "note": "whitespace and separators are ignored"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "1EE53",
+      "state": "invalid",
+      "reason": "INVALID_CHECKSUM",
+      "note": "a prefix of a longer code is a complete shorter code: never typing"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "CHGNA",
+      "state": "invalid",
+      "reason": "INVALID_CHECKSUM",
+      "note": "wrong-length presentation fails the checksum"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "0HGN",
+      "state": "invalid",
+      "reason": "INVALID_CHARACTER",
+      "note": "0 in a body position"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "OHGN",
+      "state": "invalid",
+      "reason": "INVALID_CHARACTER",
+      "note": "O aliases to 0, then fails in a body position"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "A@",
+      "state": "bad-char"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "ABCD@",
+      "state": "bad-char"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "state": "too-long"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "state": "invalid",
+      "reason": "INVALID_CHECKSUM",
+      "note": "at the 32-symbol ceiling the input is complete, not too-long"
+    }
   ]
 }

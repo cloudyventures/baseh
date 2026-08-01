@@ -191,4 +191,4 @@ go vet ./...
 
 `vectors_test.go` loads the shared conformance vectors from
 `../vectors/*.json` and asserts every encode, decode, error, encode-error,
-correction and Feistel case.
+correction, inspect and Feistel case.

@@ -11,6 +11,7 @@ from .codec import (
     CONFUSION_MAPS,
     Baseh,
     DecodeResult,
+    InspectResult,
     expandable_grouping,
     generate_candidates,
     generation_base,
@@ -29,7 +30,7 @@ from .errors import (
     TOO_MANY_CANDIDATES,
     BasehError,
 )
-from .facade import decode, encode
+from .facade import decode, encode, inspect
 from .profile import effective_checksum_length
 from .profiles import (
     FROZEN_KEY_BYTES,
@@ -48,6 +49,7 @@ __all__ = [
     "Baseh",
     "BasehError",
     "DecodeResult",
+    "InspectResult",
     "CONFUSION_MAPS",
     "DEFAULT_BLOCKLIST",
     "generate_candidates",
@@ -58,6 +60,7 @@ __all__ = [
     "effective_checksum_length",
     "encode",
     "decode",
+    "inspect",
     "FROZEN_KEY_BYTES",
     "baseh_expandable_v1",
     "baseh_expandable_p_v1",

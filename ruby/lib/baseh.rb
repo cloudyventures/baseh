@@ -112,6 +112,15 @@ module Baseh
       default.decode(input, **options)
     end
 
+    # Live as-you-type inspection of input against the default expandable
+    # profile (spec 12.5). Never raises on user input.
+    #
+    # @param input [String]
+    # @return [Baseh::Baseh::InspectResult]
+    def inspect(input)
+      default.inspect(input)
+    end
+
     # The shared default-profile codec, built on first use.
     def default
       @default ||= Baseh.new(Profiles.baseh_expandable_v1)

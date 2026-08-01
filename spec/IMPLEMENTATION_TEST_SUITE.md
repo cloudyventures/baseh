@@ -338,6 +338,10 @@ Rules:
 - JSON is ASCII.
 - Vectors are reviewed and versioned.
 - A release fails if any supported implementation disagrees.
+- The `inspect` array pins the live as-you-type state machine of codec spec
+  12.5: each entry maps an input and profile to the expected tagged state
+  plus its payload fields (`typed`/`progress`, `reason`, or
+  `id`/`canonicalCode`), and implementations must match every field.
 
 ## 14. Capacity Calculator tests
 

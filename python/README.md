@@ -65,6 +65,10 @@ print(fixed.canonical_code)       # "CC8G-AZ2V"
 check = codec.validate("00000000")
 print(check)                      # {"valid": False, "reason": "INVALID_CHECKSUM"}
 
+# Live as-you-type feedback for a code entry field (spec 12.5):
+live = codec.inspect("CC8G")
+print(live)  # InspectResult(state="typing", typed="CC8G", progress=0.5, ...)
+
 print(codec.capacity())           # 481890304
 ```
 
