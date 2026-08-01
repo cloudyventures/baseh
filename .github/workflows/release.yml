@@ -53,7 +53,19 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: npm with OIDC trusted publishing support
         run: npm install -g npm@latest
-      - run: npm ci && npm run build && npm publish --access public --provenance
+      # The first npm publish is a manual bootstrap (trusted publishers can be
+      # configured with less friction on an existing package). That bootstrap
+      # lands the same version the tag run publishes, so an already-published
+      # version is success here, not a failure.
+      - run: |
+          npm ci && npm run build
+          if npm publish --access public --provenance; then
+            echo "published ${{ github.ref_name }}"
+          elif npm view "@cloudyventures/baseh@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
+            echo "version already on npm (bootstrap publish), continuing"
+          else
+            exit 1
+          fi
         working-directory: js
 
   publish-pypi:
@@ -129,5 +141,11 @@ jobs:
       - name: tag go submodule version
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Idempotent so a repeat tag run does not fail: an identical
+          # existing tag is left alone, a divergent one is a hard failure.
+          if git rev-parse -q --verify "refs/tags/go/${TAG}" >/dev/null; then
+            echo "go/${TAG} already exists remotely, leaving as-is"
+            exit 0
+          fi
           git tag "go/${TAG}"
           git push origin "go/${TAG}"
