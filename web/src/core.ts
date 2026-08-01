@@ -297,12 +297,17 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   };
 }
 
+// Delimiter grouping rule: total displayed length (body + checksum)
+// picks one chunk size; a leftover short group trails. Length 3 or fewer
+// gets no delimiter at all.
 export function groupingFor(totalLen: number): number[] {
+  if (totalLen <= 3) return [];
+  const size = totalLen <= 4 ? 2 : totalLen <= 6 ? 3 : totalLen <= 8 ? 4 : 5;
   const groups: number[] = [];
   let remaining = totalLen;
-  while (remaining > 4) {
-    groups.push(4);
-    remaining -= 4;
+  while (remaining > size) {
+    groups.push(size);
+    remaining -= size;
   }
   if (remaining > 0) groups.push(remaining);
   return groups;

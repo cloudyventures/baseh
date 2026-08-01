@@ -70,9 +70,10 @@ td code, .card code { letter-spacing: 0.06em; }
 #candidates { table-layout: auto; }
 #candidates th, #candidates td { border-bottom: none; }
 #candidates th { text-align: center; }
-#candidates th:nth-child(-n+6), #candidates td:nth-child(-n+6) { white-space: nowrap; width: 1%; }
+#candidates th { border-bottom: 1px dotted var(--muted); cursor: help; }
+#candidates th:nth-child(-n+7), #candidates td:nth-child(-n+7) { white-space: nowrap; width: 1%; }
 #candidates td { text-align: center; }
-#candidates th:nth-child(7), #candidates td:nth-child(7) { min-width: 60ch; text-align: start; }
+#candidates th:nth-child(8), #candidates td:nth-child(8) { min-width: 60ch; text-align: start; }
 button {
   font: inherit; padding: 0.45rem 0.9rem; border: 1px solid var(--line); background: var(--card);
   border-radius: 4px; cursor: pointer;
@@ -81,6 +82,8 @@ button:hover { border-color: var(--accent); }
 .alt-card { margin-bottom: 0.6rem; }
 .alt-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .samples { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+.field-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+.sample { white-space: nowrap; }
 .samples code { color: var(--ink); }
 #alternatives { display: grid; grid-template-columns: 1fr 1fr; column-gap: 0.6rem; }
 @media (max-width: 900px) {

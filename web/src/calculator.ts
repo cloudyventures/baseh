@@ -31,19 +31,23 @@ const els = {
   reset: $<HTMLButtonElement>("reset")
 };
 
-const PRESETS: Record<string, Partial<typeof state>> = {
-  "compact-numeric": { mode: "digits", visual: "none", bodyLength: 6, checksumLength: 1 },
-  "safe-alnum": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 1 },
-  "short-support": { mode: "alnum", visual: "heavy", bodyLength: 5, checksumLength: 1 },
-  "high-validation": { mode: "alnum", visual: "heavy", bodyLength: 6, checksumLength: 2 }
-};
+interface Preset {
+  mode: AlphabetMode;
+  visual: SafetyLevel;
+  spoken: SafetyLevel;
+  profanity: ProfanityMode;
+  bodyLength: number;
+  checksumLength: number;
+  separator: string;
+}
 
-const state = {
-  mode: "alnum" as AlphabetMode,
-  visual: "light" as SafetyLevel,
-  spoken: "light" as SafetyLevel,
-  bodyLength: 6,
-  checksumLength: 1
+// The four frozen tiers. Every control stays editable after loading one,
+// so a preset is a starting point you modify, not a locked view.
+const PRESETS: Record<string, Preset> = {
+  minimum: { mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, separator: "-" },
+  light: { mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" },
+  medium: { mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" },
+  heavy: { mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 1, separator: "" }
 };
 
 function fmt(n: bigint): string {
@@ -76,11 +80,13 @@ function readInput(): CalculatorInput {
 function applyPreset(name: string) {
   const p = PRESETS[name];
   if (!p) return;
-  Object.assign(state, p);
-  els.mode.value = state.mode;
-  els.visual.value = state.visual;
-  els.bodyLen.value = String(state.bodyLength);
-  els.checksumLen.value = String(state.checksumLength);
+  els.mode.value = p.mode;
+  els.visual.value = p.visual;
+  els.spoken.value = p.spoken;
+  els.profanity.value = p.profanity;
+  els.bodyLen.value = String(p.bodyLength);
+  els.checksumLen.value = String(p.checksumLength);
+  els.separator.value = p.separator;
   render();
 }
 
@@ -98,8 +104,8 @@ function render() {
     <div>${r.displayedLength} displayed characters &middot; ${r.bits} bits of capacity</div>
     <div>checksum false acceptance ${r.falseAcceptance}${
       input.checksumLength > 0
-        ? ` <span class="badge ${r.checksumStates === 26n ? "amber" : "green"}">${
-            r.checksumStates === 26n ? "structured gaps, see spec 6.3" : "total single-substitution detection"
+        ? ` <span class="badge ${r.checksumStates <= BigInt(r.alphabet.length - 1) ? "amber" : "green"}">${
+            r.checksumStates <= BigInt(r.alphabet.length - 1) ? "structured gaps, see spec 6.3" : "total single-substitution detection"
           }</span>`
         : ""
     }</div>`;
@@ -160,20 +166,22 @@ els.copyUrl.addEventListener("click", async () => {
   setTimeout(() => (els.copyUrl.textContent = "Copy URL"), 1200);
 });
 
-els.reset.addEventListener("click", () => applyPreset(els.preset.value || "safe-alnum"));
+els.reset.addEventListener("click", () => applyPreset(els.preset.value || "medium"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
   els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin]) {
   el.addEventListener("input", render);
 }
 
-// Restore shareable state from the URL.
+// Restore shareable state from the URL; a shared link wins over the
+// default preset so the recipient sees exactly what was copied.
 {
   const q = new URLSearchParams(location.search);
+  const hasParams = [...q.keys()].length > 0;
   if (q.get("mode")) els.mode.value = q.get("mode") as string;
   if (q.get("visual")) els.visual.value = q.get("visual") as string;
   if (q.get("body")) els.bodyLen.value = q.get("body") as string;
   if (q.get("check")) els.checksumLen.value = q.get("check") as string;
   if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
+  if (!hasParams) applyPreset(els.preset.value || "medium");
 }
-applyPreset(els.preset.value);

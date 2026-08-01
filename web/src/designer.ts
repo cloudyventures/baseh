@@ -1,4 +1,4 @@
-import { design, exportDesign, parseRequired, sampleCodes, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
+import { design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, parseRequired, powBigInt, sampleCodes, spokenPairsThrough, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -12,6 +12,7 @@ const els = {
   maxUtil: $<HTMLSelectElement>("max-util"),
   visual: $<HTMLSelectElement>("d-visual"),
   spoken: $<HTMLSelectElement>("d-spoken"),
+  spokenDrops: $("d-spoken-drops"),
   profanity: $<HTMLSelectElement>("d-profanity"),
   permutation: $<HTMLInputElement>("d-permutation"),
   allowAlnum: $<HTMLInputElement>("allow-alnum"),
@@ -86,15 +87,25 @@ function sampleLine(s: { id: string; code: string; blocked?: boolean }): string 
     marker = "&infin;";
   }
   const rendered = s.blocked
-    ? `<span class="muted">blocked: this identifier spells a profanity and is never issued</span>`
+    ? `<span class="muted" title="This identifier spells a profanity and is never issued.">blocked</span>`
     : `<code>${s.code}</code>`;
-  return `<div title="${title}">${marker}: ${rendered}</div>`;
+  return `<span class="sample" title="${title}">${marker} ${rendered}</span>`;
+}
+
+// The share of displayed strings whose checksum accidentally validates.
+function collisionRate(c: Candidate, input: DesignerInput): string {
+  if (c.checksumLength === 0) return "100%";
+  const size = deriveChecksumAlphabet(c.alphabet, input.spokenSafety, c.profanity).length;
+  const pct = 100 / Number(powBigInt(BigInt(size), c.checksumLength));
+  if (pct >= 0.1) return `${pct.toFixed(1)}%`;
+  if (pct >= 0.01) return `${pct.toFixed(2)}%`;
+  return "<0.01%";
 }
 
 function card(c: Candidate, permutation: boolean, label?: string): string {
   const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation)
     .map(sampleLine)
-    .join("");
+    .join(`<span class="muted"> &bull; </span>`);
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
@@ -115,6 +126,18 @@ function render() {
     return;
   }
   const result = design(input);
+  // Tell the user exactly which letters spoken safety removes, for the
+  // alphanumeric alphabet under the current visual safety setting; other
+  // alphabets drop the same letters when they contain them.
+  {
+    const preSpoken = deriveAlphabet("alnum", "", input.visualSafety, "none", input.profanity);
+    const pairs = spokenPairsThrough(input.spokenSafety).filter(([keep]) => preSpoken.includes(keep));
+    els.spokenDrops.textContent = input.spokenSafety === "none"
+      ? ""
+      : pairs.length === 0
+        ? "No spoken drops apply with the current safety settings."
+        : `Removes from the alphabet: ${pairs.map(([keep, drop]) => `${drop} (read as ${keep})`).join(", ")}.`;
+  }
   els.recommended.innerHTML = result.recommended
     ? card(result.recommended, input.permutation, "Recommended")
     : "";
@@ -128,6 +151,7 @@ function render() {
       <td title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</td>
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
+      <td>${collisionRate(c, input)}</td>
       <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation).find((s) => s.id === "0")?.code ?? ""}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");

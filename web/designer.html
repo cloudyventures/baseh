@@ -53,6 +53,7 @@
           <option value="0.7">70%</option>
           <option value="0.8">80%</option>
           <option value="0.9">90%</option>
+          <option value="1">100%</option>
         </select>
       </div>
       <div class="field">
@@ -72,6 +73,7 @@
           <option value="medium">Medium</option>
           <option value="heavy">Heavy</option>
         </select>
+        <div id="d-spoken-drops" class="field-note" aria-live="polite"></div>
       </div>
       <div class="field">
         <label for="d-profanity">Profanity<span class="tip" tabindex="0" aria-label="Profanity controls details"><span class="i">i</span><span class="tip-body">Profanity controls keep codes customer-safe. Strip vowels removes A, E, I, O and U from every alphabet so no English word can ever be spelled; it shrinks the alphabet, which lowers capacity and may lengthen the body. Blocklist keeps the full alphabet but refuses to issue or accept any code containing a common English profanity; those identifiers are reserved and skipped, marked as blocked in the examples. None applies no check.</span></span></label>
@@ -98,7 +100,7 @@
 
     <section aria-labelledby="result" aria-live="polite">
       <h2 id="result">Recommendation</h2>
-      <div id="recommended" class="card"></div>
+      <div id="recommended"></div>
       <div id="repair" role="alert"></div>
       <h3>Alternatives</h3>
       <div id="alternatives"></div>
@@ -109,7 +111,7 @@
     <h2 id="compare">Comparisons</h2>
     <table id="candidates">
       <thead>
-        <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>Zero Renders As</th><th>Reason</th></tr>
+        <tr><th title="Marks the solver's top-ranked configuration."></th><th title="Body symbols plus checksum symbols, for example 6+1.">Candidate</th><th title="The number of distinct identifiers this configuration can issue before it is exhausted.">Capacity</th><th title="Your required capacity as a share of the total capacity. Lower is more growth room.">Utilization</th><th title="The total number of characters a user sees or reads out, checksum and any delimiters included.">Chars</th><th title="The share of all possible displayed character strings with a checksum that accidentally validates: the chance a random mistyping matches the wrong record. Always 100% when there is no checksum.">Collision rate</th><th title="How identifier zero is displayed under this candidate, checksum and delimiters included.">Zero renders as</th><th title="Why the solver ranked this candidate where it did.">Reason</th></tr>
       </thead>
       <tbody></tbody>
     </table>
