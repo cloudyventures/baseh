@@ -531,8 +531,9 @@ func TestValidate(t *testing.T) {
 	if bad.Valid || bad.CanonicalCode != "" || bad.Reason != INVALID_CHECKSUM {
 		t.Errorf("invalid code: %+v", bad)
 	}
+	// Spec 3.4: short input is re-padded, then fails the checksum.
 	short := h.Validate("00000", nil)
-	if short.Valid || short.Reason != INVALID_LENGTH {
+	if short.Valid || short.Reason != INVALID_CHECKSUM {
 		t.Errorf("short code: %+v", short)
 	}
 }

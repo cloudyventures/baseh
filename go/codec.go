@@ -239,6 +239,17 @@ func (h *Baseh) normalize(input string, acceptSpaces bool) (string, error) {
 			return "", newError(INVALID_CHARACTER, fmt.Sprintf("symbol %q is not accepted", string(s[i])), true)
 		}
 	}
+	// Spec 3.4: a code that lost leading zero body symbols is re-padded with
+	// the body zero symbol. The checksum symbols always remain, so the split
+	// point is unambiguous. A fully stripped no-checksum code would be empty
+	// and stays a length error.
+	minLength := h.prep.profile.ChecksumLength
+	if minLength < 1 {
+		minLength = 1
+	}
+	if len(s) < h.prep.rawLength && len(s) >= minLength {
+		s = strings.Repeat(h.prep.bodyNorm[:1], h.prep.rawLength-len(s)) + s
+	}
 	if len(s) != h.prep.rawLength {
 		return "", newError(INVALID_LENGTH, fmt.Sprintf("expected %d symbols, got %d", h.prep.rawLength, len(s)), true)
 	}

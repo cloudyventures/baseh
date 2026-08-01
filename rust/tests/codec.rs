@@ -2,7 +2,7 @@
 //! aliases, correction, profanity safety, sequential round trips and a
 //! fuzz smoke.
 
-use base_human::{
+use baseh::{
     baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1,
     baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1, Baseh, ConfusionProfile, DecodeOptions,
     ErrorCode, Permutation, Profanity, ProfanityMode, Profile,
@@ -427,7 +427,16 @@ fn normalization_and_aliases() {
     // Unknown symbol fails as INVALID_CHARACTER before length checks bite.
     let err = baseh.decode("0000@1M", &options).expect_err("bad symbol");
     assert_eq!(err.code, ErrorCode::InvalidCharacter);
+    // Spec 3.4: short input is re-padded, then fails the checksum check.
     let err = baseh.decode("000001", &options).expect_err("short input");
+    assert_eq!(err.code, ErrorCode::InvalidChecksum);
+    // A stripped form of a valid code decodes after re-padding.
+    let stripped = baseh.decode("1M", &options).expect("stripped code");
+    assert_eq!(stripped.id, id);
+    // Re-padding restores the canonical raw code, so corrected stays false.
+    assert!(!stripped.corrected);
+    // Over-long input still fails as INVALID_LENGTH.
+    let err = baseh.decode("0000001M", &options).expect_err("long input");
     assert_eq!(err.code, ErrorCode::InvalidLength);
 
     // A checksum-only symbol in the body region fails as INVALID_CHARACTER.
@@ -527,7 +536,7 @@ fn profanity_blocklist_encode() {
         match baseh.encode(&BigUint::from(n)) {
             Ok(code) => {
                 let upper = code.to_ascii_uppercase();
-                for word in base_human::DEFAULT_BLOCKLIST {
+                for word in baseh::DEFAULT_BLOCKLIST {
                     assert!(!upper.contains(word), "{code} contains {word}");
                 }
             }

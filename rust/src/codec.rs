@@ -128,6 +128,8 @@ fn normalize(
             *profile.aliases_norm.get(&c).unwrap_or(&c)
         })
         .collect();
+    // Spec 3.1 step 6 runs before spec 3.4 re-padding, so padded zero
+    // symbols never raise INVALID_CHARACTER.
     let allowed: HashSet<char> = profile
         .body_alphabet_norm
         .iter()
@@ -143,6 +145,17 @@ fn normalize(
         }
     }
     let expected = p.body_length + p.checksum_length;
+    // Spec 3.4: a code that lost leading zero body symbols is re-padded with
+    // the body zero symbol. The checksum symbols always remain, so the split
+    // point is unambiguous. A fully stripped no-checksum code would be empty
+    // and stays a length error.
+    let mut normalized = normalized;
+    if normalized.len() < expected && normalized.len() >= p.checksum_length.max(1) {
+        let zero = profile.body_alphabet_norm[0];
+        let mut padded = vec![zero; expected - normalized.len()];
+        padded.extend(normalized);
+        normalized = padded;
+    }
     if normalized.len() != expected {
         return Err(BasehError::customer(
             ErrorCode::InvalidLength,
