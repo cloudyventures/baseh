@@ -41,19 +41,84 @@ module Baseh
     end
 
     # Spec section 4. Capacity is an arbitrary-precision Integer.
+    # Spec 12.3: fixed mode only; expandable profiles have no single
+    # capacity (use the per-generation formulas of spec 19.1).
     def capacity
+      if @profile.mode != "fixed"
+        raise BasehError.new(
+          "INVALID_PROFILE",
+          "capacity is only defined for fixed-mode profiles",
+          safe_for_customer: false
+        )
+      end
       @profile.capacity
     end
 
-    # Spec section 8, with the spec 18.2 blocklist scan over the raw code.
+    # Spec 19.1. First id of generation length: the sum of A^(k-K) for k
+    # from minLength through length-1.
+    def generation_base(length)
+      a = @profile.body_alphabet.length
+      base = 0
+      cap = a**(@profile.min_length - @profile.checksum_length)
+      @profile.min_length.upto(length - 1) do |_l|
+        base += cap
+        cap *= a
+      end
+      base
+    end
+
+    # Spec 19.1. Ids held by generation length: A^(length-K).
+    def generation_capacity(length)
+      @profile.body_alphabet.length**(length - @profile.checksum_length)
+    end
+
+    # Smallest generation whose range holds id, per spec 19.6.
+    def generation_for_id(id)
+      l = @profile.min_length
+      base = 0
+      cap = generation_capacity(l)
+      while id >= base + cap
+        base += cap
+        cap *= @profile.body_alphabet.length
+        l += 1
+      end
+      l
+    end
+
+    # Spec 19.5. Group sizes for a total length under the right-anchored
+    # repeating pattern: consume groups from the right, cycling the pattern
+    # from its last element backwards; a short remainder forms the leftmost
+    # group.
+    def self.expandable_grouping(length, pattern)
+      sizes = []
+      remaining = length
+      i = pattern.length - 1
+      while remaining.positive?
+        p = pattern[i]
+        if remaining <= p
+          sizes.unshift(remaining)
+          break
+        end
+        sizes.unshift(p)
+        remaining -= p
+        i = (i - 1) % pattern.length
+      end
+      sizes
+    end
+
+    # Spec section 8 (fixed mode) / 19.6 (expandable mode), with the spec
+    # 18.2 blocklist scan over the raw code.
     #
-    # @param id [Integer] 0 <= id < capacity
-    # @return [String] canonical code (grouped only when a separator is set)
+    # @param id [Integer] 0 <= id < capacity (fixed); any non-negative id
+    #   whose code fits in 32 symbols (expandable)
+    # @return [String] canonical code (grouped only when a separator applies)
     # @raise [BasehError] OUT_OF_RANGE, PERMUTATION_FAILURE, BLOCKED_CODE
     def encode(id:)
       unless id.is_a?(Integer)
         raise TypeError, "id must be an Integer"
       end
+      return encode_expandable(id) if @profile.mode == "expandable"
+
       if id.negative? || id >= @profile.capacity
         raise BasehError.new("OUT_OF_RANGE", "ID #{id} is outside the profile capacity")
       end
@@ -93,8 +158,14 @@ module Baseh
       end
 
       raw = normalize(input, accept_spaces)
-      body = raw.slice(0, @profile.body_length)
-      supplied_checksum = raw.slice(@profile.body_length..) || ""
+      body_length =
+        if @profile.mode == "expandable"
+          raw.length - @profile.checksum_length
+        else
+          @profile.body_length
+        end
+      body = raw.slice(0, body_length)
+      supplied_checksum = raw.slice(body_length..) || ""
 
       # normalize validates every symbol against the union of the body and
       # checksum alphabets (spec 3.1 step 6). A checksum-only symbol in a
@@ -155,7 +226,22 @@ module Baseh
 
       value = BaseN.decode_base_n(body, @profile.body_alphabet, @body_index)
       perm = @profile.permutation
-      if perm[:enabled]
+      if @profile.mode == "expandable"
+        # Spec 19.7: the offset is de-permuted within the generation's own
+        # domain (length mixed into the key derivation), then the generation
+        # base is added back.
+        l = raw.length
+        if perm[:enabled]
+          value = Feistel.inverse_permute(
+            value, generation_capacity(l),
+            profile_id: @profile.profile_id,
+            key_bytes: perm[:key_bytes],
+            rounds: perm[:rounds],
+            length: l
+          )
+        end
+        value = generation_base(l) + value
+      elsif perm[:enabled]
         value = Feistel.inverse_permute(
           value, @profile.capacity,
           profile_id: @profile.profile_id,
@@ -181,14 +267,25 @@ module Baseh
       ValidateResult.new(valid: false, reason: e.code)
     end
 
-    # Spec 3.1 normalization, steps 1-9, with the spec 3.4 re-pad. Returns
-    # the raw unformatted string.
+    # Spec 3.1 normalization, steps 1-9, with the spec 3.4 re-pad in fixed
+    # mode only. Returns the raw unformatted string.
     def normalize(input, accept_spaces)
       s = input.gsub(ASCII_WS, "")
+      had_separator = !@profile.separator.empty? && s.include?(@profile.separator)
       s = s.delete(@profile.separator) unless @profile.separator.empty?
       s = s.delete(" ") if accept_spaces
       s = s.upcase unless @profile.case_sensitive
-      s = s.each_char.map { |ch| @profile.aliases.fetch(ch, ch) }.join
+      # Spec 3.2: an alias never maps two distinct canonical symbols into one
+      # value, so a symbol that is already canonical stays as-is and only
+      # non-canonical symbols are aliased. (In fixed tiers alias sources are
+      # never canonical, so this changes nothing there.)
+      s = s.each_char.map do |ch|
+        if @body_index.key?(ch) || @profile.checksum_alphabet.include?(ch)
+          ch
+        else
+          @profile.aliases.fetch(ch, ch)
+        end
+      end.join
 
       s.each_char do |ch|
         next if @body_index.key?(ch) || @profile.checksum_alphabet.include?(ch)
@@ -197,6 +294,32 @@ module Baseh
           "INVALID_CHARACTER",
           "Symbol #{ch.inspect} is not accepted"
         )
+      end
+
+      if @profile.mode == "expandable"
+        # Spec 19.2/19.7: no left-padding and no stripped-zero leniency. Input
+        # shorter than minLength or longer than 32 fails INVALID_LENGTH, and a
+        # separator below separatorMinLength is rejected (spec 19.5: the
+        # decoder expects no separators there).
+        if s.length < @profile.min_length
+          raise BasehError.new(
+            "INVALID_LENGTH",
+            "Expected at least #{@profile.min_length} symbols, got #{s.length}"
+          )
+        end
+        if s.length > 32
+          raise BasehError.new(
+            "INVALID_LENGTH",
+            "Expected at most 32 symbols, got #{s.length}"
+          )
+        end
+        if had_separator && s.length < @profile.separator_min_length
+          raise BasehError.new(
+            "INVALID_CHARACTER",
+            "Separators do not appear below #{@profile.separator_min_length} symbols"
+          )
+        end
+        return s
       end
 
       expected = @profile.body_length + @profile.checksum_length
@@ -269,12 +392,55 @@ module Baseh
       end
     end
 
+    # Spec 19.6. The id selects its generation by magnitude; the offset
+    # within the generation is permuted in that generation's own domain.
+    def encode_expandable(id)
+      if id.negative?
+        raise BasehError.new("OUT_OF_RANGE", "ID #{id} is negative")
+      end
+      l = generation_for_id(id)
+      if l > 32
+        raise BasehError.new(
+          "OUT_OF_RANGE",
+          "ID #{id} requires a code longer than 32 symbols"
+        )
+      end
+      value = id - generation_base(l)
+      domain = generation_capacity(l)
+      perm = @profile.permutation
+      if perm[:enabled]
+        value = Feistel.permute(
+          value, domain,
+          profile_id: @profile.profile_id,
+          key_bytes: perm[:key_bytes],
+          rounds: perm[:rounds],
+          length: l
+        )
+      end
+      body = BaseN.encode_base_n(value, @profile.body_alphabet, l - @profile.checksum_length)
+      checksum = Checksum.calculate_checksum(@profile, body, @body_index)
+      raw = body + checksum
+      check_blocklist!(raw)
+      format_raw(raw)
+    end
+
+    # Spec 11/19.5. In expandable mode the separator applies only at or above
+    # separatorMinLength, with the grouping interpreted as a right-anchored
+    # repeating pattern for the total length.
     def format_raw(raw)
       return raw if @profile.separator.empty?
 
+      grouping =
+        if @profile.mode == "expandable"
+          return raw if raw.length < @profile.separator_min_length
+
+          self.class.expandable_grouping(raw.length, @profile.grouping)
+        else
+          @profile.grouping
+        end
       parts = []
       offset = 0
-      @profile.grouping.each do |size|
+      grouping.each do |size|
         parts << raw.slice(offset, size)
         offset += size
       end

@@ -19,6 +19,10 @@ class FeistelKey:
     profile_id: str
     key_bytes: bytes
     rounds: int
+    # Expandable mode only (spec 7.3/19.4): the total code length L of the
+    # generation, mixed into the round-message key derivation. Fixed mode
+    # leaves it None and its messages stay byte-for-byte unchanged.
+    length: int | None = None
 
 
 _TAG = b"BASEH-FEISTEL-V1"
@@ -36,14 +40,20 @@ def _low_bits(digest: bytes, n: int) -> int:
     return value & ((1 << n) - 1)
 
 
-def _round_message(profile_id: str, round_number: int, right: int, wr: int) -> bytes:
+def _round_message(profile_id: str, round_number: int, right: int, wr: int, length: int | None = None) -> bytes:
     pid_bytes = profile_id.encode("ascii")
     right_bytes = right.to_bytes((wr + 7) // 8, "big")
+    length_bytes = b""
+    if length is not None:
+        # Spec 7.3 expandable message: ASCII decimal of L, no leading zeros,
+        # followed by 0x00.
+        length_bytes = str(length).encode("ascii") + b"\x00"
     return (
         _TAG
         + b"\x00"
         + pid_bytes
         + b"\x00"
+        + length_bytes
         + bytes([round_number])
         + right_bytes
     )
@@ -55,7 +65,9 @@ def _run_rounds(left: int, right: int, key, w0: int, w1: int) -> tuple:
         wr = w1 if even else w0
         wl = w0 if even else w1
         digest = hmac.new(
-            key.key_bytes, _round_message(key.profile_id, i, right, wr), hashlib.sha256
+            key.key_bytes,
+            _round_message(key.profile_id, i, right, wr, key.length),
+            hashlib.sha256,
         ).digest()
         f = _low_bits(digest, wl)
         left, right = right, left ^ f
@@ -68,7 +80,9 @@ def _run_inverse(left: int, right: int, key, w0: int, w1: int) -> tuple:
         wr = w1 if even else w0
         wl = w0 if even else w1
         digest = hmac.new(
-            key.key_bytes, _round_message(key.profile_id, i, left, wr), hashlib.sha256
+            key.key_bytes,
+            _round_message(key.profile_id, i, left, wr, key.length),
+            hashlib.sha256,
         ).digest()
         f = _low_bits(digest, wl)
         left, right = right ^ f, left

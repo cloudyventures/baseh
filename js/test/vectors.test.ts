@@ -92,7 +92,8 @@ describe("frozen feistel vectors", () => {
       const key = {
         profileId: v.profileId,
         keyBytes: hexToBytes(v.keyBytesHex),
-        rounds: v.rounds
+        rounds: v.rounds,
+        ...(v.length === undefined ? {} : { length: v.length })
       };
       const p = permute(BigInt(v.input), BigInt(v.capacity), key);
       assert.equal(p.toString(), v.permuted);

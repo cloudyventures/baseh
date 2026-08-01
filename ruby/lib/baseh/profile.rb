@@ -16,9 +16,10 @@ module Baseh
 
     # Immutable, fully validated profile with pre-computed derived values.
     class Prepared
-      attr_reader :profile_id, :body_alphabet, :body_length,
-                  :checksum_alphabet, :checksum_length, :case_sensitive,
-                  :separator, :grouping, :aliases, :permutation,
+      attr_reader :profile_id, :mode, :body_alphabet, :body_length,
+                  :min_length, :checksum_alphabet, :checksum_length,
+                  :case_sensitive, :separator, :separator_min_length,
+                  :grouping, :aliases, :permutation,
                   :capacity, :checksum_modulus, :profanity_mode, :blocklist
 
       def initialize(profile)
@@ -26,12 +27,54 @@ module Baseh
         @profile_id = validate_profile_id!(profile[:profile_id])
         @case_sensitive = profile[:case_sensitive] == true
 
+        # Spec 2.2/19.9. A persisted or frozen profile declares its mode;
+        # profiles built before the mode field existed are fixed, so the
+        # frozen vectors keep matching byte for byte.
+        @mode = (profile[:mode] || "fixed").to_s
+        unless %w[fixed expandable].include?(@mode)
+          self.class.fail_profile!("mode must be fixed or expandable")
+        end
+
         @body_alphabet = validate_body_alphabet!(profile[:body_alphabet])
-        @body_length = validate_integer!(profile[:body_length], 1, 32, "bodyLength")
+        # Spec 19.2: in expandable mode the zero ban strips 0 and O from the
+        # body alphabet silently, before any other validation, exactly like
+        # the no-vowels strip of section 18.1.
+        if @mode == "expandable"
+          @body_alphabet = @body_alphabet.delete("0O").freeze
+        end
+        @body_length =
+          if @mode == "fixed"
+            validate_integer!(profile[:body_length], 1, 32, "bodyLength")
+          end
         @checksum_length = validate_integer!(profile[:checksum_length], 0, 8, "checksumLength")
-        @checksum_alphabet = validate_checksum_alphabet!(
-          profile[:checksum_alphabet], @checksum_length
-        )
+        @min_length = (profile[:min_length] || 4)
+        @separator_min_length = (profile[:separator_min_length] || 0)
+        if @mode == "fixed"
+          unless @separator_min_length.is_a?(Integer) && @separator_min_length.zero?
+            self.class.fail_profile!("separatorMinLength must be 0 in fixed mode")
+          end
+        else
+          unless @min_length.is_a?(Integer) && @min_length >= 1
+            self.class.fail_profile!("minLength must be an integer of at least 1")
+          end
+          unless @min_length > @checksum_length
+            self.class.fail_profile!("minLength must be greater than checksumLength")
+          end
+          unless @separator_min_length.is_a?(Integer) && @separator_min_length >= 0
+            self.class.fail_profile!("separatorMinLength must be an integer of at least 0")
+          end
+        end
+        # Spec 19.3: in expandable mode the checksum alphabet is derived from
+        # the body alphabet after every body strip; the configured
+        # checksumAlphabet is not consulted.
+        @checksum_alphabet =
+          if @mode == "expandable"
+            "".freeze
+          else
+            validate_checksum_alphabet!(
+              profile[:checksum_alphabet], @checksum_length
+            )
+          end
 
         # Spec 18: validation happens before the vowel strip so malformed
         # alphabets are reported as such, then no-vowels strips and
@@ -41,9 +84,19 @@ module Baseh
           @body_alphabet = Profanity.strip_vowels(@body_alphabet)
           @checksum_alphabet = Profanity.strip_vowels(@checksum_alphabet)
           validate_stripped!(@body_alphabet, "body")
-          validate_stripped!(@checksum_alphabet, "checksum") if @checksum_length.positive?
+          if @mode == "fixed" && @checksum_length.positive?
+            validate_stripped!(@checksum_alphabet, "checksum")
+          end
           @body_alphabet.freeze
           @checksum_alphabet.freeze
+        end
+        if @mode == "expandable"
+          # Spec 19.3: the checksum alphabet is derived, "0" followed by the
+          # body alphabet in order, after every body strip (zero ban,
+          # no-vowels) so all downstream rules see the final alphabets. The
+          # configured checksumAlphabet is not consulted.
+          @checksum_alphabet = ("0" + @body_alphabet).freeze
+          validate_stripped!(@body_alphabet, "body")
         end
         @blocklist =
           if @profanity_mode == "blocklist"
@@ -63,7 +116,9 @@ module Baseh
         )
         @permutation = validate_permutation!(profile[:permutation] || { enabled: false })
 
-        @capacity = @body_alphabet.length**@body_length
+        # Capacity is the fixed-mode A^bodyLength; meaningless in expandable
+        # mode, where Baseh#capacity refuses per spec 12.3.
+        @capacity = @body_alphabet.length**(@body_length || 0)
         @checksum_modulus = [@checksum_alphabet.length, 1].max**@checksum_length
         freeze
       end
@@ -189,7 +244,13 @@ module Baseh
           end
           s_norm = case_sensitive ? src : src.upcase
           t_norm = case_sensitive ? tgt : tgt.upcase
-          if canonical.include?(s_norm)
+          # Spec 3.2: an alias must never map two distinct canonical symbols
+          # into one value. Fixed mode rejects a canonical alias source
+          # outright. In expandable mode the frozen tier (spec 17.1) carries
+          # aliases whose sources are canonical body symbols (T, N, W stay in
+          # the body alphabet); the canonical symbol wins at normalization,
+          # making those entries inert instead of destructive.
+          if @mode == "fixed" && canonical.include?(s_norm)
             self.class.fail_profile!("alias source #{src.inspect} is already a canonical symbol")
           end
           unless canonical.include?(t_norm)
@@ -222,7 +283,13 @@ module Baseh
           unless grouping.all? { |g| g.is_a?(Integer) && g >= 1 }
             self.class.fail_profile!("group sizes must be positive integers")
           end
-          unless grouping.sum == body_length + checksum_length
+          if @mode == "expandable"
+            # Spec 19.5: the sum rule cannot hold at every length; grouping is
+            # a right-anchored repeating pattern and only needs positive sizes.
+            if grouping.empty?
+              self.class.fail_profile!("expandable grouping must be non-empty with positive integer sizes")
+            end
+          elsif grouping.sum != body_length + checksum_length
             self.class.fail_profile!("group sizes must sum to bodyLength + checksumLength")
           end
         end

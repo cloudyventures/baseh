@@ -116,7 +116,9 @@ func main() {
 		}
 		return r.ID, nil
 	})
-	fmt.Printf("Capacity -> %s\n", medium.Capacity())
+	if capacity, err := medium.Capacity(); err == nil {
+		fmt.Printf("Capacity -> %s\n", capacity)
+	}
 
 	// 4. Correction: a spoken slip recovers the intended record. The frozen
 	// tiers alias the spoken pairs outright (a typed T is a P at Medium), so
@@ -183,5 +185,7 @@ func main() {
 		}
 		return r.ID, nil
 	})
-	fmt.Printf("Capacity -> %s\n", orders.Capacity())
+	if capacity, err := orders.Capacity(); err == nil {
+		fmt.Printf("Capacity -> %s\n", capacity)
+	}
 }

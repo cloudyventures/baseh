@@ -53,6 +53,15 @@ func mustNew(t *testing.T, p Profile) *Codec {
 	return h
 }
 
+func mustCapacity(t *testing.T, h *Codec) *big.Int {
+	t.Helper()
+	c, err := h.Capacity()
+	if err != nil {
+		t.Fatalf("Capacity: %v", err)
+	}
+	return c
+}
+
 func assertCode(t *testing.T, err error, want ErrorCode) {
 	t.Helper()
 	var herr *Error
@@ -237,7 +246,7 @@ func TestTierCapacities(t *testing.T) {
 		if strings.HasSuffix(id, "-p-v1") {
 			plain = strings.TrimSuffix(id, "-p-v1") + "-v1"
 		}
-		if got := h.Capacity().String(); got != want[plain] {
+		if got := mustCapacity(t, h).String(); got != want[plain] {
 			t.Errorf("%s capacity = %s, want %s", id, got, want[plain])
 		}
 	}
@@ -273,7 +282,7 @@ func TestKeyedPermutationDefaults(t *testing.T) {
 	// Boundary round trips hold with and without permutation.
 	for name, p := range map[string]Profile{"plain": plain, "keyed": def} {
 		h := mustNew(t, p)
-		for _, id := range []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(123456789), new(big.Int).Sub(h.Capacity(), big.NewInt(1))} {
+		for _, id := range []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(123456789), new(big.Int).Sub(mustCapacity(t, h), big.NewInt(1))} {
 			code, err := h.Encode(id)
 			if err != nil {
 				t.Fatalf("%s encode %s: %v", name, id, err)
@@ -288,7 +297,7 @@ func TestKeyedPermutationDefaults(t *testing.T) {
 
 func TestBoundaryRoundTrips(t *testing.T) {
 	h := mustNew(t, baseProfile())
-	capacity := h.Capacity()
+	capacity := mustCapacity(t, h)
 	ids := []*big.Int{
 		big.NewInt(0),
 		big.NewInt(1),
@@ -318,7 +327,7 @@ func TestBoundaryRoundTrips(t *testing.T) {
 
 func TestOutOfRange(t *testing.T) {
 	h := mustNew(t, baseProfile())
-	if _, err := h.Encode(h.Capacity()); err == nil {
+	if _, err := h.Encode(mustCapacity(t, h)); err == nil {
 		t.Errorf("encode(capacity) accepted")
 	} else {
 		assertCode(t, err, OUT_OF_RANGE)
@@ -337,13 +346,13 @@ func TestOutOfRange(t *testing.T) {
 
 func TestCapacity(t *testing.T) {
 	h := mustNew(t, baseProfile())
-	if h.Capacity().String() != "1073741824" {
-		t.Errorf("capacity = %s", h.Capacity())
+	if got := mustCapacity(t, h).String(); got != "1073741824" {
+		t.Errorf("capacity = %s", got)
 	}
 	// Returned value is a copy; mutating it must not corrupt the codec.
-	c := h.Capacity()
+	c := mustCapacity(t, h)
 	c.SetInt64(5)
-	if h.Capacity().String() != "1073741824" {
+	if got := mustCapacity(t, h).String(); got != "1073741824" {
 		t.Errorf("capacity mutated through returned copy")
 	}
 }
@@ -609,8 +618,8 @@ func TestProfanityNoVowels(t *testing.T) {
 		t.Fatalf("novowel profile rejected: %v", err)
 	}
 	// Stripped body alphabet has 30 symbols: 30^6.
-	if h.Capacity().String() != "729000000" {
-		t.Errorf("capacity = %s", h.Capacity())
+	if got := mustCapacity(t, h).String(); got != "729000000" {
+		t.Errorf("capacity = %s", got)
 	}
 	for _, id := range []int64{0, 1, 2, 728999999} {
 		code, err := h.Encode(big.NewInt(id))

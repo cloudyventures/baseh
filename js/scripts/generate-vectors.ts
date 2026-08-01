@@ -6,7 +6,9 @@
 import { writeFileSync } from "node:fs";
 import {
   Baseh, basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
-  FROZEN_KEY_BYTES, prepareProfile, calculateChecksum, permute, inversePermute
+  basehExpandableV1,
+  FROZEN_KEY_BYTES, prepareProfile, calculateChecksum, permute, inversePermute,
+  generationBase, generationCapacity
 } from "../src/index.js";
 
 const FROZEN_KEY_HEX = [...FROZEN_KEY_BYTES].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -393,6 +395,167 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
       input: id.toString(10),
       permuted: p.toString(10)
     });
+  }
+}
+
+// --- Spec 19/20 expandable mode ---------------------------------------------
+// The expandable tier's definition gains the mode fields; round trips pin the
+// exact first/last id of every generation 4-8, rejections pin the error
+// codes of spec 19.8, and a per-generation Feistel set pins the
+// length-mixed key derivation of spec 7.3/19.4.
+{
+  const expandable = basehExpandableV1();
+  const h = new Baseh(expandable);
+  const prepared = h.profile;
+  profileEntries.push({
+    profileId: expandable.profileId,
+    definition: {
+      profileId: expandable.profileId,
+      mode: "expandable",
+      bodyAlphabet: expandable.bodyAlphabet,
+      minLength: expandable.minLength,
+      checksumAlphabet: expandable.checksumAlphabet,
+      checksumLength: expandable.checksumLength,
+      caseSensitive: expandable.caseSensitive,
+      separator: expandable.separator,
+      separatorMinLength: expandable.separatorMinLength,
+      grouping: expandable.grouping,
+      aliases: expandable.aliases,
+      permutation: {
+        enabled: true,
+        algorithm: "feistel-v1",
+        keyId: "frozen",
+        keyBytesHex: FROZEN_KEY_HEX,
+        rounds: 8
+      },
+      profanity: { mode: "blocklist" }
+    },
+    generations: [4, 5, 6, 7, 8].map((l) => ({
+      length: l,
+      base: generationBase(prepared, l).toString(10),
+      capacity: generationCapacity(prepared, l).toString(10)
+    }))
+  });
+
+  // Round trips at the exact first and last id of generations 4-8, plus a
+  // sampled spread inside each generation.
+  const boundary = new Set<bigint>();
+  for (let l = 4; l <= 8; l += 1) {
+    boundary.add(generationBase(prepared, l));
+    boundary.add(generationBase(prepared, l + 1) - 1n);
+  }
+  const rand = lcg(2654435761n);
+  for (let l = 4; l <= 8; l += 1) {
+    const base = generationBase(prepared, l);
+    const cap = generationCapacity(prepared, l);
+    for (let i = 0; i < 6; i += 1) boundary.add(base + rand() % cap);
+  }
+  for (const id of [...boundary].sort((a, b) => (a < b ? -1 : 1))) {
+    let canonical: string;
+    try {
+      canonical = h.encode(id);
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "BLOCKED_CODE") {
+        encodeErrors.push({ profileId: expandable.profileId, id: id.toString(10), error: "BLOCKED_CODE" });
+        continue;
+      }
+      throw e;
+    }
+    const rawCode = canonical.replaceAll("-", "");
+    const bodyLength = rawCode.length - expandable.checksumLength;
+    codecVectors.push({
+      profileId: expandable.profileId,
+      id: id.toString(10),
+      canonicalCode: canonical,
+      rawBody: rawCode.slice(0, bodyLength),
+      rawChecksum: rawCode.slice(bodyLength)
+    });
+  }
+
+  // Checksum-with-zero vectors (spec 20.3): pin codes whose checksum
+  // contains 0, including one where 0 is the final symbol.
+  let zeroInside = 0;
+  let zeroFinal: bigint | null = null;
+  for (let id = 0n; id < 500000n && (zeroInside < 3 || zeroFinal === null); id += 1n) {
+    let canonical: string;
+    try {
+      canonical = h.encode(id);
+    } catch {
+      continue;
+    }
+    const rawCode = canonical.replaceAll("-", "");
+    const check = rawCode.slice(-2);
+    if (check.endsWith("0") && zeroFinal === null) {
+      zeroFinal = id;
+    } else if (check.includes("0") && zeroInside < 3) {
+      zeroInside += 1;
+    } else {
+      continue;
+    }
+    const bodyLength = rawCode.length - expandable.checksumLength;
+    codecVectors.push({
+      profileId: expandable.profileId,
+      id: id.toString(10),
+      canonicalCode: canonical,
+      rawBody: rawCode.slice(0, bodyLength),
+      rawChecksum: rawCode.slice(bodyLength),
+      note: "checksum contains 0"
+    } as never);
+  }
+  if (zeroFinal !== null) {
+    // A typed O in a checksum position aliases to 0 (spec 19.2/20.3).
+    const canonical = h.encode(zeroFinal);
+    const typed = canonical.replaceAll("-", "").slice(0, -1) + "O";
+    codecVectors.push({
+      profileId: expandable.profileId,
+      input: typed,
+      id: zeroFinal.toString(10),
+      canonicalCode: canonical,
+      note: "typed O in checksum position aliases to 0"
+    } as never);
+  }
+
+  // Rejection vectors (spec 19.8/20.2/20.4/20.5/20.6).
+  const sample = h.encode(777n).replaceAll("-", ""); // a generation-4 code
+  errorVectors.push(
+    { profileId: expandable.profileId, input: "ABC", error: "INVALID_LENGTH" },
+    { profileId: expandable.profileId, input: "", error: "INVALID_LENGTH" },
+    { profileId: expandable.profileId, input: "A".repeat(33), error: "INVALID_LENGTH" },
+    // 0 or O in a body position (after the O -> 0 alias)
+    { profileId: expandable.profileId, input: "0" + sample.slice(1), error: "INVALID_CHARACTER" },
+    { profileId: expandable.profileId, input: "O" + sample.slice(1), error: "INVALID_CHARACTER" },
+    // separator below separatorMinLength (lengths 4 and 5 render bare)
+    { profileId: expandable.profileId, input: sample.slice(0, 2) + "-" + sample.slice(2), error: "INVALID_CHARACTER" },
+    // wrong-length presentation of an otherwise valid code
+    { profileId: expandable.profileId, input: sample + "A", error: "INVALID_CHECKSUM" }
+  );
+
+  // Per-generation Feistel vectors (spec 7.3 expandable message encoding).
+  for (const l of [4, 5, 6, 7, 8]) {
+    const domain = generationCapacity(prepared, l);
+    const key = {
+      profileId: expandable.profileId,
+      keyBytes: FROZEN_KEY_BYTES,
+      rounds: 8,
+      length: l
+    };
+    const randF = lcg(BigInt(1000 + l));
+    const ids = new Set<bigint>([0n, 1n, domain - 1n]);
+    while (ids.size < 8) ids.add(randF() % domain);
+    for (const id of [...ids].sort((a, b) => (a < b ? -1 : 1))) {
+      const p = permute(id, domain, key);
+      if (inversePermute(p, domain, key) !== id) throw new Error(`expandable feistel broke at L=${l}: ${id}`);
+      feistelVectors.push({
+        profileId: expandable.profileId,
+        keyBytesHex: FROZEN_KEY_HEX,
+        capacity: domain.toString(10),
+        rounds: 8,
+        length: l,
+        input: id.toString(10),
+        permuted: p.toString(10)
+      });
+    }
   }
 }
 

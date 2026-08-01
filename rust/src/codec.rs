@@ -8,7 +8,7 @@ use crate::basen::{decode_base_n, encode_base_n};
 use crate::checksum::calculate_checksum;
 use crate::error::{BasehError, ErrorCode};
 use crate::feistel::{inverse_permute, permute};
-use crate::profile::{prepare_profile, Permutation, PreparedProfile, Profile};
+use crate::profile::{prepare_profile, Mode, Permutation, PreparedProfile, Profile};
 
 /// Built-in spoken-confusion candidate maps (spec 3.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -108,6 +108,8 @@ fn normalize(
     accept_spaces: bool,
 ) -> Result<Vec<char>, BasehError> {
     let trimmed = input.trim_matches(is_ascii_ws);
+    let had_separator =
+        !profile.profile.separator.is_empty() && trimmed.contains(&profile.profile.separator);
     let mut s: String = if profile.profile.separator.is_empty() {
         trimmed.to_string()
     } else {
@@ -117,6 +119,16 @@ fn normalize(
         s = s.replace(' ', "");
     }
     let p = &profile.profile;
+    let allowed: HashSet<char> = profile
+        .body_alphabet_norm
+        .iter()
+        .chain(profile.checksum_alphabet_norm.iter())
+        .copied()
+        .collect();
+    // Spec 3.2: an alias never maps two distinct canonical symbols into one
+    // value, so a symbol that is already canonical stays as-is and only
+    // non-canonical symbols are aliased. (In fixed tiers alias sources are
+    // never canonical, so this changes nothing there.)
     let normalized: Vec<char> = s
         .chars()
         .map(|c| {
@@ -125,17 +137,15 @@ fn normalize(
             } else {
                 c.to_ascii_uppercase()
             };
-            *profile.aliases_norm.get(&c).unwrap_or(&c)
+            if allowed.contains(&c) {
+                c
+            } else {
+                *profile.aliases_norm.get(&c).unwrap_or(&c)
+            }
         })
         .collect();
     // Spec 3.1 step 6 runs before spec 3.4 re-padding, so padded zero
     // symbols never raise INVALID_CHARACTER.
-    let allowed: HashSet<char> = profile
-        .body_alphabet_norm
-        .iter()
-        .chain(profile.checksum_alphabet_norm.iter())
-        .copied()
-        .collect();
     for ch in &normalized {
         if !allowed.contains(ch) {
             return Err(BasehError::customer(
@@ -143,6 +153,38 @@ fn normalize(
                 format!("Symbol {ch:?} is not accepted"),
             ));
         }
+    }
+    if p.mode == Mode::Expandable {
+        // Spec 19.2/19.7: no left-padding and no stripped-zero leniency.
+        // Input shorter than minLength or longer than 32 fails
+        // INVALID_LENGTH, and a separator below separatorMinLength is
+        // rejected (spec 19.5: the decoder expects no separators there).
+        if normalized.len() < profile.min_length {
+            return Err(BasehError::customer(
+                ErrorCode::InvalidLength,
+                format!(
+                    "Expected at least {} symbols, got {}",
+                    profile.min_length,
+                    normalized.len()
+                ),
+            ));
+        }
+        if normalized.len() > 32 {
+            return Err(BasehError::customer(
+                ErrorCode::InvalidLength,
+                format!("Expected at most 32 symbols, got {}", normalized.len()),
+            ));
+        }
+        if had_separator && normalized.len() < profile.separator_min_length {
+            return Err(BasehError::customer(
+                ErrorCode::InvalidCharacter,
+                format!(
+                    "Separators do not appear below {} symbols",
+                    profile.separator_min_length
+                ),
+            ));
+        }
+        return Ok(normalized);
     }
     let expected = p.body_length + p.checksum_length;
     // Spec 3.4: a code that lost leading zero body symbols is re-padded with
@@ -165,19 +207,98 @@ fn normalize(
     Ok(normalized)
 }
 
-/// Spec 11. Grouping is presentation only; skipped when the separator is empty.
+/// Spec 11/19.5. Grouping is presentation only; skipped when the separator
+/// is empty or (expandable) below separatorMinLength.
 fn format_raw(raw: &[char], profile: &PreparedProfile) -> String {
     let p = &profile.profile;
     if p.separator.is_empty() {
         return raw.iter().collect();
     }
-    let mut parts: Vec<String> = Vec::with_capacity(p.grouping.len());
+    if p.mode == Mode::Expandable {
+        if raw.len() < profile.separator_min_length {
+            return raw.iter().collect();
+        }
+        return format_with(
+            raw,
+            &expandable_grouping(raw.len(), &p.grouping),
+            &p.separator,
+        );
+    }
+    format_with(raw, &p.grouping, &p.separator)
+}
+
+fn format_with(raw: &[char], sizes: &[usize], separator: &str) -> String {
+    let mut parts: Vec<String> = Vec::with_capacity(sizes.len());
     let mut offset = 0;
-    for size in &p.grouping {
+    for size in sizes {
         parts.push(raw[offset..offset + size].iter().collect());
         offset += size;
     }
-    parts.join(&p.separator)
+    parts.join(separator)
+}
+
+/// Spec 19.5. Group sizes for a total length under the right-anchored
+/// repeating pattern: consume groups from the right, cycling the pattern from
+/// its last element backwards; a short remainder forms the leftmost group.
+pub fn expandable_grouping(length: usize, pattern: &[usize]) -> Vec<usize> {
+    let mut sizes: Vec<usize> = Vec::new();
+    let mut remaining = length;
+    let mut i = pattern.len() - 1;
+    while remaining > 0 {
+        let p = pattern[i];
+        if remaining <= p {
+            sizes.insert(0, remaining);
+            break;
+        }
+        sizes.insert(0, p);
+        remaining -= p;
+        i = (i + pattern.len() - 1) % pattern.len();
+    }
+    sizes
+}
+
+/// Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
+/// minLength through L-1.
+pub(crate) fn generation_base(profile: &PreparedProfile, length: usize) -> BigUint {
+    let a = BigUint::from(profile.body_alphabet_norm.len() as u64);
+    let k = profile.profile.checksum_length;
+    let mut base = BigUint::from(0u64);
+    let mut cap = pow_biguint(a.clone(), profile.min_length - k);
+    for _ in profile.min_length..length {
+        base += &cap;
+        cap *= &a;
+    }
+    base
+}
+
+/// Spec 19.1. Ids held by generation L: A^(L-K).
+pub(crate) fn generation_capacity(profile: &PreparedProfile, length: usize) -> BigUint {
+    pow_biguint(
+        BigUint::from(profile.body_alphabet_norm.len() as u64),
+        length - profile.profile.checksum_length,
+    )
+}
+
+/// Smallest generation whose range holds id, per spec 19.6.
+pub(crate) fn generation_for_id(profile: &PreparedProfile, id: &BigUint) -> usize {
+    let a = BigUint::from(profile.body_alphabet_norm.len() as u64);
+    let mut l = profile.min_length;
+    let mut base = BigUint::from(0u64);
+    let mut cap = generation_capacity(profile, l);
+    while *id >= &base + &cap {
+        base += &cap;
+        cap *= &a;
+        l += 1;
+    }
+    l
+}
+
+fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
+    let mut result = BigUint::from(1u64);
+    for _ in 0..exp {
+        result *= &base;
+    }
+    result
 }
 
 /// Spec 10. Substitution-only candidate generation, capped and deduplicated.
@@ -232,8 +353,31 @@ impl Baseh {
     }
 
     /// Spec 4: `body_alphabet_len ^ body_length` (after any vowel stripping).
+    ///
+    /// Spec 12.3: fixed mode only. Expandable profiles have no single
+    /// capacity; use the per-generation formulas of spec 19.1
+    /// ([`Baseh::generation_base`], [`Baseh::generation_capacity`]).
     pub fn capacity(&self) -> &BigUint {
+        assert!(
+            self.profile.profile.mode == Mode::Fixed,
+            "INVALID_PROFILE: capacity() is only defined for fixed-mode profiles"
+        );
         &self.profile.capacity
+    }
+
+    /// Spec 19.1. First id held by generation `length` (expandable mode).
+    pub fn generation_base(&self, length: usize) -> BigUint {
+        generation_base(&self.profile, length)
+    }
+
+    /// Spec 19.1. Ids held by generation `length` (expandable mode).
+    pub fn generation_capacity(&self, length: usize) -> BigUint {
+        generation_capacity(&self.profile, length)
+    }
+
+    /// Smallest generation whose range holds `id`, per spec 19.6.
+    pub fn generation_for_id(&self, id: &BigUint) -> usize {
+        generation_for_id(&self.profile, id)
     }
 
     /// The validated profile this codec was built from.
@@ -241,8 +385,8 @@ impl Baseh {
         &self.profile.profile
     }
 
-    /// Spec 8, including the spec 18 blocklist scan.
-    pub fn encode(&self, id: &BigUint) -> Result<String, BasehError> {
+    /// Spec 8 (fixed mode), including the spec 18 blocklist scan.
+    fn encode_fixed(&self, id: &BigUint) -> Result<String, BasehError> {
         if *id >= self.profile.capacity {
             return Err(BasehError::customer(
                 ErrorCode::OutOfRange,
@@ -261,9 +405,50 @@ impl Baseh {
                 &p.profile_id,
                 key_bytes,
                 *rounds,
+                None,
             )?;
         }
         let body = encode_base_n(&value, &self.profile.body_alphabet_norm, p.body_length);
+        let raw = self.finish_encode(body)?;
+        Ok(format_raw(&raw, &self.profile))
+    }
+
+    /// Spec 19.6.
+    fn encode_expandable(&self, id: &BigUint) -> Result<String, BasehError> {
+        let l = generation_for_id(&self.profile, id);
+        if l > 32 {
+            return Err(BasehError::customer(
+                ErrorCode::OutOfRange,
+                format!("ID {id} requires a code longer than 32 symbols"),
+            ));
+        }
+        let p = &self.profile.profile;
+        let mut value = id - generation_base(&self.profile, l);
+        let domain = generation_capacity(&self.profile, l);
+        if let Permutation::FeistelV1 {
+            key_bytes, rounds, ..
+        } = &p.permutation
+        {
+            value = permute(
+                &value,
+                &domain,
+                &p.profile_id,
+                key_bytes,
+                *rounds,
+                Some(l as u32),
+            )?;
+        }
+        let body = encode_base_n(
+            &value,
+            &self.profile.body_alphabet_norm,
+            l - p.checksum_length,
+        );
+        let raw = self.finish_encode(body)?;
+        Ok(format_raw(&raw, &self.profile))
+    }
+
+    /// Checksum append plus the spec 18.2 blocklist scan over the raw code.
+    fn finish_encode(&self, body: String) -> Result<Vec<char>, BasehError> {
         let body_chars: Vec<char> = body.chars().collect();
         let checksum = calculate_checksum(&self.profile, &body_chars)?;
         let mut raw = body_chars;
@@ -282,15 +467,27 @@ impl Baseh {
                 ));
             }
         }
-        Ok(format_raw(&raw, &self.profile))
+        Ok(raw)
     }
 
-    /// Spec 9.
+    /// Spec 8/19.6, including the spec 18 blocklist scan.
+    pub fn encode(&self, id: &BigUint) -> Result<String, BasehError> {
+        match self.profile.profile.mode {
+            Mode::Fixed => self.encode_fixed(id),
+            Mode::Expandable => self.encode_expandable(id),
+        }
+    }
+
+    /// Spec 9/19.7.
     pub fn decode(&self, input: &str, options: &DecodeOptions) -> Result<DecodeResult, BasehError> {
         let raw = normalize(input, &self.profile, options.accept_spaces)?;
         let p = &self.profile.profile;
-        let mut body: Vec<char> = raw[..p.body_length].to_vec();
-        let supplied_checksum: Vec<char> = raw[p.body_length..].to_vec();
+        let body_length = match p.mode {
+            Mode::Expandable => raw.len() - p.checksum_length,
+            Mode::Fixed => p.body_length,
+        };
+        let mut body: Vec<char> = raw[..body_length].to_vec();
+        let supplied_checksum: Vec<char> = raw[body_length..].to_vec();
 
         // Spec 3.1 step 6 checks the union of both alphabets (in normalize)
         // and spec 9 adds no partition-specific checks. A body position
@@ -362,7 +559,25 @@ impl Baseh {
             self.profile.body_alphabet_norm.len(),
             &self.profile.body_index,
         )?;
-        if let Permutation::FeistelV1 {
+        if p.mode == Mode::Expandable {
+            // Spec 19.7: the offset is de-permuted within the generation's own
+            // domain, then the generation base is added back.
+            let l = raw.len();
+            if let Permutation::FeistelV1 {
+                key_bytes, rounds, ..
+            } = &p.permutation
+            {
+                value = inverse_permute(
+                    &value,
+                    &generation_capacity(&self.profile, l),
+                    &p.profile_id,
+                    key_bytes,
+                    *rounds,
+                    Some(l as u32),
+                )?;
+            }
+            value = generation_base(&self.profile, l) + value;
+        } else if let Permutation::FeistelV1 {
             key_bytes, rounds, ..
         } = &p.permutation
         {
@@ -372,6 +587,7 @@ impl Baseh {
                 &p.profile_id,
                 key_bytes,
                 *rounds,
+                None,
             )?;
         }
         // Spec 18.2: the canonical re-encode may raise BLOCKED_CODE here,

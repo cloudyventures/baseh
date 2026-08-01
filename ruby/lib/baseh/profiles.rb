@@ -120,6 +120,30 @@ module Baseh
       tier(:heavy, keyed_permutation(key_bytes, key_id, rounds), true)
     end
 
+    # Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
+    # zero ban of section 19.2)". The JSON bodyAlphabet string printed in
+    # section 17.1 lists only 32 symbols (it also drops I and L), but the
+    # prose, the generation-capacity table (34^(L-2); 1,156 ids at length 4)
+    # and the checksum modulus (35^2 = 1,225) are all consistent only with
+    # 34, and the zero ban removes exactly 0 and O. The 34-symbol alphabet
+    # is the one that satisfies the normative numbers.
+    EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+
+    # The frozen expandable tier; the recommended starting point for new
+    # namespaces. Four characters while the namespace is small, gaining one
+    # symbol automatically as issuance climbs past each generation's
+    # capacity. The checksum alphabet derives at preparation as "0" plus the
+    # body (35 symbols, modulus 1225); the hyphen appears from six
+    # characters up, grouped right-anchored by the [4, 4] pattern.
+    def baseh_expandable_v1
+      expandable_tier(frozen_permutation, false)
+    end
+
+    # baseh-expandable permuted with caller-supplied key material.
+    def baseh_expandable_p_v1(key_bytes:, key_id: "default", rounds: 8)
+      expandable_tier(keyed_permutation(key_bytes, key_id, rounds), true)
+    end
+
     # feistel-v1 permutation block for the keyed (p) helpers.
     def keyed_permutation(key_bytes, key_id, rounds)
       {
@@ -149,6 +173,25 @@ module Baseh
         profanity: { mode: "blocklist" }
       }
     end
-    private_class_method :frozen_permutation, :keyed_permutation, :tier
+    # Builds a fresh mutable profile for the expandable tier, plain or (-p)
+    # keyed. Every call returns new strings, arrays and hashes.
+    def expandable_tier(permutation, p_suffix)
+      {
+        profile_id: "baseh-expandable" + (p_suffix ? "-p" : "") + "-v1",
+        mode: "expandable",
+        body_alphabet: EXPANDABLE_BODY.dup,
+        min_length: 4,
+        checksum_alphabet: ("0" + EXPANDABLE_BODY).dup,
+        checksum_length: 2,
+        case_sensitive: false,
+        separator: "-",
+        separator_min_length: 6,
+        grouping: [4, 4],
+        aliases: { **OIL_ALIASES, "T" => "P", "N" => "M", "W" => "V" },
+        permutation: permutation,
+        profanity: { mode: "blocklist" }
+      }
+    end
+    private_class_method :frozen_permutation, :keyed_permutation, :tier, :expandable_tier
   end
 end

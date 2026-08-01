@@ -69,5 +69,17 @@ module Baseh
     def baseh_heavy_p_v1(key_bytes:, key_id: "default", rounds: 8)
       Profiles.baseh_heavy_p_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
     end
+
+    # Frozen tier baseh-expandable-v1: variable-length codes, four characters
+    # while the namespace is small and growing one symbol per generation.
+    # Permutes per generation with the frozen published key.
+    def baseh_expandable_v1
+      Profiles.baseh_expandable_v1
+    end
+
+    # baseh-expandable permuted with caller-supplied key material. key_bytes is required.
+    def baseh_expandable_p_v1(key_bytes:, key_id: "default", rounds: 8)
+      Profiles.baseh_expandable_p_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
+    end
   end
 end

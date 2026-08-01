@@ -13,12 +13,25 @@ export type BasehPermutation =
 
 export interface BasehProfile {
   profileId: string;
+  /**
+   * Spec 2.1/19.9. "fixed" keeps the classic constant-width behaviour;
+   * "expandable" gives variable-length codes driven by id magnitude
+   * (spec 19). Profiles that predate the mode field are fixed: the shared
+   * frozen vectors pin their byte-for-byte behaviour, so a missing mode is
+   * prepared as "fixed".
+   */
+  mode?: "fixed" | "expandable";
   bodyAlphabet: string;
-  bodyLength: number;
+  /** Fixed mode only; ignored in expandable mode. */
+  bodyLength?: number;
+  /** Expandable mode only; default 4. Must exceed checksumLength. */
+  minLength?: number;
   checksumAlphabet: string;
   checksumLength: number;
   caseSensitive: boolean;
   separator: string;
+  /** Expandable mode only; default 0 (separator always applies). */
+  separatorMinLength?: number;
   grouping: number[];
   aliases: Record<string, string>;
   permutation: BasehPermutation;
@@ -28,10 +41,14 @@ export interface BasehProfile {
 
 /** Case-prepared derived data, computed once at construction. */
 export interface PreparedProfile extends BasehProfile {
+  readonly mode: "fixed" | "expandable";
+  readonly minLength: number;
+  readonly separatorMinLength: number;
   readonly bodyAlphabetNorm: string;
   readonly checksumAlphabetNorm: string;
   readonly aliasesNorm: Record<string, string>;
   readonly checksumModulus: bigint;
+  /** Fixed-mode capacity A^bodyLength. Meaningless in expandable mode. */
   readonly capacity: bigint;
   /** Spec 18. Empty unless the profile uses mode "blocklist". */
   readonly blocklist: string[];
@@ -69,6 +86,12 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
   }
   if (!ASCII_ONLY.test(profile.profileId)) fail("profileId must be ASCII");
 
+  // Spec 2.2/19.9. A persisted or frozen profile declares its mode; profiles
+  // built before the mode field existed are fixed, so the frozen vectors keep
+  // matching byte for byte.
+  const mode = profile.mode ?? "fixed";
+  if (mode !== "fixed" && mode !== "expandable") fail("mode must be fixed or expandable");
+
   const caseSensitive = profile.caseSensitive === true;
 
   const bodyAlphabet = profile.bodyAlphabet;
@@ -80,16 +103,29 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
   }
   const view = { caseSensitive };
   let bodyNorm = [...bodyAlphabet].map((c) => norm(view, c)).join("");
+  // Spec 19.2: in expandable mode the zero ban strips 0 and O from the body
+  // alphabet silently, before any other validation, exactly like the
+  // no-vowels strip of section 18.1.
+  if (mode === "expandable") {
+    bodyNorm = [...bodyNorm].filter((c) => c !== "0" && c !== "O").join("");
+  }
   if (new Set(bodyNorm).size !== bodyNorm.length) {
     fail("body alphabet symbols must be unique after case normalization");
   }
 
-  if (
-    !Number.isInteger(profile.bodyLength) ||
-    profile.bodyLength < 1 ||
-    profile.bodyLength > 32
-  ) {
-    fail("bodyLength must be an integer from 1 through 32");
+  if (mode === "fixed") {
+    if (
+      !Number.isInteger(profile.bodyLength) ||
+      (profile.bodyLength as number) < 1 ||
+      (profile.bodyLength as number) > 32
+    ) {
+      fail("bodyLength must be an integer from 1 through 32");
+    }
+  }
+  const minLength = profile.minLength ?? 4;
+  const separatorMinLength = profile.separatorMinLength ?? 0;
+  if (mode === "fixed" && separatorMinLength !== 0) {
+    fail("separatorMinLength must be 0 in fixed mode");
   }
   if (
     !Number.isInteger(profile.checksumLength) ||
@@ -98,19 +134,34 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
   ) {
     fail("checksumLength must be an integer from 0 through 8");
   }
+  if (mode === "expandable") {
+    if (!Number.isInteger(minLength) || minLength < 1) {
+      fail("minLength must be an integer of at least 1");
+    }
+    if (minLength <= profile.checksumLength) {
+      fail("minLength must be greater than checksumLength");
+    }
+    if (!Number.isInteger(separatorMinLength) || separatorMinLength < 0) {
+      fail("separatorMinLength must be an integer of at least 0");
+    }
+  }
 
   const checksumAlphabet = profile.checksumAlphabet ?? "";
-  if (profile.checksumLength > 0) {
+  let checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");
+  if (mode === "expandable") {
+    // Spec 19.3: the checksum alphabet is derived, "0" followed by the body
+    // alphabet in order. The configured checksumAlphabet is not consulted.
+    checksumNorm = "";
+  } else if (profile.checksumLength > 0) {
     if (typeof checksumAlphabet !== "string" || checksumAlphabet.length < 2) {
       fail("checksumAlphabet needs at least two symbols when checksumLength is positive");
     }
     for (const ch of checksumAlphabet) {
       if (!isAsciiChar(ch)) fail(`checksum alphabet symbol is not single ASCII: ${JSON.stringify(ch)}`);
     }
-  }
-  let checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");
-  if (new Set(checksumNorm).size !== checksumNorm.length) {
-    fail("checksum alphabet symbols must be unique after case normalization");
+    if (new Set(checksumNorm).size !== checksumNorm.length) {
+      fail("checksum alphabet symbols must be unique after case normalization");
+    }
   }
 
   // Spec 18. no-vowels strips vowels before every downstream rule; blocklist
@@ -125,9 +176,18 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     if (bodyNorm.length < 2) {
       fail("no-vowels mode leaves the body alphabet with fewer than two symbols");
     }
-    if (profile.checksumLength > 0 && checksumNorm.length < 2) {
+    if (mode === "fixed" && profile.checksumLength > 0 && checksumNorm.length < 2) {
       fail("no-vowels mode leaves the checksum alphabet with fewer than two symbols");
     }
+  }
+  if (mode === "expandable") {
+    // Derived after every body strip (zero ban, no-vowels) so all downstream
+    // rules — modulus, separator collision, alias targets — see the final
+    // alphabets.
+    checksumNorm = "0" + bodyNorm;
+  }
+  if (bodyNorm.length < 2) {
+    fail("body alphabet needs at least two symbols after preparation");
   }
   const blocklist = profanity.mode === "blocklist" ? effectiveBlocklist(profanity) : [];
 
@@ -146,11 +206,17 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     if (!isAsciiChar(tgt)) fail(`alias target is not single ASCII: ${JSON.stringify(tgt)}`);
     const sNorm = norm(view, src);
     const tNorm = norm(view, tgt);
-    if (canonicalSet.has(sNorm)) {
-      fail(`alias source ${JSON.stringify(src)} is already a canonical symbol`);
-    }
     if (!canonicalSet.has(tNorm)) {
       fail(`alias target ${JSON.stringify(tgt)} is not a canonical symbol`);
+    }
+    // Spec 3.2: an alias must never map two distinct canonical symbols into
+    // one value. Fixed mode rejects a canonical alias source outright. In
+    // expandable mode the frozen tier (spec 17.1) carries aliases whose
+    // sources are canonical body symbols (T, N, W stay in the body
+    // alphabet); the canonical symbol wins at normalization, making those
+    // entries inert instead of destructive.
+    if (mode === "fixed" && canonicalSet.has(sNorm)) {
+      fail(`alias source ${JSON.stringify(src)} is already a canonical symbol`);
     }
     if (sNorm in aliasesNorm) fail(`duplicate alias source ${JSON.stringify(sNorm)} after case normalization`);
     if (tNorm in aliases || [...Object.keys(aliases)].some((k) => norm(view, k) === tNorm)) {
@@ -162,7 +228,13 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
   const total = bodySum(profile.grouping);
   if (separator.length === 0) {
     if (profile.grouping.length !== 0) fail("grouping must be empty when separator is empty");
-  } else if (total !== profile.bodyLength + profile.checksumLength) {
+  } else if (mode === "expandable") {
+    // Spec 19.5: the sum rule cannot hold at every length; grouping is a
+    // right-anchored repeating pattern and only needs positive sizes.
+    if (total < 1 || profile.grouping.length === 0) {
+      fail("expandable grouping must be non-empty with positive integer sizes");
+    }
+  } else if (total !== (profile.bodyLength as number) + profile.checksumLength) {
     fail("group sizes must sum to bodyLength + checksumLength");
   }
 
@@ -187,6 +259,9 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
 
   return {
     ...profile,
+    mode,
+    minLength,
+    separatorMinLength,
     caseSensitive,
     checksumAlphabet,
     separator,
@@ -197,7 +272,7 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     checksumAlphabetNorm: checksumNorm,
     aliasesNorm,
     checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
-    capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength),
+    capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength ?? 0),
     blocklist
   };
 }

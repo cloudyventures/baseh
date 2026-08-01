@@ -211,3 +211,49 @@ func HeavyV1() Profile {
 func HeavyPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(heavyShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }
+
+// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
+// zero ban of section 19.2)". The prose, the generation-capacity table
+// (34^(L-2); 1,156 ids at length 4) and the checksum modulus
+// (35^2 = 1,225) are all consistent only with 34 symbols.
+const expandableBodyAlphabet = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+
+// buildExpandableTier assembles the frozen expandable tier of spec 17.1:
+// four characters while the namespace is small, gaining one symbol
+// automatically as issuance climbs past each generation's capacity. The
+// checksum alphabet derives as "0" plus the body (35 symbols, modulus
+// 1225). The hyphen appears from six characters up, grouped
+// right-anchored by the [4, 4] pattern.
+func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
+	id := "baseh-expandable-v1"
+	if pSuffix {
+		id = "baseh-expandable-p-v1"
+	}
+	return Profile{
+		ProfileID:          id,
+		Mode:               "expandable",
+		BodyAlphabet:       expandableBodyAlphabet,
+		MinLength:          4,
+		ChecksumAlphabet:   "0" + expandableBodyAlphabet,
+		ChecksumLength:     2,
+		CaseSensitive:      false,
+		Separator:          "-",
+		SeparatorMinLength: 6,
+		Grouping:           []int{4, 4},
+		Aliases:            tierAliases("T", "P", "N", "M", "W", "V"),
+		Permutation:        permutation,
+		Profanity:          Profanity{Mode: ProfanityBlocklist},
+	}
+}
+
+// ExpandableV1 returns the frozen baseh-expandable-v1 profile; the
+// recommended starting point for new namespaces.
+func ExpandableV1() Profile {
+	return buildExpandableTier(frozenPermutation(), false)
+}
+
+// ExpandablePV1 is baseh-expandable with feistel-v1 permutation. Key
+// bytes are required; keyID defaults to "default" and rounds to 8.
+func ExpandablePV1(keyBytes []byte, keyID string, rounds int) Profile {
+	return buildExpandableTier(keyedPermutation(keyBytes, keyID, rounds), true)
+}

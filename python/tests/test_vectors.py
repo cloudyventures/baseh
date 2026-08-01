@@ -10,6 +10,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from baseh import Baseh, BasehError  # noqa: E402
+from baseh.codec import generation_base, generation_capacity  # noqa: E402
 from baseh.feistel import FeistelKey, inverse_permute, permute  # noqa: E402
 
 _VECTORS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vectors")
@@ -44,7 +45,28 @@ class TestVectors(unittest.TestCase):
         for entry in self.data["profiles"]:
             with self.subTest(profile_id=entry["profileId"]):
                 codec = self.codecs[entry["profileId"]]
-                self.assertEqual(str(codec.capacity()), entry["capacity"])
+                if "generations" in entry:
+                    # Expandable profiles pin per-generation bases and
+                    # capacities (spec 19.1) instead of a single capacity.
+                    for generation in entry["generations"]:
+                        self.assertEqual(
+                            str(
+                                generation_base(
+                                    codec.profile, generation["length"]
+                                )
+                            ),
+                            generation["base"],
+                        )
+                        self.assertEqual(
+                            str(
+                                generation_capacity(
+                                    codec.profile, generation["length"]
+                                )
+                            ),
+                            generation["capacity"],
+                        )
+                else:
+                    self.assertEqual(str(codec.capacity()), entry["capacity"])
 
     def test_encode_vectors(self):
         count = 0
@@ -152,6 +174,9 @@ class TestFeistelVectors(unittest.TestCase):
                     profile_id=vector["profileId"],
                     key_bytes=bytes.fromhex(vector["keyBytesHex"]),
                     rounds=vector["rounds"],
+                    # Expandable vectors carry the generation's total length,
+                    # mixed into the round message (spec 7.3/19.4).
+                    length=vector.get("length"),
                 )
                 capacity = int(vector["capacity"])
                 value = int(vector["input"])

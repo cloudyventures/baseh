@@ -291,6 +291,69 @@
         }
       },
       "capacity": "729000000"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "definition": {
+        "profileId": "baseh-expandable-v1",
+        "mode": "expandable",
+        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "minLength": 4,
+        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumLength": 2,
+        "caseSensitive": false,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [
+          4,
+          4
+        ],
+        "aliases": {
+          "O": "0",
+          "I": "1",
+          "L": "1",
+          "T": "P",
+          "N": "M",
+          "W": "V"
+        },
+        "permutation": {
+          "enabled": true,
+          "algorithm": "feistel-v1",
+          "keyId": "frozen",
+          "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
+          "rounds": 8
+        },
+        "profanity": {
+          "mode": "blocklist"
+        }
+      },
+      "generations": [
+        {
+          "length": 4,
+          "base": "0",
+          "capacity": "1156"
+        },
+        {
+          "length": 5,
+          "base": "1156",
+          "capacity": "39304"
+        },
+        {
+          "length": 6,
+          "base": "40460",
+          "capacity": "1336336"
+        },
+        {
+          "length": 7,
+          "base": "1376796",
+          "capacity": "45435424"
+        },
+        {
+          "length": 8,
+          "base": "46812220",
+          "capacity": "1544804416"
+        }
+      ]
     }
   ],
   "vectors": [
@@ -2071,6 +2134,325 @@
       "canonicalCode": "ZZZZZZP",
       "rawBody": "ZZZZZZ",
       "rawChecksum": "P"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "0",
+      "canonicalCode": "W9PF",
+      "rawBody": "W9",
+      "rawChecksum": "PF"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "231",
+      "canonicalCode": "JWCD",
+      "rawBody": "JW",
+      "rawChecksum": "CD"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "408",
+      "canonicalCode": "SFKD",
+      "rawBody": "SF",
+      "rawChecksum": "KD"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "474",
+      "canonicalCode": "BV3W",
+      "rawBody": "BV",
+      "rawChecksum": "3W"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "732",
+      "canonicalCode": "32UM",
+      "rawBody": "32",
+      "rawChecksum": "UM"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "745",
+      "canonicalCode": "AU2T",
+      "rawBody": "AU",
+      "rawChecksum": "2T"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "955",
+      "canonicalCode": "7BZ4",
+      "rawBody": "7B",
+      "rawChecksum": "Z4"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1155",
+      "canonicalCode": "KLD5",
+      "rawBody": "KL",
+      "rawChecksum": "D5"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1156",
+      "canonicalCode": "RQCQL",
+      "rawBody": "RQC",
+      "rawChecksum": "QL"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "8647",
+      "canonicalCode": "49INC",
+      "rawBody": "49I",
+      "rawChecksum": "NC"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "12393",
+      "canonicalCode": "YSFLL",
+      "rawBody": "YSF",
+      "rawChecksum": "LL"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "13866",
+      "canonicalCode": "KMBXQ",
+      "rawBody": "KMB",
+      "rawChecksum": "XQ"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "23280",
+      "canonicalCode": "HKBI9",
+      "rawBody": "HKB",
+      "rawChecksum": "I9"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "24022",
+      "canonicalCode": "RT6TL",
+      "rawBody": "RT6",
+      "rawChecksum": "TL"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "32445",
+      "canonicalCode": "HTSS6",
+      "rawBody": "HTS",
+      "rawChecksum": "S6"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "40459",
+      "canonicalCode": "NAWXY",
+      "rawBody": "NAW",
+      "rawChecksum": "XY"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "40460",
+      "canonicalCode": "1E-E53K",
+      "rawBody": "1EE5",
+      "rawChecksum": "3K"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "281366",
+      "canonicalCode": "9D-BCPB",
+      "rawBody": "9DBC",
+      "rawChecksum": "PB"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "308909",
+      "canonicalCode": "YS-ECTK",
+      "rawBody": "YSEC",
+      "rawChecksum": "TK"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "321976",
+      "canonicalCode": "LN-YLQQ",
+      "rawBody": "LNYL",
+      "rawChecksum": "QQ"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "578787",
+      "canonicalCode": "CL-D6QV",
+      "rawBody": "CLD6",
+      "rawChecksum": "QV"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1110868",
+      "canonicalCode": "VH-SJZP",
+      "rawBody": "VHSJ",
+      "rawChecksum": "ZP"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1367319",
+      "canonicalCode": "RM-6FJ1",
+      "rawBody": "RM6F",
+      "rawChecksum": "J1"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1376795",
+      "canonicalCode": "JD-8437",
+      "rawBody": "JD84",
+      "rawChecksum": "37"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1376796",
+      "canonicalCode": "BQV-GG49",
+      "rawBody": "BQVGG",
+      "rawChecksum": "49"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "2494977",
+      "canonicalCode": "7AJ-34GN",
+      "rawBody": "7AJ34",
+      "rawChecksum": "GN"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "8981132",
+      "canonicalCode": "UEC-2RFE",
+      "rawBody": "UEC2R",
+      "rawChecksum": "FE"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "18748458",
+      "canonicalCode": "GRD-1TNB",
+      "rawBody": "GRD1T",
+      "rawChecksum": "NB"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "27474821",
+      "canonicalCode": "ACH-K68A",
+      "rawBody": "ACHK6",
+      "rawChecksum": "8A"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "27537054",
+      "canonicalCode": "LFK-GPQM",
+      "rawBody": "LFKGP",
+      "rawChecksum": "QM"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "32963579",
+      "canonicalCode": "7JH-VG7D",
+      "rawBody": "7JHVG",
+      "rawChecksum": "7D"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "46812219",
+      "canonicalCode": "DL4-CVEG",
+      "rawBody": "DL4CV",
+      "rawChecksum": "EG"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "46812220",
+      "canonicalCode": "LLNZ-CVH2",
+      "rawBody": "LLNZCV",
+      "rawChecksum": "H2"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "437314463",
+      "canonicalCode": "TV48-7L5Q",
+      "rawBody": "TV487L",
+      "rawChecksum": "5Q"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "717095776",
+      "canonicalCode": "CT1N-62ZL",
+      "rawBody": "CT1N62",
+      "rawChecksum": "ZL"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "884906313",
+      "canonicalCode": "97YI-FVGB",
+      "rawBody": "97YIFV",
+      "rawChecksum": "GB"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1144399828",
+      "canonicalCode": "YCAQ-J2GI",
+      "rawBody": "YCAQJ2",
+      "rawChecksum": "GI"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1273412483",
+      "canonicalCode": "45Z5-6IKQ",
+      "rawBody": "45Z56I",
+      "rawChecksum": "KQ"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1522362290",
+      "canonicalCode": "EJWF-KM8M",
+      "rawBody": "EJWFKM",
+      "rawChecksum": "8M"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "1591616635",
+      "canonicalCode": "UC9E-747R",
+      "rawBody": "UC9E74",
+      "rawChecksum": "7R"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "7",
+      "canonicalCode": "P8H0",
+      "rawBody": "P8",
+      "rawChecksum": "H0",
+      "note": "checksum contains 0"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "68",
+      "canonicalCode": "ET70",
+      "rawBody": "ET",
+      "rawChecksum": "70",
+      "note": "checksum contains 0"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "82",
+      "canonicalCode": "8904",
+      "rawBody": "89",
+      "rawChecksum": "04",
+      "note": "checksum contains 0"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "110",
+      "canonicalCode": "1JT0",
+      "rawBody": "1J",
+      "rawChecksum": "T0",
+      "note": "checksum contains 0"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "P8HO",
+      "id": "7",
+      "canonicalCode": "P8H0",
+      "note": "typed O in checksum position aliases to 0"
     }
   ],
   "errors": [
@@ -2118,6 +2500,41 @@
       "profileId": "novowel32-test",
       "input": "0000A02",
       "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "ABC",
+      "error": "INVALID_LENGTH"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "",
+      "error": "INVALID_LENGTH"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "error": "INVALID_LENGTH"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "09WY",
+      "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "O9WY",
+      "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "59-WY",
+      "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "input": "59WYA",
+      "error": "INVALID_CHECKSUM"
     }
   ],
   "correction": [

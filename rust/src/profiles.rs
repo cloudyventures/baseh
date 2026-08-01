@@ -19,7 +19,7 @@
 //! Every helper returns a freshly-built profile on each call, so callers can
 //! load a default and modify it.
 
-use crate::profile::{Permutation, Profanity, ProfanityMode, Profile};
+use crate::profile::{Mode, Permutation, Profanity, ProfanityMode, Profile};
 
 const FROZEN_KEY_ID: &str = "frozen";
 const DEFAULT_KEY_ID: &str = "default";
@@ -119,12 +119,15 @@ fn tier(shape: &TierShape, permutation: Permutation, p_suffix: bool) -> Profile 
             shape.profile_id,
             if p_suffix { "-p" } else { "" }
         ),
+        mode: Mode::Fixed,
         body_alphabet: shape.body_alphabet.to_string(),
         body_length: 6,
+        min_length: 0,
         checksum_alphabet: shape.checksum_alphabet.to_string(),
         checksum_length: shape.checksum_length,
         case_sensitive: false,
         separator: shape.separator.to_string(),
+        separator_min_length: 0,
         grouping: shape.grouping.to_vec(),
         aliases: shape.aliases.to_vec(),
         permutation,
@@ -151,6 +154,65 @@ fn keyed(key_bytes: &[u8], key_id: &str, rounds: u32) -> Permutation {
 /// Permutation every plain tier applies, built from the frozen published key.
 fn frozen() -> Permutation {
     keyed(FROZEN_KEY_BYTES, FROZEN_KEY_ID, DEFAULT_ROUNDS)
+}
+
+// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the zero
+// ban of section 19.2)". The JSON bodyAlphabet string printed in section
+// 17.1 lists only 32 symbols (it also drops I and L), but the prose, the
+// generation-capacity table (34^(L-2); 1,156 ids at length 4) and the
+// checksum modulus (35^2 = 1,225) are all consistent only with 34, and the
+// zero ban removes exactly 0 and O. The 34-symbol alphabet is the one that
+// satisfies the normative numbers.
+const EXPANDABLE_BODY: &str = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+
+/// Spec 17.1. The frozen expandable tier: four characters while the
+/// namespace is small, gaining one symbol automatically as issuance climbs
+/// past each generation's capacity. The body alphabet is the full
+/// alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
+/// alphabet derives as "0" plus the body (35 symbols, modulus 1225). The
+/// hyphen appears from six characters up, grouped right-anchored by the
+/// [4, 4] pattern.
+fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
+    Profile {
+        profile_id: format!("baseh-expandable{}-v1", if p_suffix { "-p" } else { "" }),
+        mode: Mode::Expandable,
+        body_alphabet: EXPANDABLE_BODY.to_string(),
+        body_length: 0,
+        min_length: 4,
+        checksum_alphabet: format!("0{EXPANDABLE_BODY}"),
+        checksum_length: 2,
+        case_sensitive: false,
+        separator: "-".to_string(),
+        separator_min_length: 6,
+        grouping: vec![4, 4],
+        aliases: vec![
+            ('O', '0'),
+            ('I', '1'),
+            ('L', '1'),
+            ('T', 'P'),
+            ('N', 'M'),
+            ('W', 'V'),
+        ],
+        permutation,
+        profanity: Some(Profanity {
+            mode: ProfanityMode::Blocklist,
+            words: None,
+            extra_words: Vec::new(),
+        }),
+    }
+}
+
+/// The frozen expandable tier `baseh-expandable-v1`; the recommended
+/// starting point for new namespaces.
+pub fn baseh_expandable_v1() -> Profile {
+    expandable_tier(frozen(), false)
+}
+
+/// `baseh-expandable` permuted with caller-supplied key material. Key
+/// material is required; pass an empty `key_id` or `0` rounds for the
+/// defaults ("default", 8).
+pub fn baseh_expandable_p_v1(key_bytes: &[u8], key_id: &str, rounds: u32) -> Profile {
+    expandable_tier(keyed(key_bytes, key_id, rounds), true)
 }
 
 /// Tier `baseh-minimum-v1`: alphanumeric, no safety strips, no checksum,

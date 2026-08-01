@@ -37,6 +37,9 @@ class PreparedProfile:
     """Validated profile with derived case-normalized values."""
 
     profile_id: str
+    mode: str
+    min_length: int
+    separator_min_length: int
     body_alphabet_norm: str
     checksum_alphabet_norm: str
     body_length: int
@@ -66,6 +69,13 @@ def prepare_profile(profile) -> PreparedProfile:
     if not _is_ascii(profile_id):
         _fail("profileId must be ASCII")
 
+    # Spec 2.2/19.9. A persisted or frozen profile declares its mode; profiles
+    # built before the mode field existed are fixed, so the frozen vectors keep
+    # matching byte for byte.
+    mode = profile.get("mode") or "fixed"
+    if mode not in ("fixed", "expandable"):
+        _fail("mode must be fixed or expandable")
+
     case_sensitive = profile.get("caseSensitive") is True
 
     body_alphabet = profile.get("bodyAlphabet")
@@ -75,29 +85,58 @@ def prepare_profile(profile) -> PreparedProfile:
         if not _is_ascii_char(ch):
             _fail(f"body alphabet symbol is not single ASCII: {ch!r}")
     body_norm = "".join(_norm(case_sensitive, ch) for ch in body_alphabet)
+    # Spec 19.2: in expandable mode the zero ban strips 0 and O from the body
+    # alphabet silently, before any other validation, exactly like the
+    # no-vowels strip of section 18.1.
+    if mode == "expandable":
+        body_norm = "".join(ch for ch in body_norm if ch not in ("0", "O"))
     if len(set(body_norm)) != len(body_norm):
         _fail("body alphabet symbols must be unique after case normalization")
 
     body_length = profile.get("bodyLength")
-    if not _is_int(body_length) or body_length < 1 or body_length > 32:
-        _fail("bodyLength must be an integer from 1 through 32")
+    if mode == "fixed":
+        if not _is_int(body_length) or body_length < 1 or body_length > 32:
+            _fail("bodyLength must be an integer from 1 through 32")
+    elif body_length is None:
+        body_length = 0
+
+    min_length = profile.get("minLength")
+    if min_length is None:
+        min_length = 4
+    separator_min_length = profile.get("separatorMinLength")
+    if separator_min_length is None:
+        separator_min_length = 0
+    if mode == "fixed" and separator_min_length != 0:
+        _fail("separatorMinLength must be 0 in fixed mode")
 
     checksum_length = profile.get("checksumLength")
     if not _is_int(checksum_length) or checksum_length < 0 or checksum_length > 8:
         _fail("checksumLength must be an integer from 0 through 8")
+    if mode == "expandable":
+        if not _is_int(min_length) or min_length < 1:
+            _fail("minLength must be an integer of at least 1")
+        if min_length <= checksum_length:
+            _fail("minLength must be greater than checksumLength")
+        if not _is_int(separator_min_length) or separator_min_length < 0:
+            _fail("separatorMinLength must be an integer of at least 0")
 
     checksum_alphabet = profile.get("checksumAlphabet") or ""
     if not isinstance(checksum_alphabet, str):
         _fail("checksumAlphabet must be a string")
-    if checksum_length > 0:
+    checksum_norm = "".join(_norm(case_sensitive, ch) for ch in checksum_alphabet)
+    if mode == "expandable":
+        # Spec 19.3: the checksum alphabet is derived, "0" followed by the
+        # body alphabet in order. The configured checksumAlphabet is not
+        # consulted; it is set after every body strip below.
+        checksum_norm = ""
+    elif checksum_length > 0:
         if len(checksum_alphabet) < 2:
             _fail("checksumAlphabet needs at least two symbols when checksumLength is positive")
         for ch in checksum_alphabet:
             if not _is_ascii_char(ch):
                 _fail(f"checksum alphabet symbol is not single ASCII: {ch!r}")
-    checksum_norm = "".join(_norm(case_sensitive, ch) for ch in checksum_alphabet)
-    if len(set(checksum_norm)) != len(checksum_norm):
-        _fail("checksum alphabet symbols must be unique after case normalization")
+        if len(set(checksum_norm)) != len(checksum_norm):
+            _fail("checksum alphabet symbols must be unique after case normalization")
 
     # Spec 18. no-vowels strips vowels before every downstream rule; blocklist
     # only arms the encode-time scan.
@@ -113,8 +152,15 @@ def prepare_profile(profile) -> PreparedProfile:
         checksum_norm = strip_vowels(checksum_norm)
         if len(body_norm) < 2:
             _fail("no-vowels mode leaves the body alphabet with fewer than two symbols")
-        if checksum_length > 0 and len(checksum_norm) < 2:
+        if mode == "fixed" and checksum_length > 0 and len(checksum_norm) < 2:
             _fail("no-vowels mode leaves the checksum alphabet with fewer than two symbols")
+    if mode == "expandable":
+        # Spec 19.3: derived after every body strip (zero ban, no-vowels) so
+        # all downstream rules — modulus, separator collision, alias targets —
+        # see the final alphabets.
+        checksum_norm = "0" + body_norm
+    if len(body_norm) < 2:
+        _fail("body alphabet needs at least two symbols after preparation")
     blocklist = (
         effective_blocklist(profanity) if profanity["mode"] == "blocklist" else []
     )
@@ -138,7 +184,13 @@ def prepare_profile(profile) -> PreparedProfile:
             _fail(f"alias target is not single ASCII: {tgt!r}")
         s_norm = _norm(case_sensitive, src)
         t_norm = _norm(case_sensitive, tgt)
-        if s_norm in canonical_set:
+        # Spec 3.2: an alias must never map two distinct canonical symbols
+        # into one value. Fixed mode rejects a canonical alias source
+        # outright. In expandable mode the frozen tier (spec 17.1) carries
+        # aliases whose sources are canonical body symbols (T, N, W stay in
+        # the body alphabet); the canonical symbol wins at normalization,
+        # making those entries inert instead of destructive.
+        if mode == "fixed" and s_norm in canonical_set:
             _fail(f"alias source {src!r} is already a canonical symbol")
         if t_norm not in canonical_set:
             _fail(f"alias target {tgt!r} is not a canonical symbol")
@@ -154,6 +206,14 @@ def prepare_profile(profile) -> PreparedProfile:
     if separator == "":
         if len(grouping) != 0:
             _fail("grouping must be empty when separator is empty")
+    elif mode == "expandable":
+        # Spec 19.5: the sum rule cannot hold at every length; grouping is a
+        # right-anchored repeating pattern and only needs positive sizes.
+        if len(grouping) == 0:
+            _fail("expandable grouping must be non-empty with positive integer sizes")
+        for g in grouping:
+            if not _is_int(g) or g < 1:
+                _fail("expandable grouping must be non-empty with positive integer sizes")
     else:
         group_sum = 0
         for g in grouping:
@@ -190,6 +250,9 @@ def prepare_profile(profile) -> PreparedProfile:
     modulus_base = len(checksum_norm) if checksum_norm else 1
     return PreparedProfile(
         profile_id=profile_id,
+        mode=mode,
+        min_length=min_length,
+        separator_min_length=separator_min_length,
         body_alphabet_norm=body_norm,
         checksum_alphabet_norm=checksum_norm,
         body_length=body_length,

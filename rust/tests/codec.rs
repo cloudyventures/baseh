@@ -5,7 +5,7 @@
 use baseh::{
     baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1,
     baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1, Baseh, ConfusionProfile, DecodeOptions,
-    ErrorCode, Permutation, Profanity, ProfanityMode, Profile, FROZEN_KEY_BYTES,
+    ErrorCode, Mode, Permutation, Profanity, ProfanityMode, Profile, FROZEN_KEY_BYTES,
 };
 use num_bigint::BigUint;
 
@@ -14,12 +14,15 @@ const KEY: &[u8] = b"test-only-key-material-0001";
 fn base_profile() -> Profile {
     Profile {
         profile_id: "test-p".to_string(),
+        mode: Mode::Fixed,
         body_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ".to_string(),
         body_length: 6,
+        min_length: 0,
         checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
         checksum_length: 1,
         case_sensitive: false,
         separator: "-".to_string(),
+        separator_min_length: 0,
         grouping: vec![3, 3, 1],
         aliases: vec![('O', '0'), ('I', '1'), ('L', '1')],
         permutation: Permutation::Disabled,
@@ -787,12 +790,15 @@ fn profanity_no_vowels() {
     assert_invalid_profile(
         Profile {
             profile_id: "novowel-tiny".to_string(),
+            mode: Mode::Fixed,
             body_alphabet: "AB".to_string(),
             body_length: 4,
+            min_length: 0,
             checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
             checksum_length: 0,
             case_sensitive: false,
             separator: String::new(),
+            separator_min_length: 0,
             grouping: Vec::new(),
             aliases: vec![],
             permutation: Permutation::Disabled,
