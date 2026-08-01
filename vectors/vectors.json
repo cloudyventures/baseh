@@ -1969,6 +1969,34 @@
       "note": "whitespace"
     },
     {
+      "profileId": "baseh-medium-v1",
+      "input": "C",
+      "id": "0",
+      "canonicalCode": "000000C",
+      "note": "stripped leading zeros"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "1D",
+      "id": "1",
+      "canonicalCode": "000001D",
+      "note": "stripped leading zeros"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "ZG",
+      "id": "27",
+      "canonicalCode": "00000ZG",
+      "note": "stripped leading zeros"
+    },
+    {
+      "profileId": "baseh-minimum-v1",
+      "input": "0",
+      "id": "0",
+      "canonicalCode": "000-000",
+      "note": "stripped leading zeros, no checksum"
+    },
+    {
       "profileId": "block32-replace-test",
       "id": "13066",
       "canonicalCode": "000CRA7",
@@ -2013,7 +2041,7 @@
     {
       "profileId": "baseh-medium-v1",
       "input": "00000",
-      "error": "INVALID_LENGTH"
+      "error": "INVALID_CHECKSUM"
     },
     {
       "profileId": "baseh-medium-v1",
@@ -2023,6 +2051,16 @@
     {
       "profileId": "baseh-medium-v1",
       "input": "0000PD",
+      "error": "INVALID_CHECKSUM"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "0000000C",
+      "error": "INVALID_LENGTH"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "",
       "error": "INVALID_LENGTH"
     },
     {
