@@ -1,45 +1,117 @@
-const BODY_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const CHECKSUM_ALPHABET = "234679ACDEFGHJKMNPQRTUVWXY";
-const ALIASES = { O: "0", I: "1", L: "1" };
 /**
- * Frozen profile hrc32-v1: 6 body + 1 checksum, feistel-v1 permutation.
- * Assisted-support use. Structured single-substitution miss rate about 1.4%
- * per position; see spec 6.3.
+ * Frozen tiers. Each is built from the full alphanumeric set with cumulative
+ * visual and spoken strips; the spoken strips interact with the visual ones
+ * exactly as the web tools derive them, so the tool capacities match.
+ *
+ *   Minimum  36 symbols, no checksum           2,176,782,336 ids
+ *   Light    31 symbols, 1 checksum              887,503,681 ids
+ *   Medium   28 symbols, 1 checksum              481,890,304 ids (default)
+ *   Heavy    26 symbols, 1 checksum              308,915,776 ids
+ *
+ * All four keep the typed O/I/L aliases where possible and run the default
+ * profanity blocklist. Minimum also uses a hyphen delimiter; the rest have
+ * none. The -p variants are identical but with feistel-v1 permutation and
+ * require caller-supplied key material.
  */
-export function hrc32V1(options) {
+const OIL_ALIASES = { O: "0", I: "1", L: "1" };
+const MINIMUM_BODY = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const LIGHT_BODY = "0123456789ABCEFGHJKMNPQRSUVWXYZ";
+const MEDIUM_BODY = "0123456789ACDEFGHJKMPQRUVXYZ";
+const HEAVY_BODY = "0123456789ABCEFHJKMPQRVXYZ";
+const LIGHT_CHECK = "234679ACEFGHJKMNPQRUVWXY";
+const MEDIUM_CHECK = "234679ACDEFGHJKMPQRUVXY";
+const HEAVY_CHECK = "234679ACEFHJKMPQRUVXY";
+function keyedPermutation(options) {
     return {
-        profileId: "hrc32-v1",
-        bodyAlphabet: BODY_ALPHABET,
+        enabled: true,
+        algorithm: "feistel-v1",
+        keyId: options.keyId ?? "default",
+        keyBytes: options.keyBytes,
+        rounds: options.rounds ?? 8
+    };
+}
+function tier(shape, permutation, pSuffix) {
+    return {
+        profileId: shape.profileId + (pSuffix ? "-p" : "") + "-v1",
+        bodyAlphabet: shape.bodyAlphabet,
         bodyLength: 6,
-        checksumAlphabet: CHECKSUM_ALPHABET,
-        checksumLength: 1,
+        checksumAlphabet: shape.checksumAlphabet,
+        checksumLength: shape.checksumLength,
         caseSensitive: false,
-        separator: "-",
-        grouping: [3, 3, 1],
-        aliases: { ...ALIASES },
-        permutation: {
-            enabled: true,
-            algorithm: "feistel-v1",
-            keyId: options.keyId,
-            keyBytes: options.keyBytes,
-            rounds: options.rounds ?? 8
-        }
+        separator: shape.separator,
+        grouping: shape.grouping,
+        aliases: { ...shape.aliases },
+        permutation,
+        profanity: { mode: "blocklist" }
     };
 }
-/**
- * Frozen profile hrc32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
- * Self-service use. Provably detects all single-symbol substitutions and
- * all adjacent transpositions; see spec 6.3.
- */
-export function hrc32sV1(options) {
-    const base = hrc32V1(options);
-    return {
-        ...base,
-        profileId: "hrc32s-v1",
-        checksumLength: 2,
-        grouping: [3, 3, 2]
-    };
+const MINIMUM = {
+    profileId: "baseh-minimum",
+    bodyAlphabet: MINIMUM_BODY,
+    checksumAlphabet: "",
+    checksumLength: 0,
+    separator: "-",
+    grouping: [3, 3],
+    aliases: {}
+};
+const LIGHT = {
+    profileId: "baseh-light",
+    bodyAlphabet: LIGHT_BODY,
+    checksumAlphabet: LIGHT_CHECK,
+    checksumLength: 1,
+    separator: "",
+    grouping: [],
+    aliases: { ...OIL_ALIASES, D: "B", T: "P" }
+};
+const MEDIUM = {
+    profileId: "baseh-medium",
+    bodyAlphabet: MEDIUM_BODY,
+    checksumAlphabet: MEDIUM_CHECK,
+    checksumLength: 1,
+    separator: "",
+    grouping: [],
+    // B and S are dropped for looking like 8 and 5; since they can never be
+    // issued, a typed B is always an 8 and a typed S always a 5.
+    aliases: { ...OIL_ALIASES, B: "8", S: "5", T: "P", N: "M", W: "V" }
+};
+const HEAVY = {
+    profileId: "baseh-heavy",
+    bodyAlphabet: HEAVY_BODY,
+    checksumAlphabet: HEAVY_CHECK,
+    checksumLength: 1,
+    separator: "",
+    grouping: [],
+    aliases: { ...OIL_ALIASES, D: "B", T: "P", N: "M", W: "V", S: "F", G: "C" }
+};
+/** Alphanumeric, no safety strips, no checksum, hyphen-delimited XXX-XXX. */
+export function basehMinimumV1() {
+    return tier(MINIMUM, { enabled: false }, false);
 }
-/** Published demo key for the browser tools. Never use in a real application. */
-export const DEMO_KEY_ID = "demo-01";
-export const DEMO_KEY_BYTES = new TextEncoder().encode("BASEHUMAN-DEMO-KEY-01");
+/** baseh-minimum with feistel-v1 permutation. */
+export function basehMinimumPV1(options) {
+    return tier(MINIMUM, keyedPermutation(options), true);
+}
+/** Visual light plus spoken light, one checksum symbol. */
+export function basehLightV1() {
+    return tier(LIGHT, { enabled: false }, false);
+}
+/** baseh-light with feistel-v1 permutation. */
+export function basehLightPV1(options) {
+    return tier(LIGHT, keyedPermutation(options), true);
+}
+/** Visual medium plus spoken medium, one checksum symbol. The default. */
+export function basehMediumV1() {
+    return tier(MEDIUM, { enabled: false }, false);
+}
+/** baseh-medium with feistel-v1 permutation. */
+export function basehMediumPV1(options) {
+    return tier(MEDIUM, keyedPermutation(options), true);
+}
+/** Conservative alphabet plus spoken heavy, one checksum symbol. */
+export function basehHeavyV1() {
+    return tier(HEAVY, { enabled: false }, false);
+}
+/** baseh-heavy with feistel-v1 permutation. */
+export function basehHeavyPV1(options) {
+    return tier(HEAVY, keyedPermutation(options), true);
+}

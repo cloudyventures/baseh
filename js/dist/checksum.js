@@ -1,3 +1,4 @@
+import { BasehError } from "./errors.js";
 import { alphabetIndex, encodeBaseN } from "./basen.js";
 /**
  * Spec 6.2. Rolling polynomial checksum over symbol values.
@@ -12,6 +13,9 @@ export function checksumValue(profile, body, bodyIndex) {
     state = (state * 37n) % modulus;
     for (let pos = 0; pos < body.length; pos += 1) {
         const symValue = bodyIndex.get(body[pos]);
+        if (symValue === undefined) {
+            throw new BasehError("INVALID_CHARACTER", `Body symbol ${JSON.stringify(body[pos])} is not in the body alphabet`);
+        }
         state = (state * 37n + symValue + BigInt(pos + 1)) % modulus;
     }
     return state;
