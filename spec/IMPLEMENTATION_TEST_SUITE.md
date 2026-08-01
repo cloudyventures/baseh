@@ -406,6 +406,10 @@ Treat these as initial budgets, not guarantees. Record actual benchmark hardware
 
 ## 18. Security testing
 
+These are application-integration and deployment concerns, verified during
+the manual pre-release security review (section 19) rather than as codec
+unit tests in any port.
+
 - Attempt sequential enumeration.
 - Confirm rate limiting.
 - Confirm authorization after successful decode.

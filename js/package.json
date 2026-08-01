@@ -40,6 +40,7 @@
     "test": "tsx --test test/*.test.ts",
     "lint": "eslint src test",
     "vectors": "tsx scripts/generate-vectors.ts",
+    "bench": "tsx scripts/bench.ts",
     "prepack": "npm run build"
   },
   "dependencies": {

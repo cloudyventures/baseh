@@ -36,6 +36,25 @@ jobs:
       - name: ruby vectors
         run: cd ruby && rake
 
+      # Release gates: full 100,000-sampled-body checksum sweep (spec
+      # IMPLEMENTATION_TEST_SUITE.md sections 6.3 and 19) plus a time-boxed
+      # Go fuzz run. BASEH_SOAK=1 selects the full sweep; body-count
+      # overrides (BASEH_SOAK_CHECKSUM / BASEH_SOAK_BODIES /
+      # BASEH_SOAK_CHECKSUM_SWEEP / BASEH_SWEEP_BODIES) are left at their
+      # defaults so the spec's 100k count applies.
+      # JS has no full-sweep gate: its sweep lives in the normal codec tests
+      # with no BASEH_SOAK variant, so there is no JS step here.
+      - name: python full checksum sweep
+        run: cd python && BASEH_SOAK=1 python tests/test_checksum_sweep.py TestChecksumSweepFull
+      - name: go full checksum sweep
+        run: cd go && BASEH_SOAK=1 go test -run TestChecksumSweepFull -v .
+      - name: rust full checksum sweep
+        run: cd rust && BASEH_SOAK=1 cargo test --release --test checksum_sweep -- --ignored single_substitution_sweep_full --nocapture
+      - name: ruby full checksum sweep
+        run: cd ruby && BASEH_SOAK=1 ruby -Ilib -Itest test/test_checksum_sweep.rb -n test_single_substitution_sweep_soak
+      - name: go fuzz decode (5m time-box)
+        run: cd go && go test -fuzz=FuzzDecode -fuzztime=5m .
+
   # Publishing uses OIDC trusted publishing; no long-lived registry tokens.
   # Each registry must have cloudyventures/baseh + this workflow registered as
   # a trusted publisher first (see docs/releasing.md).
