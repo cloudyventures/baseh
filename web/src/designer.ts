@@ -1,4 +1,4 @@
-import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, friendlyError, parseRequired, powBigInt, sampleCodes, spokenDropsExplainer, trySuggestions, visualDropsExplainer } from "./core.js";
+import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, expandableDesign, expandableProfile, exportDesign, friendlyError, generationTable, parseRequired, powBigInt, sampleCodes, spokenDropsExplainer, trySuggestions, visualDropsExplainer } from "./core.js";
 import { renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 import type { DesignerInput, ProfanityMode, SafetyLevel, Candidate } from "./core.js";
@@ -27,6 +27,7 @@ const els = {
   convCode: $<HTMLInputElement>("d-conv-code"),
   convCodeOut: $("d-conv-code-out"),
   convTry: $("d-conv-try"),
+  expandable: $("expandable"),
   recommended: $("recommended"),
   repair: $("repair"),
   alternatives: $("alternatives"),
@@ -125,9 +126,47 @@ function card(c: Candidate, permutation: boolean, label?: string): string {
   </div>`;
 }
 
+// The expandable tier never runs out, so it answers every requirement the
+// same way: start short, grow one symbol when a generation fills. The card
+// states honestly how long codes are today and how long they are when the
+// required volume arrives, and lets the fixed search below stand for anyone
+// who needs constant width.
+function expandableCard(input: DesignerInput): string {
+  const d = expandableDesign(input);
+  if (!d) return "";
+  let samples = "";
+  try {
+    const h = new Baseh(expandableProfile(d, input, input.permutation));
+    const table = generationTable(d.bodyAlphabet.length, d.checksumLength, d.minLength, 2);
+    const ids = new Set([0n, table[0]!.cumulative - 1n, table[0]!.cumulative]);
+    samples = [...ids].map((id) => {
+      try {
+        return `<span class="sample" title="Identifier ${id}"><code>${h.encode(id)}</code></span>`;
+      } catch {
+        return "";
+      }
+    }).join("");
+  } catch {
+    // An unsamplable configuration simply shows no examples.
+  }
+  const grows = d.generation > d.minLength
+    ? `reaches ${d.displayedAtGeneration} chars (length ${d.generation}) by your required volume`
+    : "stays at the opening length past your required volume";
+  return `<div class="card alt-card">
+    <div class="label">Expandable &mdash; never runs out</div>
+    <div class="big">${d.minLength} characters to start, grows one symbol at a time</div>
+    <div>First generation: <strong title="${fmtFull(d.startCapacity)}">${fmt(d.startCapacity)}</strong> IDs &middot;
+      through length ${d.generation}: <strong title="${fmtFull(d.cumulativeAtGeneration)}">${fmt(d.cumulativeAtGeneration)}</strong> IDs</div>
+    <div>${d.displayedAtStart} displayed chars at first, ${grows}</div>
+    <div>Alphabet: <code>${d.alphabetId}</code> (${d.bodyAlphabet.length} symbols, no 0/O) &middot; ${d.checksumLength} checksum${d.checksumLength === 1 ? "" : "s"}</div>
+    ${samples ? `<div class="samples">${samples}</div>` : ""}
+  </div>`;
+}
+
 function render() {
   const input = readInput();
   if (!input) {
+    els.expandable.innerHTML = "";
     els.recommended.innerHTML = "";
     els.repair.innerHTML = "<p>Enter a required capacity of at least 1 (digits only).</p>";
     els.alternatives.innerHTML = "";
@@ -138,6 +177,7 @@ function render() {
     return;
   }
   const result = design(input);
+  els.expandable.innerHTML = expandableCard(input);
   // Tell the user exactly which letters the safety levels remove, for the
   // alphanumeric alphabet; other candidate alphabets drop the same letters
   // when they contain them.

@@ -5,6 +5,7 @@
 import { Baseh, BasehError, FROZEN_KEY_BYTES, type BasehProfile } from "@cloudyventures/baseh";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
+export type CodecMode = "fixed" | "expandable";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
 export type ProfanityMode = "none" | "no-vowels" | "blocklist";
 
@@ -58,12 +59,17 @@ function previewPermutation(on: boolean): BasehProfile["permutation"] {
 
 export interface CalculatorInput {
   namespace: string;
+  codecMode: CodecMode;
   alphabetMode: AlphabetMode;
   customAlphabet: string;
   visualSafety: SafetyLevel;
   spokenSafety: SafetyLevel;
   profanity: ProfanityMode;
   bodyLength: number;
+  /** Expandable mode only; the length codes start at (default 4). */
+  minLength: number;
+  /** Expandable mode only; the separator appears from this total length up. */
+  separatorMinLength: number;
   checksumLength: number;
   permutation: boolean;
   separator: string;
@@ -236,8 +242,10 @@ export function trySuggestions(profile: BasehProfile, sample: string | null, cod
     const cut = Math.max(1, Math.floor(sample.length / 2));
     items.push({ label: "add spaces", code: `${sample.slice(0, cut)} ${sample.slice(cut)}` });
   }
+  // Expandable codes are never left-padded, so there is no leading run of
+  // the zero symbol to strip.
   const zero = profile.bodyAlphabet[0]!;
-  if (sample.startsWith(zero)) {
+  if (profile.mode !== "expandable" && sample.startsWith(zero)) {
     const stripped = sample.replace(new RegExp(`^${zero}+`), "");
     if (stripped.length >= Math.max(profile.checksumLength, 1)) {
       items.push({ label: "strip the leading zero symbols", code: stripped });
@@ -297,6 +305,92 @@ export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: Safet
   return applyProfanity(applySpoken(chars.join(""), spoken), profanity);
 }
 
+/**
+ * Spec 19.2. The expandable body alphabet is the fixed-mode derivation with
+ * the zero ban applied on top: 0 and O are silently removed from whatever
+ * the alphabet modes, safety levels and profanity mode produced, custom
+ * alphabets included.
+ */
+export function deriveExpandableBodyAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel, spoken: SafetyLevel = "none", profanity: ProfanityMode = "none"): string {
+  return [...deriveAlphabet(mode, custom, visual, spoken, profanity)].filter((c) => c !== "0" && c !== "O").join("");
+}
+
+/** Spec 19.3. The expandable checksum alphabet is derived, never configured: "0" followed by the body alphabet. */
+export function deriveExpandableChecksumAlphabet(bodyAlphabet: string): string {
+  return "0" + bodyAlphabet;
+}
+
+/**
+ * Spec 19.5. The frozen expandable tier's right-anchored grouping pattern;
+ * it repeats at every length, so the sum rule of fixed mode cannot apply.
+ */
+export const EXPANDABLE_GROUPING_PATTERN: number[] = [4, 4];
+
+/** Group sizes for a total length under the right-anchored repeating pattern. */
+export function expandableGroupSizes(totalLen: number, pattern: number[]): number[] {
+  const sizes: number[] = [];
+  let remaining = totalLen;
+  let i = pattern.length - 1;
+  while (remaining > 0) {
+    const p = pattern[i]!;
+    if (remaining <= p) {
+      sizes.unshift(remaining);
+      break;
+    }
+    sizes.unshift(p);
+    remaining -= p;
+    i = (i - 1 + pattern.length) % pattern.length;
+  }
+  return sizes;
+}
+
+/** Spec 19.5. Displayed length of an expandable code; the separator appears only from separatorMinLength up. */
+export function expandableDisplayedLength(totalLen: number, separator: string, separatorMinLength: number): number {
+  if (!separator || totalLen < separatorMinLength) return totalLen;
+  return totalLen + expandableGroupSizes(totalLen, EXPANDABLE_GROUPING_PATTERN).length - 1;
+}
+
+/** Spec 19.1. Ids held by generation `length`: A^(length - checksumLength). */
+export function generationCapacityAt(alphabetSize: number, checksumLength: number, length: number): bigint {
+  return powBigInt(BigInt(alphabetSize), length - checksumLength);
+}
+
+/** Spec 19.1. Total ids held by every generation from minLength through `length`. */
+export function generationCumulative(alphabetSize: number, checksumLength: number, minLength: number, length: number): bigint {
+  let total = 0n;
+  for (let l = minLength; l <= length; l += 1) total += generationCapacityAt(alphabetSize, checksumLength, l);
+  return total;
+}
+
+export interface GenerationRow {
+  length: number;
+  capacity: bigint;
+  cumulative: bigint;
+}
+
+/** The per-generation capacity table, from minLength through `rows` generations. */
+export function generationTable(alphabetSize: number, checksumLength: number, minLength: number, rows: number): GenerationRow[] {
+  const out: GenerationRow[] = [];
+  let cumulative = 0n;
+  for (let l = minLength; l < minLength + rows; l += 1) {
+    const capacity = generationCapacityAt(alphabetSize, checksumLength, l);
+    cumulative += capacity;
+    out.push({ length: l, capacity, cumulative });
+  }
+  return out;
+}
+
+/** Spec 19.6. The smallest generation whose cumulative range holds `id`. */
+export function generationForDemand(alphabetSize: number, checksumLength: number, minLength: number, id: bigint): number {
+  let l = minLength;
+  let cumulative = generationCapacityAt(alphabetSize, checksumLength, l);
+  while (id >= cumulative) {
+    l += 1;
+    cumulative += generationCapacityAt(alphabetSize, checksumLength, l);
+  }
+  return l;
+}
+
 export function powBigInt(base: bigint, exp: number): bigint {
   if (base < 0n || exp < 0) throw new Error("invalid exponentiation input");
   let result = 1n;
@@ -325,12 +419,39 @@ export interface CalculatorResult {
   checksumStates: bigint;
   falseAcceptance: string;
   displayedLength: number;
+  /** Expandable mode: the per-generation capacity table; null in fixed mode. */
+  generations: GenerationRow[] | null;
+  /** Expandable mode: the generation the required demand lands in; null otherwise. */
+  requiredGeneration: number | null;
   examples: Array<{ id: string; code: string; blocked?: boolean }>;
 }
 
 /** The live-preview profile the calculator samples with, or null when the
  * configuration is invalid (alphabet smaller than two symbols). */
 export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
+  if (input.codecMode === "expandable") {
+    const body = deriveExpandableBodyAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
+    if (body.length < 2) return null;
+    // The checksum alphabet is derived by the codec ("0" + body, spec 19.3);
+    // aliases are computed against the full canonical set so a typed O still
+    // reads as the checksum-only 0.
+    const canonical = deriveExpandableChecksumAlphabet(body);
+    return {
+      profileId: "ui-preview",
+      mode: "expandable",
+      bodyAlphabet: body,
+      minLength: input.minLength,
+      checksumAlphabet: canonical,
+      checksumLength: input.checksumLength,
+      caseSensitive: false,
+      separator: input.separator,
+      separatorMinLength: input.separatorMinLength,
+      grouping: input.separator ? [...EXPANDABLE_GROUPING_PATTERN] : [],
+      aliases: { ...baseAliases(canonical), ...spokenAliases(body, input.spokenSafety) },
+      profanity: { mode: input.profanity },
+      permutation: previewPermutation(input.permutation)
+    };
+  }
   const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
   if (alphabet.length < 2) return null;
   const totalLen = input.bodyLength + input.checksumLength;
@@ -367,6 +488,7 @@ export function friendlyError(e: unknown): string {
 }
 
 export function calculate(input: CalculatorInput): CalculatorResult {
+  if (input.codecMode === "expandable") return calculateExpandable(input);
   const problems: string[] = [];
   const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
   const checksumAlphabet = deriveChecksumAlphabet(alphabet, input.spokenSafety, input.profanity);
@@ -464,6 +586,124 @@ export function calculate(input: CalculatorInput): CalculatorResult {
     checksumStates,
     falseAcceptance,
     displayedLength,
+    generations: null,
+    requiredGeneration: null,
+    examples
+  };
+}
+
+/**
+ * Expandable-mode calculator (spec 19). There is no single capacity number:
+ * codes start at minLength and grow one symbol at a time as each generation
+ * fills, so the result carries the per-generation table with cumulative
+ * totals, and demand analysis reports the generation the demand lands in.
+ */
+function calculateExpandable(input: CalculatorInput): CalculatorResult {
+  const problems: string[] = [];
+  const alphabet = deriveExpandableBodyAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety, input.profanity);
+  const checksumAlphabet = deriveExpandableChecksumAlphabet(alphabet);
+  if (alphabet.length < 2) problems.push("Alphabet needs at least two symbols after removing 0 and O.");
+  if (/[^\x20-\x7e]/.test(alphabet)) problems.push("Alphabet must be ASCII in version 1.");
+  if (!Number.isInteger(input.minLength) || input.minLength < 1) problems.push("Minimum length must be an integer of at least 1.");
+  if (input.minLength <= input.checksumLength) problems.push("Minimum length must be greater than the checksum length.");
+  if (input.checksumLength < 0 || input.checksumLength > 8) problems.push("Checksum length must be 0 through 8.");
+  if (!Number.isInteger(input.separatorMinLength) || input.separatorMinLength < 0) problems.push("Separator minimum length must be an integer of at least 0.");
+  for (const ch of input.separator + input.prefix + input.suffix) {
+    if (alphabet.includes(ch) || checksumAlphabet.includes(ch)) {
+      problems.push(`Separator or affix "${ch}" collides with an alphabet.`);
+      break;
+    }
+  }
+
+  const a = alphabet.length;
+  const generations = input.minLength >= 1 && input.minLength > input.checksumLength
+    ? generationTable(Math.max(a, 2), input.checksumLength, input.minLength, 8)
+    : [];
+  const checksumStates = powBigInt(BigInt(Math.max(checksumAlphabet.length, 1)), input.checksumLength);
+  const bits = ((input.minLength - input.checksumLength) * Math.log2(Math.max(a, 2))).toFixed(1);
+
+  let required: bigint | null = null;
+  if (input.recordsPerDay !== undefined && input.retentionDays !== undefined) {
+    if (input.recordsPerDay < 0n || input.retentionDays < 0n) {
+      problems.push("Demand values must not be negative.");
+    } else {
+      const exact = input.recordsPerDay * input.retentionDays;
+      const scaled = Number(exact) * input.peakMultiplier * input.safetyMargin;
+      required = scaled > Number.MAX_SAFE_INTEGER ? exact * 4n : BigInt(Math.ceil(scaled));
+    }
+  }
+
+  let requiredGeneration: number | null = null;
+  let utilization: number | null = null;
+  let utilizationStatus: CalculatorResult["utilizationStatus"] = "none";
+  if (required !== null && required > 0n && problems.length === 0) {
+    requiredGeneration = generationForDemand(a, input.checksumLength, input.minLength, required - 1n);
+    const cumulative = generationCumulative(a, input.checksumLength, input.minLength, requiredGeneration);
+    utilization = Number((required * 10_000n) / cumulative) / 100;
+    utilizationStatus = utilization > 80 ? "amber" : "green";
+  }
+
+  let lifetimeDays: bigint | null = null;
+  if (input.recordsPerDay !== undefined && input.recordsPerDay > 0n && problems.length === 0) {
+    // Days to fill the generation the demand lands in (or the last table
+    // generation when no retention period is given); the namespace never
+    // runs out, this is when the codes get one character longer.
+    const through = requiredGeneration ?? generations[generations.length - 1]!.length;
+    lifetimeDays = generationCumulative(a, input.checksumLength, input.minLength, through) / input.recordsPerDay;
+  }
+
+  const displayedLength = expandableDisplayedLength(input.minLength, input.separator, input.separatorMinLength)
+    + input.prefix.length + input.suffix.length;
+
+  const examples: Array<{ id: string; code: string; blocked?: boolean }> = [];
+  if (problems.length === 0) {
+    try {
+      const profile = calculatorProfile(input);
+      if (profile === null) throw new Error("calculatorProfile returned null");
+      const h = new Baseh(profile);
+      // The boundary ids show the growth: the last and first codes of the
+      // opening generations, and the first code two generations up (which
+      // carries a separator under the default separatorMinLength of 6).
+      const end1 = generations[0]!.cumulative - 1n;
+      const start2 = generations[0]!.cumulative;
+      const start3 = generations[1]!.cumulative;
+      for (const id of new Set([0n, 1n, end1, start2, start3])) {
+        if (id < 0n) continue;
+        try {
+          examples.push({ id: id.toString(), code: h.encode(id) });
+        } catch (e) {
+          if (e instanceof BasehError && e.code === "BLOCKED_CODE") {
+            examples.push({ id: id.toString(), code: "", blocked: true });
+          } else {
+            throw e;
+          }
+        }
+      }
+    } catch {
+      problems.push("Configuration could not produce example codes.");
+    }
+  }
+
+  const falseAcceptance =
+    input.checksumLength === 0 ? "n/a" : `about 1 in ${checksumStates.toString()}`;
+
+  return {
+    valid: problems.length === 0,
+    problems,
+    alphabet,
+    capacity: 0n, // fixed-mode only (spec 12.3); see `generations`
+    displayedCombinations: 0n,
+    bits,
+    maxId: null,
+    required,
+    utilization,
+    utilizationStatus,
+    lifetimeDays,
+    checksumStates,
+    falseAcceptance,
+    displayedLength,
+    generations,
+    requiredGeneration,
     examples
   };
 }
@@ -676,6 +916,77 @@ export function design(input: DesignerInput): DesignerResult {
   }
 
   return { feasible: withReasons, recommended, alternatives: alternatives.slice(0, 5), repair, requiredCapacity: required };
+}
+
+export interface ExpandableDesign {
+  alphabetId: string;
+  bodyAlphabet: string;
+  checksumLength: number;
+  minLength: number;
+  separatorMinLength: number;
+  /** Capacity of the opening generation (codes at minLength). */
+  startCapacity: bigint;
+  /** The generation whose cumulative range holds the required demand. */
+  generation: number;
+  /** Total ids issuable from minLength through `generation`. */
+  cumulativeAtGeneration: bigint;
+  displayedAtStart: number;
+  displayedAtGeneration: number;
+}
+
+/**
+ * The expandable answer to the designer's requirements (spec 19). Expandable
+ * mode never runs out — codes start short and grow one symbol at a time — so
+ * instead of searching lengths this derives the frozen-tier shape on the best
+ * allowed alphabet and reports the generation the demand lands in. Returns
+ * null when no allowed alphabet survives the zero ban, or when the delimiter
+ * collides with the derived alphabets.
+ */
+export function expandableDesign(input: DesignerInput): ExpandableDesign | null {
+  const required = requiredCapacity(input);
+  for (const alpha of allowedAlphabets(input)) {
+    const body = [...alpha.alphabet].filter((c) => c !== "0" && c !== "O").join("");
+    if (body.length < 2) continue;
+    const checksumAlphabet = deriveExpandableChecksumAlphabet(body);
+    if (input.separator && (body.includes(input.separator) || checksumAlphabet.includes(input.separator))) continue;
+    const checksumLength = Math.min(3, Math.max(input.minimumChecksumLength, 2));
+    const minLength = 4;
+    const separatorMinLength = 6;
+    const generation = generationForDemand(body.length, checksumLength, minLength, required > 1n ? required - 1n : 0n);
+    return {
+      alphabetId: `${alpha.id}-exp`,
+      bodyAlphabet: body,
+      checksumLength,
+      minLength,
+      separatorMinLength,
+      startCapacity: generationCapacityAt(body.length, checksumLength, minLength),
+      generation,
+      cumulativeAtGeneration: generationCumulative(body.length, checksumLength, minLength, generation),
+      displayedAtStart: expandableDisplayedLength(minLength, input.separator, separatorMinLength),
+      displayedAtGeneration: expandableDisplayedLength(generation, input.separator, separatorMinLength)
+    };
+  }
+  return null;
+}
+
+/** The live-preview profile an expandable design samples with. */
+export function expandableProfile(d: ExpandableDesign, input: DesignerInput, permutation: boolean): BasehProfile {
+  const canonical = deriveExpandableChecksumAlphabet(d.bodyAlphabet);
+  return {
+    profileId: "ui-preview-expandable",
+    mode: "expandable",
+    bodyAlphabet: d.bodyAlphabet,
+    minLength: d.minLength,
+    checksumAlphabet: canonical,
+    checksumLength: d.checksumLength,
+    caseSensitive: false,
+    separator: input.separator,
+    separatorMinLength: d.separatorMinLength,
+    grouping: input.separator ? [...EXPANDABLE_GROUPING_PATTERN] : [],
+    aliases: { ...baseAliases(canonical), ...spokenAliases(d.bodyAlphabet, input.spokenSafety) },
+    profanity: { mode: input.profanity },
+    permutation: previewPermutation(permutation)
+  };
 }
 
 /** The live-preview profile a designer candidate samples with. */

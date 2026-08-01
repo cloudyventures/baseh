@@ -18,10 +18,18 @@
         <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads one of the four frozen tier configurations; every control stays editable afterwards, so use a preset as a starting point you can modify. Minimum: full 36-symbol alphanumeric, no checksum, hyphen grouped in threes, 2,176,782,336 codes. Light: light visual and spoken safety, 2 checksums, hyphen grouped in fours, 887,503,681 codes. Medium: medium safety, 2 checksums, hyphen grouped in fours, 481,890,304 codes (the documented default). Heavy: heavy safety, 2 checksums, hyphen grouped in fours, 308,915,776 codes. All four run the profanity blocklist and ship with permutation on. Choose Custom to keep whatever you have set by hand.</span></span></label>
         <select id="preset">
           <option value="">Custom</option>
+          <option value="expandable" selected>Expandable (starts at 4, grows)</option>
           <option value="minimum">Minimum (2.18B, no checksum)</option>
           <option value="light">Light (887M)</option>
-          <option value="medium" selected>Medium (482M, default)</option>
+          <option value="medium">Medium (482M, fixed default)</option>
           <option value="heavy">Heavy (309M)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="codec-mode">Mode<span class="tip" tabindex="0" aria-label="Mode details"><span class="i">i</span><span class="tip-body">Expandable codes start at the minimum length and grow one symbol at a time as issuance fills each generation, so the namespace never runs out; the body alphabet never contains 0 or O and the checksum alphabet gains the 0. Fixed codes keep a constant width forever and can be exhausted; pick fixed when a downstream system needs every code to be the same length.</span></span></label>
+        <select id="codec-mode">
+          <option value="expandable" selected>Expandable (grows as needed)</option>
+          <option value="fixed">Fixed width</option>
         </select>
       </div>
       <div class="field">
@@ -69,7 +77,15 @@
           <option value="blocklist">Blocklist</option>
         </select>
       </div>
-      <div class="field">
+      <div class="field" id="min-length-row">
+        <label for="min-length">Minimum length (starts at)<span class="tip" tabindex="0" aria-label="Minimum length details"><span class="i">i</span><span class="tip-body">The total code length (checksum included) while the namespace is small. When issuance fills a generation the code gains one symbol automatically; it must exceed the checksum length. The frozen expandable tier starts at 4.</span></span></label>
+        <input id="min-length" type="number" min="1" max="10" value="4" />
+      </div>
+      <div class="field" id="sep-min-length-row">
+        <label for="sep-min-length">Separator from length<span class="tip" tabindex="0" aria-label="Separator minimum length details"><span class="i">i</span><span class="tip-body">Expandable codes are shown bare below this total length and grouped by the separator from this length up, so short codes stay uncluttered. The frozen expandable tier hyphenates from 6 characters.</span></span></label>
+        <input id="sep-min-length" type="number" min="0" max="20" value="6" />
+      </div>
+      <div class="field" id="body-length-row">
         <label for="body-length">Body length <output id="body-length-out">6</output></label>
         <input id="body-length" type="range" min="1" max="10" value="6" />
       </div>

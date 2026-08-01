@@ -1,4 +1,4 @@
-import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, friendlyError, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel } from "./core.js";
+import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, friendlyError, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
 import { renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 
@@ -6,6 +6,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 const els = {
   preset: $<HTMLSelectElement>("preset"),
+  codecMode: $<HTMLSelectElement>("codec-mode"),
   namespace: $<HTMLInputElement>("namespace"),
   mode: $<HTMLSelectElement>("alphabet-mode"),
   customRow: $("custom-alpha-row"),
@@ -15,6 +16,11 @@ const els = {
   spoken: $<HTMLSelectElement>("spoken-safety"),
   spokenDrops: $("spoken-drops"),
   profanity: $<HTMLSelectElement>("profanity-mode"),
+  minLenRow: $("min-length-row"),
+  minLen: $<HTMLInputElement>("min-length"),
+  sepMinRow: $("sep-min-length-row"),
+  sepMinLen: $<HTMLInputElement>("sep-min-length"),
+  bodyRow: $("body-length-row"),
   bodyLen: $<HTMLInputElement>("body-length"),
   bodyLenOut: $("body-length-out"),
   checksumLen: $<HTMLSelectElement>("checksum-length"),
@@ -41,6 +47,7 @@ const els = {
 };
 
 interface Preset {
+  codecMode: CodecMode;
   mode: AlphabetMode;
   visual: SafetyLevel;
   spoken: SafetyLevel;
@@ -50,13 +57,14 @@ interface Preset {
   separator: string;
 }
 
-// The four frozen tiers. Every control stays editable after loading one,
+// The frozen tiers. Every control stays editable after loading one,
 // so a preset is a starting point you modify, not a locked view.
 const PRESETS: Record<string, Preset> = {
-  minimum: { mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, separator: "-" },
-  light: { mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
-  medium: { mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
-  heavy: { mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" }
+  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, separator: "-" },
+  minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, separator: "-" },
+  light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
+  medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
+  heavy: { codecMode: "fixed", mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" }
 };
 
 function fmt(n: bigint): string {
@@ -68,12 +76,15 @@ function readInput(): CalculatorInput {
     el.value.trim() === "" ? undefined : BigInt(Math.max(0, Math.floor(Number(el.value))));
   return {
     namespace: els.namespace.value,
+    codecMode: els.codecMode.value as CodecMode,
     alphabetMode: els.mode.value as AlphabetMode,
     customAlphabet: els.customAlpha.value,
     visualSafety: els.visual.value as SafetyLevel,
     spokenSafety: els.spoken.value as SafetyLevel,
     profanity: els.profanity.value as ProfanityMode,
     bodyLength: Number(els.bodyLen.value),
+    minLength: Number(els.minLen.value),
+    separatorMinLength: Number(els.sepMinLen.value),
     checksumLength: Number(els.checksumLen.value),
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -89,6 +100,7 @@ function readInput(): CalculatorInput {
 function applyPreset(name: string) {
   const p = PRESETS[name];
   if (!p) return;
+  els.codecMode.value = p.codecMode;
   els.mode.value = p.mode;
   els.visual.value = p.visual;
   els.spoken.value = p.spoken;
@@ -105,6 +117,9 @@ function applyPreset(name: string) {
 function render() {
   const input = readInput();
   els.customRow.hidden = input.alphabetMode !== "custom" && input.visualSafety !== "none";
+  els.minLenRow.hidden = input.codecMode !== "expandable";
+  els.sepMinRow.hidden = input.codecMode !== "expandable";
+  els.bodyRow.hidden = input.codecMode === "expandable";
   els.bodyLenOut.textContent = String(input.bodyLength);
   {
     const beforeVisual = deriveAlphabet(input.alphabetMode, input.customAlphabet, "none", "none", input.profanity);
@@ -116,16 +131,29 @@ function render() {
 
   els.alphaSize.textContent = String(r.alphabet.length);
   els.alphaView.textContent = r.alphabet;
-  els.summary.innerHTML = `
-    <div class="big">${fmt(r.capacity)} <span class="unit">valid references</span></div>
-    <div>${r.displayedLength} displayed characters &middot; ${r.bits} bits of capacity</div>
-    <div>checksum false acceptance ${r.falseAcceptance}${
-      input.checksumLength > 0
-        ? ` <span class="badge ${r.checksumStates <= BigInt(r.alphabet.length - 1) ? "amber" : "green"}">${
-            r.checksumStates <= BigInt(r.alphabet.length - 1) ? "structured gaps, see spec 6.3" : "total single-substitution detection"
-          }</span>`
-        : ""
-    }</div>`;
+  if (r.generations) {
+    const rows = r.generations.map((g) =>
+      `<tr><td>${g.length}</td><td>${fmt(g.capacity)}</td><td>${fmt(g.cumulative)}</td></tr>`).join("");
+    els.summary.innerHTML = `
+      <div class="big">grows automatically <span class="unit">when a generation fills</span></div>
+      <div>${r.displayedLength} displayed characters to start &middot; ${r.bits} bits of capacity at ${input.minLength}</div>
+      <div>checksum false acceptance ${r.falseAcceptance}</div>
+      <table class="gen-table">
+        <thead><tr><th>Length</th><th>New IDs</th><th>Cumulative</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } else {
+    els.summary.innerHTML = `
+      <div class="big">${fmt(r.capacity)} <span class="unit">valid references</span></div>
+      <div>${r.displayedLength} displayed characters &middot; ${r.bits} bits of capacity</div>
+      <div>checksum false acceptance ${r.falseAcceptance}${
+        input.checksumLength > 0
+          ? ` <span class="badge ${r.checksumStates <= BigInt(r.alphabet.length - 1) ? "amber" : "green"}">${
+              r.checksumStates <= BigInt(r.alphabet.length - 1) ? "structured gaps, see spec 6.3" : "total single-substitution detection"
+            }</span>`
+          : ""
+      }</div>`;
+  }
 
   els.examplesBody.innerHTML = r.examples
     .map((e) => `<tr><td>${e.id}</td><td>${e.blocked
@@ -136,11 +164,18 @@ function render() {
   let fit = "";
   if (r.required !== null) {
     fit += `<div>Required: <strong>${fmt(r.required)}</strong></div>`;
-    fit += `<div>Utilization: ${r.utilization?.toFixed(2)}% <span class="badge ${r.utilizationStatus}">${r.utilizationStatus}</span></div>`;
+    if (r.requiredGeneration !== null) {
+      fit += `<div>Fits inside the length-${r.requiredGeneration} generation: ${r.utilization?.toFixed(2)}% of its cumulative range <span class="badge ${r.utilizationStatus}">${r.utilizationStatus}</span></div>`;
+      fit += `<div class="muted">Codes stay ${input.minLength} characters until generation 1 fills, then grow one symbol at a time.</div>`;
+    } else {
+      fit += `<div>Utilization: ${r.utilization?.toFixed(2)}% <span class="badge ${r.utilizationStatus}">${r.utilizationStatus}</span></div>`;
+    }
   }
   if (r.lifetimeDays !== null) {
     const years = Number(r.lifetimeDays) / 365.25;
-    fit += `<div>Lifetime at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}</div>`;
+    fit += r.generations
+      ? `<div>Days to fill that generation at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}; codes then grow by one character, they never run out</div>`
+      : `<div>Lifetime at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}</div>`;
   }
   if (input.checksumLength === 0) fit += `<div class="warn">No checksum: typing errors cannot be detected reliably.</div>`;
   els.fitOut.innerHTML = fit;
@@ -222,11 +257,8 @@ function render() {
 els.copyJson.addEventListener("click", async () => {
   const input = readInput();
   const r = calculate(input);
-  await navigator.clipboard.writeText(JSON.stringify({
+  const shared = {
     profileId: "draft-from-calculator",
-    bodyAlphabet: r.alphabet,
-    bodyLength: input.bodyLength,
-    checksumAlphabet: deriveChecksumAlphabet(r.alphabet, input.spokenSafety, input.profanity),
     checksumLength: input.checksumLength,
     caseSensitive: false,
     separator: input.separator,
@@ -234,7 +266,24 @@ els.copyJson.addEventListener("click", async () => {
     permutation: input.permutation
       ? { enabled: true, algorithm: "feistel-v1", keyId: "<your-key-id>", keyBytes: "<your-key-bytes>", rounds: 8 }
       : { enabled: false }
-  }, null, 2));
+  };
+  await navigator.clipboard.writeText(JSON.stringify(
+    input.codecMode === "expandable"
+      ? {
+          ...shared,
+          mode: "expandable",
+          bodyAlphabet: r.alphabet,
+          minLength: input.minLength,
+          checksumAlphabet: deriveExpandableChecksumAlphabet(r.alphabet),
+          separatorMinLength: input.separatorMinLength,
+          grouping: input.separator ? [4, 4] : []
+        }
+      : {
+          ...shared,
+          bodyAlphabet: r.alphabet,
+          bodyLength: input.bodyLength,
+          checksumAlphabet: deriveChecksumAlphabet(r.alphabet, input.spokenSafety, input.profanity)
+        }, null, 2));
   els.copyJson.textContent = "Copied";
   setTimeout(() => (els.copyJson.textContent = "Copy profile JSON"), 1200);
 });
@@ -242,9 +291,12 @@ els.copyJson.addEventListener("click", async () => {
 els.copyUrl.addEventListener("click", async () => {
   const input = readInput();
   const params = new URLSearchParams({
+    cmode: input.codecMode,
     mode: input.alphabetMode,
     visual: input.visualSafety,
     body: String(input.bodyLength),
+    min: String(input.minLength),
+    sepmin: String(input.separatorMinLength),
     check: String(input.checksumLength),
     perm: input.permutation ? "1" : "0"
   });
@@ -253,10 +305,10 @@ els.copyUrl.addEventListener("click", async () => {
   setTimeout(() => (els.copyUrl.textContent = "Copy URL"), 1200);
 });
 
-els.reset.addEventListener("click", () => applyPreset(els.preset.value || "medium"));
+els.reset.addEventListener("click", () => applyPreset(els.preset.value || "expandable"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
-for (const el of [els.namespace, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
+for (const el of [els.namespace, els.codecMode, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
+  els.minLen, els.sepMinLen, els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
   els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
@@ -267,12 +319,15 @@ const STORAGE_KEY = "baseh-calculator-state";
 
 interface SavedState {
   namespace: string;
+  codecMode: string;
   mode: string;
   customAlphabet: string;
   visual: string;
   spoken: string;
   profanity: string;
   bodyLength: string;
+  minLength: string;
+  separatorMinLength: string;
   checksumLength: string;
   permutation: boolean;
   separator: string;
@@ -287,12 +342,15 @@ interface SavedState {
 function readState(): SavedState {
   return {
     namespace: els.namespace.value,
+    codecMode: els.codecMode.value,
     mode: els.mode.value,
     customAlphabet: els.customAlpha.value,
     visual: els.visual.value,
     spoken: els.spoken.value,
     profanity: els.profanity.value,
     bodyLength: els.bodyLen.value,
+    minLength: els.minLen.value,
+    separatorMinLength: els.sepMinLen.value,
     checksumLength: els.checksumLen.value,
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -307,12 +365,17 @@ function readState(): SavedState {
 
 function applyState(s: SavedState) {
   els.namespace.value = s.namespace;
+  // Older stored states predate the mode and expandable controls; fall back
+  // to the current control values when a field is missing.
+  els.codecMode.value = s.codecMode ?? els.codecMode.value;
   els.mode.value = s.mode;
   els.customAlpha.value = s.customAlphabet;
   els.visual.value = s.visual;
   els.spoken.value = s.spoken;
   els.profanity.value = s.profanity;
   els.bodyLen.value = s.bodyLength;
+  els.minLen.value = s.minLength ?? els.minLen.value;
+  els.sepMinLen.value = s.separatorMinLength ?? els.sepMinLen.value;
   els.checksumLen.value = s.checksumLength;
   els.permutation.checked = s.permutation;
   els.separator.value = s.separator;
@@ -330,9 +393,12 @@ function applyState(s: SavedState) {
   if (hasParams) {
     // A shared link wins over stored state so the recipient sees exactly
     // what was copied.
+    if (q.get("cmode")) els.codecMode.value = q.get("cmode") as string;
     if (q.get("mode")) els.mode.value = q.get("mode") as string;
     if (q.get("visual")) els.visual.value = q.get("visual") as string;
     if (q.get("body")) els.bodyLen.value = q.get("body") as string;
+    if (q.get("min")) els.minLen.value = q.get("min") as string;
+    if (q.get("sepmin")) els.sepMinLen.value = q.get("sepmin") as string;
     if (q.get("check")) els.checksumLen.value = q.get("check") as string;
     if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
     render();
@@ -348,6 +414,6 @@ function applyState(s: SavedState) {
       // Corrupt or unavailable storage falls back to the default preset.
     }
     if (restored) render();
-    else applyPreset(els.preset.value || "medium");
+    else applyPreset(els.preset.value || "expandable");
   }
 }
