@@ -256,6 +256,7 @@ export interface DesignerInput {
   maxDisplayedLength: number;
   minimumChecksumLength: number;
   maxUtilization: number; // 0..1
+  separator: string;
   allowDigits: boolean;
   allowUpper: boolean;
   allowAlnum: boolean;
@@ -275,6 +276,7 @@ export interface Candidate {
   alphabet: string;
   alphabetSize: number;
   spoken: SafetyLevel;
+  separator: string;
   bodyLength: number;
   checksumLength: number;
   capacity: bigint;
@@ -344,7 +346,7 @@ export function design(input: DesignerInput): DesignerResult {
       if (capacity < required) continue;
       for (let checksumLength = Math.max(input.minimumChecksumLength, 0); checksumLength <= 3; checksumLength += 1) {
         const totalLen = bodyLength + checksumLength;
-        const displayed = totalLen;
+        const displayed = totalLen + (input.separator ? groupingFor(totalLen).length - 1 : 0);
         if (displayed > input.maxDisplayedLength) continue;
         const utilPerMyriad = Number((required * 10_000n) / capacity) / 10_000;
         if (utilPerMyriad > input.maxUtilization && required > 0n) continue;
@@ -357,6 +359,7 @@ export function design(input: DesignerInput): DesignerResult {
           alphabet: alpha.alphabet,
           alphabetSize: alpha.size,
           spoken: input.spokenSafety,
+          separator: input.separator,
           bodyLength,
           checksumLength,
           capacity,
@@ -398,7 +401,7 @@ export function design(input: DesignerInput): DesignerResult {
     for (const alpha of alphas) {
       const minL = minimumLength(alpha.size, required);
       const total = minL + Math.max(input.minimumChecksumLength, 0);
-      const displayed = total;
+      const displayed = total + (input.separator ? groupingFor(total).length - 1 : 0);
       if (best === null) {
         best = `No candidate fits. The smallest option with alphabet ${alpha.id} (${alpha.size} symbols) needs a ${displayed}-character displayed code (body ${minL}${input.minimumChecksumLength > 0 ? ` + ${input.minimumChecksumLength} check` : ""}). Raise the maximum displayed length to at least ${displayed} or permit a larger alphabet.`;
       }
@@ -415,7 +418,8 @@ export function sampleCodes(
   bodyLength: number,
   checksumLength: number,
   capacity: bigint,
-  spoken: SafetyLevel = "none"
+  spoken: SafetyLevel = "none",
+  separator: string = ""
 ): Array<{ id: string; code: string }> {
   const out: Array<{ id: string; code: string }> = [];
   try {
@@ -427,8 +431,8 @@ export function sampleCodes(
       checksumAlphabet: deriveChecksumAlphabet(alphabet, spoken),
       checksumLength,
       caseSensitive: false,
-      separator: "",
-      grouping: [],
+      separator,
+      grouping: separator ? groupingFor(totalLen) : [],
       aliases: { O: "0", I: "1", L: "1", ...spokenAliases(alphabet, spoken) },
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
     };
