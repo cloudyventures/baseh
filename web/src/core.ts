@@ -71,6 +71,15 @@ export function deriveChecksumAlphabet(bodyAlphabet: string, spoken: SafetyLevel
   return [...SAFE_CHECKSUM].filter((c) => !drops.has(c)).join("");
 }
 
+/** O/I/L aliases, keeping only those whose target exists and whose source does not. */
+export function baseAliases(alphabet: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"]]) {
+    if (alphabet.includes(tgt) && !alphabet.includes(src)) out[src] = tgt;
+  }
+  return out;
+}
+
 /** Aliases that map each stripped symbol back to the kept member of its pair. */
 export function spokenAliases(bodyAlphabet: string, spoken: SafetyLevel): Record<string, string> {
   const out: Record<string, string> = {};
@@ -197,7 +206,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         caseSensitive: false,
         separator: input.separator,
         grouping: input.separator ? groupingFor(totalLen) : [],
-        aliases: { O: "0", I: "1", L: "1", ...spokenAliases(alphabet, input.spokenSafety) },
+        aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
         permutation: input.permutation
           ? { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
           : { enabled: false }
@@ -433,7 +442,7 @@ export function sampleCodes(
       caseSensitive: false,
       separator,
       grouping: separator ? groupingFor(totalLen) : [],
-      aliases: { O: "0", I: "1", L: "1", ...spokenAliases(alphabet, spoken) },
+      aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, spoken) },
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
     };
     const h = new Baseh(profile);

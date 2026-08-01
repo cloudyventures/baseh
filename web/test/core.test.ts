@@ -186,3 +186,15 @@ describe("separator in the designer", () => {
     assert.ok(s.length > 0 && s.every((e) => !e.code.includes("-")));
   });
 });
+
+describe("example codes for letters-only alphabets", async () => {
+  const { deriveAlphabet, sampleCodes } = await import("../src/core.js");
+  it("produce codes without digit-target aliases", () => {
+    // Mirror the designer flow: the alphabet arrives already derived
+    // (visual + spoken strips applied) rather than raw.
+    const alpha = deriveAlphabet("upper", "", "light", "light");
+    const s = sampleCodes(alpha, 6, 1, BigInt(alpha.length) ** 6n, "light");
+    assert.ok(s.length === 3);
+    assert.equal(s[0]!.id, "0");
+  });
+});
