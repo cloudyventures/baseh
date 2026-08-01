@@ -104,8 +104,7 @@ function render() {
   els.alphaSize.textContent = String(r.alphabet.length);
   els.alphaView.textContent = r.alphabet;
   els.summary.innerHTML = `
-    <div class="big">${fmt(r.capacity)}</div>
-    <div>valid references</div>
+    <div class="big">${fmt(r.capacity)} <span class="unit">valid references</span></div>
     <div>${r.displayedLength} displayed characters &middot; ${r.bits} bits of capacity</div>
     <div>checksum false acceptance ${r.falseAcceptance}${
       input.checksumLength > 0
