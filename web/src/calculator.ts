@@ -79,6 +79,16 @@ function fmt(n: bigint): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+// Example ids that land exactly on a power of ten read better compact
+// ("1M", "100T"); anything else keeps the full grouped digits.
+function fmtExampleId(id: string): string {
+  const n = BigInt(id);
+  for (const [scale, suffix] of [[1_000_000_000_000n, "T"], [1_000_000_000n, "B"], [1_000_000n, "M"]] as const) {
+    if (n >= scale && n % scale === 0n) return `${n / scale}${suffix}`;
+  }
+  return fmt(n);
+}
+
 function readInput(): CalculatorInput {
   const num = (el: HTMLInputElement): bigint | undefined =>
     el.value.trim() === "" ? undefined : BigInt(Math.max(0, Math.floor(Number(el.value))));
@@ -196,7 +206,7 @@ function render() {
   }
 
   els.examplesBody.innerHTML = r.examples
-    .map((e) => `<tr><td>${e.id}</td><td>${e.blocked
+    .map((e) => `<tr><td title="${fmt(BigInt(e.id))}">${fmtExampleId(e.id)}</td><td>${e.blocked
         ? `<span class="muted">blocked: never issued (profanity or a repetition run)</span>`
         : `<code>${e.code}</code>`}</td></tr>`)
     .join("");
