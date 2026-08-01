@@ -97,7 +97,7 @@ go/         Go implementation (module github.com/matellis/baseh/go)
 rust/       Rust implementation (crates.io: base-human)
 ruby/       Ruby implementation (RubyGems: base-human)
 web/        calculator and designer source
-docs/       application cookbook (lookup endpoint, observability)
+docs/       examples in all five languages, application cookbook
 ```
 
 ## Security
@@ -106,6 +106,10 @@ An baseH is a reference alias, never an authorization token. Enforce
 authorization after decode, rate-limit public lookups and do not treat the
 permutation as secrecy. See [`spec/README.md`](spec/README.md) and
 [`docs/cookbook.md`](docs/cookbook.md).
+
+Runnable zero-config, preset and customized examples in all five languages
+live in [`docs/examples.md`](docs/examples.md) and the `examples/` directory
+of each package.
 
 ## Status and release process
 
