@@ -13,3 +13,9 @@ hex = "0.4"
 
 [dev-dependencies]
 serde_json = "1"
+
+# The round-trip soak CI subset (tests/soak.rs) does millions of BigUint
+# round trips; unoptimized test builds take minutes instead of the seconds
+# the soak spec budgets. Optimize test builds; compile time stays modest.
+[profile.test]
+opt-level = 2
