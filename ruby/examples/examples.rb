@@ -76,3 +76,25 @@ radio = Baseh::Baseh.new(
 show('decode("0000-T0W") without correction') { radio.decode("0000-T0W").id }
 result = radio.decode("0000-T0W", try_correction: true, confusion_profile: :light)
 puts "Identifier: #{result.id}, corrected to #{result.canonical_code}"
+
+# 5. A view helper for ERB: one shared codec built at boot, records rendered
+#    as codes at the edge. This module works as a Rails helper exactly as
+#    written; here it is exercised with a plain struct. The matching
+#    controller-side decode pattern is in docs/cookbook.md ("Framework view
+#    helpers").
+puts "== view helper (ERB) =="
+module BasehHelper
+  CODEC = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+
+  # <%= baseh_code(@order) %>
+  def baseh_code(record)
+    CODEC.encode(id: record.id)
+  end
+end
+
+Order = Struct.new(:id)
+include BasehHelper
+order = Order.new(123456)
+puts "<%= baseh_code(@order) %> -> #{baseh_code(order)}"
+show("controller-side decode") { BasehHelper::CODEC.decode(baseh_code(order)).id }
+show("controller-side decode (bogus code)") { BasehHelper::CODEC.decode("ZZZZ-ZZZZ").id }
