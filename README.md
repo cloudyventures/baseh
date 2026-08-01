@@ -32,13 +32,13 @@ Interactive, client-side only:
 
 ## Install
 
-| Language | Command |
-|---|---|
-| JavaScript / TypeScript | `npm install @cloudyventures/baseh` |
-| Python | `pip install baseh` |
-| Go | `go get github.com/cloudyventures/baseh/go/v2` |
-| Rust | `cargo add baseh` |
-| Ruby | `gem install baseh` |
+| Language | Command | Examples |
+|---|---|---|
+| JavaScript / TypeScript | `npm install @cloudyventures/baseh` | [js/examples/examples.ts](js/examples/examples.ts) |
+| Python | `pip install baseh` | [python/examples/examples.py](python/examples/examples.py) |
+| Go | `go get github.com/cloudyventures/baseh/go/v2` | [go/examples/main.go](go/examples/main.go) |
+| Rust | `cargo add baseh` | [rust/examples/examples.rs](rust/examples/examples.rs) |
+| Ruby | `gem install baseh` | [ruby/examples/examples.rb](ruby/examples/examples.rb) |
 
 ## Quick start
 

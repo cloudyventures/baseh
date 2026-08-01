@@ -144,7 +144,7 @@ function render() {
   {
     const beforeVisual = deriveAlphabet("alnum", "", "none", "none", input.profanity);
     const afterVisual = deriveAlphabet("alnum", "", input.visualSafety, "none", input.profanity);
-    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual);
+    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual, input.visualSafety);
     els.spokenDrops.textContent = spokenDropsExplainer(afterVisual, input.spokenSafety);
   }
   els.recommended.innerHTML = result.recommended
@@ -208,7 +208,7 @@ function render() {
     els.convCodeOut.textContent = "no feasible design to convert with";
   } else {
     try {
-      const result = h.decode(codeRaw);
+      const result = h.decode(codeRaw, { tryCorrection: true, confusionProfile: "heavy" });
       els.convCodeOut.innerHTML = "";
       const lab = document.createElement("span");
       lab.textContent = "Identifier: ";
@@ -235,7 +235,7 @@ function render() {
         result.recommended.profanity, input.permutation)
         .reverse().find((s) => !s.blocked && s.code)?.code ?? null
     : null;
-  renderTryList(els.convTry, convProfile ? trySuggestions(convProfile, convSample) : [], (code) => {
+  renderTryList(els.convTry, convProfile ? trySuggestions(convProfile, convSample, h ?? undefined) : [], (code) => {
     els.convCode.value = code;
     els.convCode.dispatchEvent(new Event("input", { bubbles: true }));
   });

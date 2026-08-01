@@ -161,3 +161,16 @@ jobs:
           fi
           git tag "go/${TAG}"
           git push origin "go/${TAG}"
+
+  # The GitHub Release marks a fully-green release: it only runs once every
+  # registry publish and the Go tag have succeeded.
+  github-release:
+    needs: [verify, publish-npm, publish-pypi, publish-crates, publish-rubygems, tag-go]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

@@ -42,7 +42,7 @@
         <input id="custom-alphabet" type="text" spellcheck="false" />
       </div>
       <div class="field">
-        <label for="visual-safety">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Removes look-alike symbols from the generated alphabet so printed or on-screen codes are harder to misread. None: keep everything. Light: drop O, I and L when digits are present, since 0 and 1 already cover them. Medium: also drop B and S, which blur into 8 and 5 in many fonts. Heavy: the fully reviewed 32-symbol alphabet, which also drops U. Smaller alphabets need a longer body for the same capacity; the trade-off is shown live on the right.</span></span></label>
+        <label for="visual-safety">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Removes look-alike symbols from the generated alphabet so printed or on-screen codes are harder to misread. None: keep everything. Light: drop O, I and L when digits are present, since 0 and 1 already cover them. Medium: also drop B and S, which blur into 8 and 5 in many fonts. Heavy is not cumulative: it replaces the alphabet outright with the fully reviewed 32-symbol set, which keeps B and S but drops U. Smaller alphabets need a longer body for the same capacity; the trade-off is shown live on the right.</span></span></label>
         <select id="visual-safety">
           <option value="none">None</option>
           <option value="light" selected>Light (drop O, I, L)</option>
@@ -105,16 +105,16 @@
       </table>
       <h3>Convert</h3>
       <div class="field">
+        <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Convert code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
+        <input id="conv-code" type="text" placeholder="C8XP-8J49" />
+        <div id="conv-code-out" class="field-note" aria-live="polite"></div>
+      </div>
+      <div class="field">
         <label for="conv-id">Identifier<span class="tip" tabindex="0" aria-label="Convert identifier details"><span class="i">i</span><span class="tip-body">Type any identifier from 0 up to the capacity minus one to see the exact code this configuration would issue for it. Blocklisted identifiers report as blocked instead.</span></span></label>
         <input id="conv-id" type="text" inputmode="numeric" placeholder="123456789" />
         <div id="conv-id-out" class="field-note" aria-live="polite"></div>
       </div>
-      <div class="field">
-        <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Convert code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
-        <input id="conv-code" type="text" placeholder="C8XP-8J49" />
-        <div id="conv-code-out" class="field-note" aria-live="polite"></div>
-        <div id="conv-try" class="field-note try-list"></div>
-      </div>
+      <div id="conv-try" class="field-note try-list"></div>
     </section>
 
     <section aria-labelledby="fit">
