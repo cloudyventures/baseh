@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-The code designer starts with a required number of identifiers and finds configurations that satisfy the requirement.
+The Code Designer starts with a required number of identifiers and finds configurations that satisfy the requirement.
 
 This is the reverse tool: capability requirements go in and valid parameters come out.
 
@@ -365,6 +365,6 @@ peak_multiplier: 1.25
 5. Every infeasible state includes a concrete repair.
 6. UI never silently changes a user selection.
 7. Exports include solver and catalog versions.
-8. Results match the capacity calculator.
+8. Results match the Capacity Calculator.
 9. Property tests compare solver output against brute force.
 10. Recommendation ordering is deterministic.

@@ -271,7 +271,7 @@ Encoder output contains only canonical alphabet symbols.
 
 ### 11.6 Solver soundness
 
-Every code designer candidate satisfies every hard constraint.
+Every Code Designer candidate satisfies every hard constraint.
 
 ### 11.7 Solver minimality
 
@@ -329,7 +329,7 @@ Rules:
 - Vectors are reviewed and versioned.
 - A release fails if any supported implementation disagrees.
 
-## 14. Capacity calculator tests
+## 14. Capacity Calculator tests
 
 Exact cases:
 
@@ -353,7 +353,7 @@ body_capacity * checksum_states
 
 but the UI labels them as non-valid combinations.
 
-## 15. Code designer tests
+## 15. Code Designer tests
 
 Cases:
 
