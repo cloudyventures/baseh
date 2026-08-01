@@ -1,8 +1,8 @@
 """BaseH codec, Python implementation.
 
 Public API mirrors spec section 12: the Baseh codec class, BasehError with a
-stable .code attribute and the frozen profile helpers baseh32_v1 and
-baseh32s_v1.
+stable .code attribute and the frozen profile tier helpers (baseh_medium_v1
+is the default tier; the _p variants enable feistel-v1 permutation).
 """
 
 from .blocklist import DEFAULT_BLOCKLIST
@@ -19,7 +19,16 @@ from .errors import (
     TOO_MANY_CANDIDATES,
     BasehError,
 )
-from .profiles import baseh32_v1, baseh32s_v1
+from .profiles import (
+    baseh_heavy_p_v1,
+    baseh_heavy_v1,
+    baseh_light_p_v1,
+    baseh_light_v1,
+    baseh_medium_p_v1,
+    baseh_medium_v1,
+    baseh_minimum_p_v1,
+    baseh_minimum_v1,
+)
 
 __all__ = [
     "Baseh",
@@ -28,8 +37,14 @@ __all__ = [
     "CONFUSION_MAPS",
     "DEFAULT_BLOCKLIST",
     "generate_candidates",
-    "baseh32_v1",
-    "baseh32s_v1",
+    "baseh_minimum_v1",
+    "baseh_minimum_p_v1",
+    "baseh_light_v1",
+    "baseh_light_p_v1",
+    "baseh_medium_v1",
+    "baseh_medium_p_v1",
+    "baseh_heavy_v1",
+    "baseh_heavy_p_v1",
     "INVALID_PROFILE",
     "OUT_OF_RANGE",
     "PERMUTATION_FAILURE",

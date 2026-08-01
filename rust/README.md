@@ -8,11 +8,11 @@ and cross-language conformance vectors live in `../vectors/`.
 ## Usage
 
 ```rust
-use base_human::{baseh32_v1, baseh32s_v1, Baseh, ConfusionProfile, DecodeOptions};
+use base_human::{baseh_medium_v1, Baseh, ConfusionProfile, DecodeOptions};
 use num_bigint::BigUint;
 
-// Permutation is off by default; the frozen profiles need no key material.
-let baseh = Baseh::new(baseh32_v1())?;
+// Medium is the default tier; permutation is off and needs no key material.
+let baseh = Baseh::new(baseh_medium_v1())?;
 
 let code = baseh.encode(&BigUint::from(48_284_291u64))?;
 let result = baseh.decode(&code, &DecodeOptions::default())?;
@@ -34,21 +34,35 @@ let fixed = baseh.decode("0000TBC", &DecodeOptions {
 # Ok::<(), base_human::BasehError>(())
 ```
 
-`baseh32s_v1` (two checksum symbols) is the right pick for unattended
-self-service lookup: it provably detects all single-symbol substitutions and
-adjacent transpositions (spec 6.3). `baseh32_v1` suits assisted support where
-a human can ask for the code again.
+## Frozen tiers
+
+Four frozen tiers trade alphabet safety for capacity. All are 6 body symbols,
+case-insensitive, run the default profanity blocklist and keep the typed
+O/I/L aliases where possible. Medium is the default.
+
+| Tier                | Symbols | Checksum | Capacity      |
+| ------------------- | ------- | -------- | ------------- |
+| `baseh_minimum_v1`  | 36      | 0        | 2,176,782,336 |
+| `baseh_light_v1`    | 31      | 1        | 887,503,681   |
+| `baseh_medium_v1`   | 28      | 1        | 481,890,304   |
+| `baseh_heavy_v1`    | 26      | 1        | 308,915,776   |
+
+Minimum is hyphen-delimited XXX-XXX; the rest have no separator. Every helper
+returns a freshly-built profile value, so callers can load a default and
+modify it before constructing the codec.
 
 ## Permutation (opt-in)
 
-The frozen profiles ship with the permutation disabled. To enable feistel-v1
-(8 rounds), use the keyed variants and supply your own key material and key
-id. Keep both immutable for the life of the profile and out of frontend code.
+The plain tier helpers ship with the permutation disabled. To enable
+feistel-v1 use the `*_p_v1` variants and supply your own key material, key id
+and round count (pass an empty key id or 0 rounds for the defaults
+"default" and 8). Keep both immutable for the life of the profile and out of
+frontend code.
 
 ```rust
-use base_human::{baseh32_v1_with_key, Baseh};
+use base_human::{baseh_medium_p_v1, Baseh};
 # fn f() -> Result<(), base_human::BasehError> {
-let baseh = Baseh::new(baseh32_v1_with_key(b"application-key-material", "app-key-1"))?;
+let baseh = Baseh::new(baseh_medium_p_v1(b"application-key-material", "app-key-1", 8))?;
 # Ok(())
 # }
 ```
@@ -57,7 +71,7 @@ let baseh = Baseh::new(baseh32_v1_with_key(b"application-key-material", "app-key
 
 Profiles accept an optional `profanity` object with three modes:
 
-- `None` (default): no filtering. The frozen profiles use this mode.
+- `None` (default): no filtering.
 - `NoVowels`: strips `A E I O U` from both alphabets before any other
   profile-derived computation. Capacity, checksums and every downstream rule
   then run on the stripped alphabets.
@@ -75,9 +89,10 @@ Profiles accept an optional `profanity` object with three modes:
 - `capacity() -> &BigUint` (arbitrary precision, may exceed u64).
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
-- `baseh32_v1` / `baseh32s_v1` build the frozen profiles with the
-  permutation disabled. `baseh32_v1_with_key` / `baseh32s_v1_with_key` build
-  them with feistel-v1 enabled (8 rounds).
+- `baseh_minimum_v1` / `baseh_light_v1` / `baseh_medium_v1` /
+  `baseh_heavy_v1` build the frozen tier profiles with the permutation
+  disabled. The `*_p_v1` variants build them with feistel-v1 enabled and
+  require caller-supplied key material.
 - `feistel::permute` / `feistel::inverse_permute` are public for conformance
   testing against `../vectors/feistel-vectors.json`.
 

@@ -22,21 +22,42 @@ gem install ./base-human-1.0.0.gem
 Zero runtime dependencies. Only `openssl` and `json` from the standard
 library are used.
 
+## Frozen tiers
+
+Four frozen tiers ship with the gem, built from the full alphanumeric set
+with cumulative visual and spoken strips. All four encode 6 body symbols,
+are case-insensitive and run the default profanity blocklist.
+
+| Tier | Helper | Body symbols | Checksum | Format | Capacity |
+| ---- | ------ | ------------ | -------- | ------ | -------- |
+| Minimum | `BaseHuman.baseh_minimum_v1` | 36 | none | `XXX-XXX` | 2,176,782,336 |
+| Light | `BaseHuman.baseh_light_v1` | 31 | 1 | plain | 887,503,681 |
+| Medium | `BaseHuman.baseh_medium_v1` | 28 | 1 | plain | 481,890,304 |
+| Heavy | `BaseHuman.baseh_heavy_v1` | 26 | 1 | plain | 308,915,776 |
+
+Medium is the default. Minimum keeps the full alphabet and uses a hyphen
+delimiter; the rest have no separator. Each tier keeps the typed O/I/L
+aliases where possible and adds spoken-confusion aliases for the stripped
+symbols.
+
+Every helper returns a freshly built mutable profile hash on each call, so
+callers can load a default and modify it before constructing a codec.
+
 ## Usage
 
 ```ruby
 require "base_human"
 
-codec = BaseHuman::Baseh.new(BaseHuman.baseh32_v1)   # permutation disabled
+codec = BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1)
 
-code = codec.encode(id: 123_456)           # => raw fixed-width code, no separator
+code = codec.encode(id: 123_456)           # => raw fixed-width code
 
 result = codec.decode(code)
 result.id                                  # => 123456
 result.canonical_code                      # => canonical form
 result.corrected                           # => true when input needed correction
 
-codec.capacity                             # => 1073741824
+codec.capacity                             # => 481890304
 
 check = codec.validate("0000000")
 check.valid                                # => false
@@ -46,24 +67,23 @@ check.reason                               # => "INVALID_CHECKSUM"
 result = codec.decode("TB14QDF", try_correction: true, confusion_profile: :light)
 ```
 
-`BaseHuman.baseh32s_v1` gives the two-checksum-digit self-service profile.
-
 ## Permutation (opt-in)
 
-Supplying key bytes opts the profile into the reversible feistel-v1
-permutation. Keep the key in a secret manager and never change it for a live
-profile:
+The `-p` variants opt a tier into the reversible feistel-v1 permutation.
+`key_bytes:` is required; keep the key in a secret manager and never change
+it for a live profile:
 
 ```ruby
-profile = BaseHuman.baseh32_v1(
+profile = BaseHuman.baseh_medium_p_v1(
   key_bytes: File.binread("path/to/key.bin"),
   key_id: "prod-01"                        # optional, defaults to "default"
 )
 codec = BaseHuman::Baseh.new(profile)
 ```
 
-`rounds:` is also accepted (default 8). Calling the helpers with no
-`key_bytes:` returns a profile with permutation disabled.
+`rounds:` is also accepted (default 8). The `-p` profile is identical to
+its plain tier apart from the permutation; its profile id gains a `-p`
+segment, for example `baseh-medium-p-v1`.
 
 ## Profanity safety (spec 18)
 
@@ -78,6 +98,8 @@ profanity: { mode: "no-vowels" }
 # entry. words replaces the default list, extra_words appends to it.
 profanity: { mode: "blocklist", words: ["ZZZZ"], extra_words: ["QQQQ"] }
 ```
+
+The frozen tiers run the default blocklist out of the box.
 
 All failures raise `BaseHuman::BasehError` with a `#code` from the spec:
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,

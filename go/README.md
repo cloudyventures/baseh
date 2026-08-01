@@ -10,6 +10,26 @@ cross-language vectors in `vectors/`.
 go get github.com/matellis/baseh/go
 ```
 
+## Frozen tiers
+
+The package ships eight frozen-profile helpers covering four tiers. All
+share a 6-symbol body, case-insensitive decode and the default profanity
+blocklist:
+
+| Tier    | Symbols | Checksum | Format   | Capacity      |
+|---------|---------|----------|----------|---------------|
+| Minimum | 36      | none     | XXX-XXX  | 2,176,782,336 |
+| Light   | 31      | 1        | XXXXXXX  | 887,503,681   |
+| Medium  | 28      | 1        | XXXXXXX  | 481,890,304   |
+| Heavy   | 26      | 1        | XXXXXXX  | 308,915,776   |
+
+`BasehMinimumV1()`, `BasehLightV1()`, `BasehMediumV1()` and
+`BasehHeavyV1()` take no arguments. Medium is the default tier.
+
+Every helper returns a freshly-built `Profile` value, so callers can load
+a default and modify it (words, separators and so on) before `NewBaseh`
+without affecting other profiles from the same helper.
+
 ## Usage
 
 ```go
@@ -23,7 +43,7 @@ import (
 )
 
 func main() {
-	h, err := basehuman.NewBaseh(basehuman.Baseh32V1Profile(nil, ""))
+	h, err := basehuman.NewBaseh(basehuman.BasehMediumV1())
 	if err != nil {
 		panic(err) // invalid profile: fail at startup
 	}
@@ -32,9 +52,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(code) // 3NQK8NJ
+	fmt.Println(code) // 74UYC19
 
-	res, err := h.Decode("gzeyhtn", &basehuman.DecodeOptions{
+	res, err := h.Decode("74uyc19", &basehuman.DecodeOptions{
 		AcceptSpaces: true,
 	})
 	if err != nil {
@@ -49,15 +69,21 @@ func main() {
 }
 ```
 
-To opt in to the reversible feistel-v1 permutation, pass key material and a
-key id. With a nil or empty key the permutation stays disabled and the key
-id is ignored. Key material is application-specific and never part of the
+## Permutation variants
+
+Each tier has a `-p` variant that enables the reversible feistel-v1
+permutation: `BasehMinimumPV1`, `BasehLightPV1`, `BasehMediumPV1` and
+`BasehHeavyPV1`, each taking `keyBytes []byte, keyID string, rounds int`.
+Key bytes are required; an empty key id defaults to `"default"` and zero
+rounds to 8. Key material is application-specific and never part of the
 frozen profile.
 
 ```go
 key := []byte("application-secret-key-material")
-h, err := basehuman.NewBaseh(basehuman.Baseh32V1Profile(key, "prod-01"))
+h, err := basehuman.NewBaseh(basehuman.BasehMediumPV1(key, "prod-01", 8))
 ```
+
+## Errors
 
 Errors are always `*basehuman.Error` with a stable `Code` field (one of
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,
@@ -66,7 +92,8 @@ Errors are always `*basehuman.Error` with a stable `Code` field (one of
 
 The optional spec-18 `Profanity` field supports mode `no-vowels` (vowels
 stripped from both alphabets) and mode `blocklist` (encode fails with
-`BLOCKED_CODE` when the raw code contains a blocked substring).
+`BLOCKED_CODE` when the raw code contains a blocked substring). The frozen
+tiers all run mode `blocklist` with the default list.
 
 ## Test
 
