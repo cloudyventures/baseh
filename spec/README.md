@@ -40,7 +40,7 @@ An baseH is a reference alias. Access control must not depend on its secrecy.
 | File | Purpose |
 |---|---|
 | `IMPLEMENTATION_CODEC.md` | Normative codec, checksum, aliases, API and algorithms |
-| `IMPLEMENTATION_CAPACITY_CALCULATOR.md` | Interactive forward capacity calculator |
+| `IMPLEMENTATION_CAPACITY_CALCULATOR.md` | Interactive forward Capacity Calculator |
 | `IMPLEMENTATION_CODE_DESIGNER.md` | Reverse designer driven by required capacity |
 | `IMPLEMENTATION_TEST_SUITE.md` | Unit, property, compatibility, fuzz and performance testing |
 | `PATENT_AND_PRIOR_ART_RESEARCH.md` | Prior art, patent-risk framing and implementation recommendations |
@@ -194,7 +194,7 @@ A reversible short code exposes a bounded identifier space. Applications must:
 4. Implement normalization and aliases.
 5. Implement optional permutation.
 6. Add formatting.
-7. Add the capacity calculator.
+7. Add the Capacity Calculator.
 8. Add the reverse designer.
 9. Run cross-language test vectors.
 10. Freeze the four tiers.

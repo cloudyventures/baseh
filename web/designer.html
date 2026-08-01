@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>baseH Code Designer</h1>
-    <p class="sub">Required capacity in, shortest valid configuration out. <a href="./index.html">Go to the capacity calculator</a>.</p>
+    <p class="sub">Required capacity in, shortest valid configuration out. <a href="./index.html">Go to the Capacity Calculator</a>.</p>
   </header>
   <main class="cols designer">
     <section aria-labelledby="req">
@@ -21,30 +21,17 @@
       <details>
         <summary>Or derive from operational demand</summary>
         <div class="field">
-          <label for="d-records">New records per day</label>
+          <label for="d-records">New records per day<span class="tip" tabindex="0" aria-label="New records per day details"><span class="i">i</span><span class="tip-body">How many new records this namespace issues on an average day. Combined with the retention period it sizes the demand the namespace must hold at once.</span></span></label>
           <input id="d-records" type="number" min="0" />
         </div>
         <div class="field">
-          <label for="d-retention">Retention days</label>
+          <label for="d-retention">Retention period in days<span class="tip" tabindex="0" aria-label="Retention period details"><span class="i">i</span><span class="tip-body">How long a code must keep working after it is issued, in days. Records per day times retention gives the volume of live codes; codes that outlive their retention can be retired.</span></span></label>
           <input id="d-retention" type="number" min="0" />
         </div>
       </details>
       <div class="field">
-        <label for="max-len">Maximum displayed length</label>
+        <label for="max-len">Maximum displayed length<span class="tip" tabindex="0" aria-label="Maximum displayed length details"><span class="i">i</span><span class="tip-body">The longest displayed string a candidate may produce, checksum and any separator included; candidates may be shorter, never longer. The solver ranks shorter candidates first, so this is a ceiling, not a target.</span></span></label>
         <input id="max-len" type="number" min="3" max="20" value="9" />
-      </div>
-      <div class="field">
-        <label for="d-separator">Delimiter<span class="tip" tabindex="0" aria-label="Delimiter details"><span class="i">i</span><span class="tip-body">Optional one-character delimiter inserted between groups of the code, for example a hyphen turning JCG4JUY into JCG4-JUY. An empty value means no delimiter. Each delimiter position counts toward the maximum displayed length, so adding one can push a candidate from feasible to too long. The delimiter never changes capacity or the checksum; it is grouping only, and the character must not be an alphabet symbol.</span></span></label>
-        <input id="d-separator" type="text" maxlength="1" value="-" placeholder="none" />
-      </div>
-      <div class="field">
-        <label for="min-check">Minimum checksum length<span class="tip" tabindex="0" aria-label="Minimum checksum length details"><span class="i">i</span><span class="tip-body">Rejects every candidate with fewer checksum symbols than this. 0 allows unvalidated codes, where a typo silently matches the wrong record or fails with no explanation. 1 matches assisted-support workflows: about 98.8% of single-symbol substitutions are caught and a human handles the rest (the baseh32-v1 posture). 2 forces self-service strength: provable detection of every single substitution and every adjacent transposition (the baseh32s-v1 posture). 3 exists for very noisy channels.</span></span></label>
-        <select id="min-check">
-          <option value="0">0</option>
-          <option value="1" selected>1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
       </div>
       <div class="field">
         <label for="max-util">Maximum utilization<span class="tip" tabindex="0" aria-label="Maximum utilization details"><span class="i">i</span><span class="tip-body">Hides any candidate whose required capacity exceeds this fraction of its total capacity. Lower values reserve more growth headroom: at 50% you can double demand before you must re-issue a longer code and migrate references. Fuller codes are shorter today but risk exhausting the namespace at exactly the moment the product is succeeding.</span></span></label>
@@ -56,6 +43,12 @@
           <option value="1">100%</option>
         </select>
       </div>
+      <fieldset class="field">
+        <legend>Base alphabet<span class="tip" tabindex="0" aria-label="Base alphabet details"><span class="i">i</span><span class="tip-body">The pools of symbols the solver may draw body characters from; a candidate's alphabet comes from whichever of these you allow. Digits only: 0-9, 10 symbols, needs the longest codes for a given capacity. Uppercase letters: 26 symbols. Alphanumeric: digits plus uppercase, up to 36 symbols before safety exclusions. Visual safety exclusions are applied on top of whichever modes you allow, and the exact resulting alphabet is shown for every candidate.</span></span></legend>
+        <label class="check"><input id="allow-digits" type="checkbox" checked /> Digits only</label>
+        <label class="check"><input id="allow-upper" type="checkbox" checked /> Uppercase letters only</label>
+        <label class="check"><input id="allow-alnum" type="checkbox" checked /> Alphanumeric</label>
+      </fieldset>
       <div class="field">
         <label for="d-visual">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Applied to every alphabet the solver considers: look-alike symbols are excluded so printed codes are harder to misread. None keeps all symbols. Light drops O, I and L (covered by 0 and 1). Medium also drops B and S. Heavy is not cumulative: every candidate switches outright to the reviewed 32-symbol alphabet, which keeps B and S but drops U. A typed letter that was stripped still decodes without ambiguity: O, I and L read as 0, 1 and 1, B and S as 8 and 5, and U as V, so there is never a wrong choice. Higher safety shrinks the alphabet, so a candidate may need a longer body to reach your required capacity.</span></span></label>
         <select id="d-visual">
@@ -85,6 +78,15 @@
         </select>
       </div>
       <div class="field">
+        <label for="min-check">Checksum length<span class="tip" tabindex="0" aria-label="Checksum length details"><span class="i">i</span><span class="tip-body">Appended validation symbols; they detect typos but add no identifier capacity. The solver treats this as a floor: candidates may use more checksum symbols, never fewer. 0: typed errors are never detected and silently hit wrong records. 1: catches all but about 1 in 26 random mistakes and about 98.8% of single-symbol substitutions; suited to assisted support, where a human resolves the misses. 2: modulus 676 checksum, provably catches every single-symbol substitution and every adjacent transposition; the right choice for unattended self-service. 3: stronger still against random corruption.</span></span></label>
+        <select id="min-check">
+          <option value="0">0 (no detection)</option>
+          <option value="1" selected>1 (assisted support)</option>
+          <option value="2">2 (self-service)</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="d-max-repetition">Repetition filter<span class="tip" tabindex="0" aria-label="Repetition filter details"><span class="i">i</span><span class="tip-body">Applied to every candidate and the expandable design: any code with a run of identical symbols this long or longer is refused, because humans mis-count long runs (00000 read as 0000) and no checksum can catch a symbol that was never typed. Runs are measured on the raw code, ignoring delimiters. Blocked identifiers are reserved and skipped; candidate capacities still count them (well under 0.5% of ids). 4 is what every frozen tier ships; Off disables the filter.</span></span></label>
         <select id="d-max-repetition">
           <option value="0">Off</option>
@@ -92,15 +94,13 @@
           <option value="4" selected>4 (frozen tiers)</option>
         </select>
       </div>
+      <div class="field">
+        <label for="d-separator">Separator (optional)<span class="tip" tabindex="0" aria-label="Separator details"><span class="i">i</span><span class="tip-body">Optional one-character separator inserted between groups of the code, for example a hyphen turning JCG4JUY into JCG4-JUY. An empty value means no separator. Each separator position counts toward the maximum displayed length, so adding one can push a candidate from feasible to too long. The separator never changes capacity or the checksum; it is grouping only, and the character must not be an alphabet symbol.</span></span></label>
+        <input id="d-separator" type="text" maxlength="1" value="-" placeholder="none" />
+      </div>
       <fieldset class="field">
         <legend>Permutation<span class="tip" tabindex="0" aria-label="Permutation details"><span class="i">i</span><span class="tip-body">Permutation shuffles which code an identifier gets, hiding obvious sequence in the previews. It changes nothing about capacity, length or validation, and it is not access control. The preview uses a public built-in key; a real application generates its own key and keeps it server-side. It also costs compute: with permutation off, encode is about 20x faster and decode about 13x faster (1 microsecond per code instead of tens of microseconds), so it matters for bulk encoding, not per request. Permutation is not part of the exported design.</span></span></legend>
         <label class="check"><input id="d-permutation" type="checkbox" checked /> Preview with permutation on</label>
-      </fieldset>
-      <fieldset class="field">
-        <legend>Allowed alphabets</legend>
-        <label class="check"><input id="allow-alnum" type="checkbox" checked /> Alphanumeric</label>
-        <label class="check"><input id="allow-upper" type="checkbox" checked /> Letters only</label>
-        <label class="check"><input id="allow-digits" type="checkbox" checked /> Digits only</label>
       </fieldset>
       <div class="row">
         <button id="d-export" type="button">Copy export JSON</button>

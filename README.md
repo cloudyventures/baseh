@@ -26,9 +26,9 @@ This implementation gives you total control over length, capacity, checksums and
 
 Interactive, client-side only:
 
-- [Capacity calculator](https://cloudyventures.github.io/baseh/) - parameters
+- [Capacity Calculator](https://cloudyventures.github.io/baseh/) - parameters
   in, exact capacity and operational lifetime out.
-- [Code designer](https://cloudyventures.github.io/baseh/designer.html) -
+- [Code Designer](https://cloudyventures.github.io/baseh/designer.html) -
   required capacity in, shortest valid configuration out.
 
 ## Install

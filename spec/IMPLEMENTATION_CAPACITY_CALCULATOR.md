@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-The capacity calculator lets a user change code parameters and immediately see the resulting identifier capacity, displayed length, validation strength and operational lifetime.
+The Capacity Calculator lets a user change code parameters and immediately see the resulting identifier capacity, displayed length, validation strength and operational lifetime.
 
 This is the forward tool: parameters go in and capabilities come out.
 
