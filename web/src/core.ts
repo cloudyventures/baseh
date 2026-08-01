@@ -7,6 +7,31 @@ import { Baseh, type BasehProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-huma
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
 
+/**
+ * Parse a required-capacity field: plain digits, grouped digits
+ * ("60,000,000") or a compact suffix ("6k", "2.5m", "6b", "6t").
+ * Returns null for anything that does not parse to an integer >= 1.
+ */
+export function parseRequired(raw: string): bigint | null {
+  const cleaned = raw.replace(/[,_\s]/g, "");
+  const m = cleaned.match(/^(\d+)(?:\.(\d+))?([kmbt])?$/i);
+  if (!m) return null;
+  const intPart = m[1]!;
+  const fracPart = m[2] ?? "";
+  const suffixExp = { k: 3, m: 6, b: 9, t: 12 }[m[3]?.toLowerCase() ?? ""] ?? 0;
+  const digits = BigInt(intPart + fracPart);
+  const shift = suffixExp - fracPart.length;
+  let value: bigint;
+  if (shift >= 0) {
+    value = digits * 10n ** BigInt(shift);
+  } else {
+    const divisor = 10n ** BigInt(-shift);
+    value = (digits + divisor / 2n) / divisor; // round half up
+  }
+  if (digits > 0n && value < 1n) value = 1n;
+  return value < 1n ? null : value;
+}
+
 export const SAFE_BODY = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const SAFE_CHECKSUM = "234679ACDEFGHJKMNPQRTUVWXY";
 const DIGITS = "0123456789";

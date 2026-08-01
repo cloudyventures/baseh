@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculate, design, minimumLength, powBigInt, type CalculatorInput, type DesignerInput } from "../src/core.js";
+import { calculate, design, minimumLength, parseRequired, powBigInt, type CalculatorInput, type DesignerInput } from "../src/core.js";
 
 function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
   return {
@@ -196,5 +196,38 @@ describe("example codes for letters-only alphabets", async () => {
     const s = sampleCodes(alpha, 6, 1, BigInt(alpha.length) ** 6n, "light");
     assert.ok(s.length === 3);
     assert.equal(s[0]!.id, "0");
+  });
+});
+
+describe("parseRequired", () => {
+  it("parses plain digits and grouped digits", () => {
+    assert.equal(parseRequired("60000000"), 60000000n);
+    assert.equal(parseRequired("60,000,000"), 60000000n);
+    assert.equal(parseRequired("60_000_000"), 60000000n);
+    assert.equal(parseRequired("1"), 1n);
+  });
+  it("parses k m b t suffixes, case-insensitive", () => {
+    assert.equal(parseRequired("6k"), 6000n);
+    assert.equal(parseRequired("6K"), 6000n);
+    assert.equal(parseRequired("6m"), 6000000n);
+    assert.equal(parseRequired("6M"), 6000000n);
+    assert.equal(parseRequired("6b"), 6000000000n);
+    assert.equal(parseRequired("6t"), 6000000000000n);
+  });
+  it("parses decimal suffixes without changing the number", () => {
+    assert.equal(parseRequired("2.5m"), 2500000n);
+    assert.equal(parseRequired("1.5B"), 1500000000n);
+    assert.equal(parseRequired("0.4k"), 400n);
+  });
+  it("rounds sub-integer results half up", () => {
+    assert.equal(parseRequired("1.2345k"), 1235n);
+  });
+  it("rejects junk and zero", () => {
+    assert.equal(parseRequired(""), null);
+    assert.equal(parseRequired("0"), null);
+    assert.equal(parseRequired("abc"), null);
+    assert.equal(parseRequired("6x"), null);
+    assert.equal(parseRequired("-5"), null);
+    assert.equal(parseRequired("6.5.2m"), null);
   });
 });

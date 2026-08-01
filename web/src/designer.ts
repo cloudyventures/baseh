@@ -1,4 +1,4 @@
-import { design, exportDesign, sampleCodes, type DesignerInput, type SafetyLevel, type Candidate } from "./core.js";
+import { design, exportDesign, parseRequired, sampleCodes, type DesignerInput, type SafetyLevel, type Candidate } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -46,12 +46,12 @@ function fmtFull(n: bigint): string {
 }
 
 function readInput(): DesignerInput | null {
-  const reqDigits = els.required.value.replace(/[,_\s]/g, "");
-  if (!/^\d+$/.test(reqDigits) || BigInt(reqDigits || "0") < 1n) return null;
+  const requiredCapacity = parseRequired(els.required.value);
+  if (requiredCapacity === null) return null;
   const num = (el: HTMLInputElement): bigint | undefined =>
     el.value.trim() === "" ? undefined : BigInt(Math.max(0, Math.floor(Number(el.value))));
   return {
-    requiredCapacity: BigInt(reqDigits),
+    requiredCapacity,
     recordsPerDay: num(els.dRecords),
     retentionDays: num(els.dRetention),
     peakMultiplier: 1.25,
@@ -68,9 +68,19 @@ function readInput(): DesignerInput | null {
   };
 }
 
+function sampleLine(s: { id: string; code: string }): string {
+  if (s.id === "0") {
+    return `<div><span title="Identifier 0: the first number in the space. Its code shows what the all-leading-symbols shape looks like.">0</span>: <code>${s.code}</code></div>`;
+  }
+  if (s.id === "1") {
+    return `<div><span title="Identifier 1: the second number in the space. Its code shows what changes between adjacent identifiers.">1</span>: <code>${s.code}</code></div>`;
+  }
+  return `<div><span title="Identifier infinity: the highest number this design can issue (its capacity minus one). Its code shows what the very last codes look like.">&infin;</span>: <code>${s.code}</code></div>`;
+}
+
 function card(c: Candidate, label?: string): string {
   const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator)
-    .map((s) => `<div>${fmt(BigInt(s.id))}: <code>${s.code}</code></div>`)
+    .map(sampleLine)
     .join("");
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
@@ -119,4 +129,10 @@ for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.se
   els.maxUtil, els.visual, els.spoken, els.allowAlnum, els.allowUpper, els.allowDigits]) {
   el.addEventListener("input", render);
 }
+// When the user leaves the required field, restate their number in the
+// standard display format ("60000000" and "60m" both become "60M").
+els.required.addEventListener("change", () => {
+  const value = parseRequired(els.required.value);
+  if (value !== null) els.required.value = fmt(value);
+});
 render();
