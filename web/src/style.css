@@ -88,11 +88,13 @@ button:hover { border-color: var(--accent); }
 }
 .field-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
 .field-note:empty { display: none; }
-.try-list { line-height: 2; margin-top: 0.5rem; }
+.try-list { margin-top: 0.5rem; }
 button.try {
-  font-family: monospace; font-size: 0.75rem; padding: 0.15rem 0.4rem;
-  margin: 0.1rem 0; vertical-align: baseline;
+  background: none; border: none; border-radius: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 2px;
 }
+button.try:hover { color: var(--accent); border-color: inherit; }
 .sample {
   white-space: nowrap; font-family: monospace;
   border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
