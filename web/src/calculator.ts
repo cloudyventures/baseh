@@ -108,7 +108,7 @@ function render() {
 
   els.examplesBody.innerHTML = r.examples
     .map((e) => `<tr><td>${e.id}</td><td>${e.blocked
-        ? `<span class="muted">blocked: spells a bad word, never issued</span>`
+        ? `<span class="muted">blocked: spells a profanity, never issued</span>`
         : `<code>${e.code}</code>`}</td></tr>`)
     .join("");
 
