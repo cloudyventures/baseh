@@ -418,3 +418,87 @@ A profile may be frozen only when:
 - Security review is complete.
 - Documentation matches implementation.
 - Profile ID and key ID are immutable.
+
+## 20. Expandable mode tests
+
+Expandable mode (codec spec section 19) requires its own vector and
+property coverage, in addition to every fixed-mode suite above running
+unchanged.
+
+### 20.1 Per-generation round trips at boundaries
+
+For `baseh-expandable-v1` and at least one custom expandable profile:
+
+- Round-trip the first and last id of each generation from `minLength`
+  through at least length 8: `generationBase(L)`, `generationBase(L) - 1`,
+  `generationBase(L + 1) - 1` and `generationBase(L + 1)`.
+- Assert the encoded total length equals the generation length at every
+  boundary (id `1,155` encodes at 4 characters, id `1,156` at 5, for the
+  frozen tier).
+- Assert every canonical code has a non-zero leading body symbol (the zero
+  ban makes this structurally guaranteed; the test pins it).
+- Exhaustively round-trip every id of the smallest generation(s) where
+  practical (`34^2 = 1,156` ids at length 4 for the frozen tier).
+
+### 20.2 Zero-ban rejections
+
+- Presented `0` in any body position fails `INVALID_CHARACTER`.
+- Presented `O` in any body position fails `INVALID_CHARACTER` (after the
+  `O -> 0` alias resolves).
+- A custom expandable alphabet containing `0` and `O` is silently stripped
+  during profile preparation and validates; tooling displays the derived
+  alphabet.
+
+### 20.3 Checksum-with-zero cases
+
+- Find and pin vectors whose canonical checksum contains `0`; confirm they
+  encode, decode and round-trip.
+- A typed `O` in a checksum position aliases to `0` and decodes to the
+  same id with `corrected` false: alias resolution is normalization, not
+  correction (codec spec section 9 defines `corrected` as
+  `canonicalize(input) != canonicalize(canonical)`, and aliasing happens
+  before `canonicalize`).
+- The checksum modulus for the frozen expandable tier is `35^2 = 1,225`;
+  run the sampled single-substitution and adjacent-transposition sweeps of
+  section 6 at several generations and assert zero misses (codec spec
+  section 17.1).
+
+### 20.4 No-left-pad rejections
+
+- Normalized input shorter than `minLength` fails `INVALID_LENGTH`, even
+  when it would be a valid fixed-mode stripped-zero form.
+- No expandable decode ever inserts leading symbols; `canonicalCode`
+  always has exactly the presented length.
+- Normalized input longer than 32 symbols fails `INVALID_LENGTH`.
+
+### 20.5 Separator threshold rendering
+
+- Below `separatorMinLength` the encoder emits no separator and the
+  decoder rejects one: for the frozen tier, lengths 4 and 5 render bare.
+- At and above the threshold the right-anchored pattern applies: pin the
+  exact rendered shapes for lengths 6 through 10 (`XX-XXXX`,
+  `XXX-XXXX`, `XXXX-XXXX`, `X-XXXX-XXXX`, `XX-XXXX-XXXX`).
+
+### 20.6 Cross-generation wrong-length rejection
+
+- Take a valid canonical code, append or remove one symbol, and confirm
+  `INVALID_CHECKSUM` (or `INVALID_CHARACTER` / `INVALID_LENGTH` where the
+  edit hits those rules first). The appended form must never decode to any
+  id of the shorter generation.
+- Correction mode (`tryCorrection`) never returns a candidate at a
+  different length than the presented input; ambiguous cases still return
+  `AMBIGUOUS_INPUT`.
+
+### 20.7 Mixed-mode interop
+
+- Every pre-existing fixed-mode vector in the shared `vectors.json` passes
+  unchanged against the same implementation build that supports expandable
+  mode.
+- Fixed-mode profiles constructed with an explicit `mode: "fixed"` behave
+  byte-for-byte identically to profiles predating the mode field.
+- Decoders never infer mode from input: a four-character code presented to
+  a fixed tier fails exactly as before, and an eight-character code
+  presented to the expandable tier decodes only per section 19.7.
+- Expandable vectors live in the shared vector file with the profile's
+  mode recorded; a release fails if any implementation disagrees on any
+  generation boundary vector.
