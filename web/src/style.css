@@ -64,7 +64,6 @@ td code, .card code { letter-spacing: 0.06em; }
   line-height: 1.4; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 .tip:hover .tip-body, .tip:focus-within .tip-body { display: block; }
-section.wide { grid-column: 1 / -1; }
 #candidates { table-layout: auto; }
 #candidates th:nth-child(-n+5), #candidates td:nth-child(-n+5) { white-space: nowrap; width: 1%; }
 #candidates th:nth-child(6), #candidates td:nth-child(6) { width: auto; }

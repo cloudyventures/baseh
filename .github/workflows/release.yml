@@ -36,62 +36,73 @@ jobs:
       - name: ruby vectors
         run: cd ruby && rake
 
+  # Publishing uses OIDC trusted publishing; no long-lived registry tokens.
+  # Each registry must have matellis/base-human + this workflow registered as
+  # a trusted publisher first (see docs/releasing.md).
   publish-npm:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - run: npm ci && npm run build && npm publish --access public
+      - name: npm with OIDC trusted publishing support
+        run: npm install -g npm@latest
+      - run: npm ci && npm run build && npm publish --access public --provenance
         working-directory: js
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-pypi:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: |
-          python -m pip install --upgrade build twine
-          python -m build
-          python -m twine upload dist/*
+      - run: python -m pip install --upgrade build && python -m build
         working-directory: python
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
 
   publish-crates:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --locked --token "$CARGO_REGISTRY_TOKEN"
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish --locked
         working-directory: rust
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   publish-rubygems:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
-      - run: |
-          gem build base-human.gemspec
-          gem push base-human-*.gem --key rubygems_api_key
-        working-directory: ruby
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+      - uses: rubygems/release-gem@v1
+        with:
+          working-directory: ruby
 
   tag-go:
     needs: verify

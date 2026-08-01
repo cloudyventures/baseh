@@ -94,7 +94,9 @@ permutation as secrecy. See [`spec/README.md`](spec/README.md) and
 The codec, both frozen profiles and the vector suite are version 1. Releases
 are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
-RubyGems and tags `go/vX.Y.Z` for the Go module.
+RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC
+trusted publishing with no stored tokens; setup is in
+[`docs/releasing.md`](docs/releasing.md).
 
 ## License
 
