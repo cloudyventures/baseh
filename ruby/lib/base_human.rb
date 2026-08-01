@@ -10,8 +10,9 @@ require_relative "base_human/checksum"
 require_relative "base_human/feistel"
 require_relative "base_human/profiles"
 require_relative "base_human/baseh"
+require_relative "base_human/zero"
 
-# BaseH (Human Reference Code) codec. See spec/IMPLEMENTATION_CODEC.md in the
+# baseH (Human Reference Code) codec. See spec/IMPLEMENTATION_CODEC.md in the
 # repository root for the normative specification.
 module BaseHuman
   class << self

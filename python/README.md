@@ -1,6 +1,6 @@
 # base-human
 
-Python implementation of the BaseH codec. Encodes an internal integer ID as
+Python implementation of the baseH codec. Encodes an internal integer ID as
 a checksummed, optionally permuted human-readable reference code. Implements
 the normative spec in `../spec/IMPLEMENTATION_CODEC.md` and passes the
 frozen cross-language vectors in `../vectors/`.

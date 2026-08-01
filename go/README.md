@@ -1,6 +1,6 @@
 # basehuman (Go)
 
-Go port of the BaseH (Base Human) reference codec. Zero dependencies,
+Go port of the baseH (Base Human) reference codec. Zero dependencies,
 stdlib only. Conforms to `spec/IMPLEMENTATION_CODEC.md` and the frozen
 cross-language vectors in `vectors/`.
 

@@ -1,4 +1,4 @@
-# BaseH Test Suite
+# baseH Test Suite
 
 ## 1. Purpose
 

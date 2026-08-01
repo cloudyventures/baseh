@@ -1,6 +1,6 @@
 //! # base-human
 //!
-//! Rust implementation of the BaseH (Base Human) codec:
+//! Rust implementation of the baseH (Base Human) codec:
 //! fixed-length, checksummed, optionally permuted human-readable
 //! identifiers. Mirrors the normative specification in
 //! `spec/IMPLEMENTATION_CODEC.md` at the repository root.
@@ -21,6 +21,7 @@ mod codec;
 mod error;
 mod profile;
 mod profiles;
+mod zero;
 
 pub mod feistel;
 
@@ -31,3 +32,4 @@ pub use profiles::{
     baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1,
     baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1,
 };
+pub use zero::{from_code, to_code, ToCodeId};

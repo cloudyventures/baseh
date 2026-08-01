@@ -9,7 +9,7 @@ from .errors import INVALID_PROFILE, BasehError
 
 
 def _fail(reason: str) -> None:
-    raise BasehError(INVALID_PROFILE, f"Invalid BaseH profile: {reason}", False)
+    raise BasehError(INVALID_PROFILE, f"Invalid baseH profile: {reason}", False)
 
 
 def _is_ascii_char(ch: str) -> bool:

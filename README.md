@@ -1,8 +1,8 @@
-# BaseH
+# baseH
 
 Communicating identifiers with humans has been a challenge: you either end up with a long string of numbers or a mix of letters and numbers like an airline reservation. You’re forced to choose between the benefits of hard to confuse, easy to say over the phone but easily to mis-transcribe and too long against the opposite. 
 
-BaseH is designed to give you the best of both worlds: short, clear codes that are easily to copy and to say. It’s base36 reworked for humans: a reversible, checksummed encoding of non-negative integers into short references that people can read, type and dictate over the phone. The alphabet drops the symbols that cause transcription errors and a checksum catches the rest. It’s intended to be used for order numbers, support tickets, returns, bookings and similar records.
+baseH is designed to give you the best of both worlds: short, clear codes that are easily to copy and to say. It’s base36 reworked for humans: a reversible, checksummed encoding of non-negative integers into short references that people can read, type and dictate over the phone. The alphabet drops the symbols that cause transcription errors and a checksum catches the rest. It’s intended to be used for order numbers, support tickets, returns, bookings and similar records.
 
 This implementation gives you total control over length, capacity, checksums and profanity, with error hardening for audio, visual or both. It was originally developed in support of new AI based customer service systems where a user might start in one channel and follow up in another, e.g. start on chat, follow up by phone, and so needed an easy to use reference number that worked both over the phone and the keyboard. 
 
@@ -19,6 +19,15 @@ This implementation gives you total control over length, capacity, checksums and
   it is not encryption and not access control.
 - **Correction with abstention**: checksum-guided substitution suggestions
   that return `AMBIGUOUS_INPUT` instead of guessing.
+
+## Demo & Tools
+
+Interactive, client-side only:
+
+- [Capacity calculator](https://matellis.github.io/baseh/) - parameters
+  in, exact capacity and operational lifetime out.
+- [Code designer](https://matellis.github.io/baseh/designer.html) -
+  required capacity in, shortest valid configuration out.
 
 ## Install
 
@@ -77,15 +86,6 @@ const profile = basehMediumV1();
 profile.bodyLength = 7;
 ```
 
-## Tools
-
-Interactive, client-side only:
-
-- [Capacity calculator](https://matellis.github.io/baseh/) - parameters
-  in, exact capacity and operational lifetime out.
-- [Code designer](https://matellis.github.io/baseh/designer.html) -
-  required capacity in, shortest valid configuration out.
-
 ## Repository layout
 
 ```text
@@ -102,7 +102,7 @@ docs/       application cookbook (lookup endpoint, observability)
 
 ## Security
 
-An BaseH is a reference alias, never an authorization token. Enforce
+An baseH is a reference alias, never an authorization token. Enforce
 authorization after decode, rate-limit public lookups and do not treat the
 permutation as secrecy. See [`spec/README.md`](spec/README.md) and
 [`docs/cookbook.md`](docs/cookbook.md).

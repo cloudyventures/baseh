@@ -1,4 +1,4 @@
-# BaseH Codec Implementation
+# baseH Codec Implementation
 
 ## 1. Scope
 

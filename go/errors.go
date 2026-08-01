@@ -2,11 +2,11 @@ package basehuman
 
 import "fmt"
 
-// ErrorCode is a stable machine-readable BaseH error category. Values match
+// ErrorCode is a stable machine-readable baseH error category. Values match
 // the cross-language specification exactly.
 type ErrorCode string
 
-// Error codes defined by the BaseH codec specification.
+// Error codes defined by the baseH codec specification.
 const (
 	INVALID_PROFILE     ErrorCode = "INVALID_PROFILE"
 	OUT_OF_RANGE        ErrorCode = "OUT_OF_RANGE"
@@ -38,5 +38,5 @@ func newError(code ErrorCode, message string, safe bool) *Error {
 }
 
 func invalidProfile(reason string) *Error {
-	return newError(INVALID_PROFILE, "invalid BaseH profile: "+reason, false)
+	return newError(INVALID_PROFILE, "invalid baseH profile: "+reason, false)
 }

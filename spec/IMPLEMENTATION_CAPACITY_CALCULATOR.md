@@ -1,4 +1,4 @@
-# BaseH Capacity Calculator
+# baseH Capacity Calculator
 
 ## 1. Purpose
 

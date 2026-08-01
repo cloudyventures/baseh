@@ -1,6 +1,6 @@
 # base-human
 
-Rust implementation of the BaseH (Base Human) codec: fixed-length,
+Rust implementation of the baseH (Base Human) codec: fixed-length,
 checksummed, optionally permuted human-readable identifiers for internal
 integer IDs. The normative specification is `../spec/IMPLEMENTATION_CODEC.md`
 and cross-language conformance vectors live in `../vectors/`.

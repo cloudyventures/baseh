@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Profile describes one BaseH encoding configuration. JSON tags match the
+// Profile describes one baseH encoding configuration. JSON tags match the
 // shared cross-language vector definitions exactly.
 type Profile struct {
 	ProfileID        string            `json:"profileId"`

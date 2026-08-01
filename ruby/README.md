@@ -1,6 +1,6 @@
 # base-human
 
-Ruby port of the BaseH (Human Reference Code) codec. Encodes integer IDs as
+Ruby port of the baseH (Human Reference Code) codec. Encodes integer IDs as
 fixed-length, checksummed, human-friendly reference codes with an opt-in
 reversible feistel-v1 permutation and profanity safety. The normative spec
 is `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.

@@ -26,7 +26,7 @@ def effective_blocklist(profanity: dict) -> list:
         if not isinstance(word, str) or not _WORD.match(word):
             raise BasehError(
                 INVALID_PROFILE,
-                "Invalid BaseH profile: blocklist entries must be 2 through 32 ASCII letters",
+                "Invalid baseH profile: blocklist entries must be 2 through 32 ASCII letters",
                 False,
             )
         upper = word.upper()

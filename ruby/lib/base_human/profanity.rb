@@ -32,7 +32,7 @@ module BaseHuman
         unless word.is_a?(String) && WORD.match?(word)
           raise BasehError.new(
             "INVALID_PROFILE",
-            "Invalid BaseH profile: blocklist entries must be 2 through 32 ASCII letters",
+            "Invalid baseH profile: blocklist entries must be 2 through 32 ASCII letters",
             safe_for_customer: false
           )
         end
