@@ -433,12 +433,12 @@ For `baseh-expandable-v1` and at least one custom expandable profile:
   through at least length 8: `generationBase(L)`, `generationBase(L) - 1`,
   `generationBase(L + 1) - 1` and `generationBase(L + 1)`.
 - Assert the encoded total length equals the generation length at every
-  boundary (id `1,155` encodes at 4 characters, id `1,156` at 5, for the
-  frozen tier).
+  boundary (id `39,303` encodes at 4 characters, id `39,304` at 5, for the
+  frozen tier with its shipped short checksum, codec spec section 22).
 - Assert every canonical code has a non-zero leading body symbol (the zero
   ban makes this structurally guaranteed; the test pins it).
 - Exhaustively round-trip every id of the smallest generation(s) where
-  practical (`34^2 = 1,156` ids at length 4 for the frozen tier).
+  practical (`34^3 = 39,304` ids at length 4 for the frozen tier).
 
 ### 20.2 Zero-ban rejections
 
@@ -458,10 +458,12 @@ For `baseh-expandable-v1` and at least one custom expandable profile:
   correction (codec spec section 9 defines `corrected` as
   `canonicalize(input) != canonicalize(canonical)`, and aliasing happens
   before `canonicalize`).
-- The checksum modulus for the frozen expandable tier is `35^2 = 1,225`;
-  run the sampled single-substitution and adjacent-transposition sweeps of
-  section 6 at several generations and assert zero misses (codec spec
-  section 17.1).
+- The checksum modulus for the frozen expandable tier is `35^2 = 1,225` at
+  lengths 6 and above; run the sampled single-substitution and
+  adjacent-transposition sweeps of section 6 at several generations with the
+  full checksum and assert zero misses (codec spec section 17.1).
+  Generations at or below `shortChecksumUntil` (section 22) run modulus 35
+  and are excluded from the total-detection sweep.
 
 ### 20.4 No-left-pad rejections
 
@@ -548,3 +550,49 @@ Section references are to `IMPLEMENTATION_CODEC.md` section 21.
   error list as `BLOCKED_CODE` because those zero-heavy codes are now
   unissuable on the frozen tiers. No emitted code string changes anywhere:
   the filter only blocks, it never alters a code.
+
+## 22. Short checksum tests
+
+Section references are to `IMPLEMENTATION_CODEC.md` section 22. The frozen
+expandable tier ships the feature on (`checksumLength` 2,
+`shortChecksumLength` 1, `shortChecksumUntil` 5).
+
+- **Round trips under the shipped tier.** Round-trip the first and last
+  issuable id of generations 4 through 8 on `baseh-expandable-v1`, asserting
+  the total length and the effective body/checksum split at each generation
+  (3+1 at length 4, 4+1 at length 5, then `L-2` + 2 from 6 up).
+- **Boundary between short and normal.** The last id of generation 5
+  (`1,375,639` on the frozen tier) encodes at 5 characters with one checksum
+  symbol; the first id of generation 6 (`1,375,640`) encodes at 6 characters
+  with two. Generations 5 and 6 have equal capacity.
+- **Effective-K decode.** A four-character code validates against exactly
+  one checksum symbol, never two: flipping the single checksum symbol fails
+  `INVALID_CHECKSUM`, and appending a second checksum symbol presents a
+  five-character code whose split moves, so it also fails (section 22.4).
+  Statistical detection rates at modulus 35 are not unit-testable; the wrong
+  checksum symbol must deterministically fail.
+- **Validation errors.** Setting either field in fixed mode is
+  `INVALID_PROFILE`; `shortChecksumLength` equal to or above
+  `checksumLength` is rejected; `shortChecksumUntil` below `minLength` is
+  rejected; `minLength` less than or equal to `shortChecksumLength` is
+  rejected; `shortChecksumUntil` without `shortChecksumLength` is rejected;
+  `shortChecksumLength` of `0` or absent turns the feature off and restores
+  the pre-feature generation table.
+- **Interactions.** The repetition filter's encode-time scan covers body
+  plus the short checksum: a four-symbol raw code whose run of four spans
+  the body and the single checksum symbol is `BLOCKED_CODE` (section 21).
+  The separator threshold stays a function of total length — on the frozen
+  tier, length 5 renders bare and length 6 splits `XXX-XXX` even though
+  their body sizes are now equal.
+- **Custom windows.** At least one custom expandable profile with a
+  different `shortChecksumUntil` round-trips at every generation across the
+  window boundary, with capacities following the effective K.
+- **Vector integrity.** Every fixed-mode shared vector is byte-identical
+  before and after the feature; fixed tiers never carry the fields. All
+  expandable round-trip codes change — generations 4 and 5 are one checksum
+  symbol shorter, and every later generation's base shifts because
+  `generationBase` sums the enlarged lower generations (codec spec
+  section 19.1) — while the per-generation Feistel vectors at lengths 6, 7
+  and 8 (domains unchanged) and every fixed-mode Feistel vector remain
+  byte-identical. Feistel vectors at lengths 4 and 5 regenerate against
+  their new domains.

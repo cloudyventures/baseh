@@ -11,19 +11,32 @@ use crate::profile::PreparedProfile;
 /// Compute the expected checksum string for a normalized body. A body
 /// symbol outside the body alphabet fails as INVALID_CHARACTER here, before
 /// any checksum comparison in the decode flow (matches the frozen vectors).
+///
+/// Spec 22: expandable generations may pass a shorter effective checksum
+/// length; the modulus is then S^length instead of the profile default.
 pub(crate) fn calculate_checksum(
     profile: &PreparedProfile,
     body: &[char],
+    checksum_length: usize,
 ) -> Result<String, BasehError> {
-    let p = &profile.profile;
-    if p.checksum_length == 0 {
+    if checksum_length == 0 {
         return Ok(String::new());
     }
-    let value = checksum_value(profile, body, &profile.body_index)?;
+    let modulus = if checksum_length == profile.profile.checksum_length {
+        profile.checksum_modulus.clone()
+    } else {
+        let base = BigUint::from(if profile.checksum_alphabet_norm.is_empty() {
+            1u64
+        } else {
+            profile.checksum_alphabet_norm.len() as u64
+        });
+        pow_biguint(base, checksum_length)
+    };
+    let value = checksum_value(profile, body, &profile.body_index, &modulus)?;
     Ok(encode_base_n(
         &value,
         &profile.checksum_alphabet_norm,
-        p.checksum_length,
+        checksum_length,
     ))
 }
 
@@ -33,8 +46,8 @@ fn checksum_value(
     profile: &PreparedProfile,
     body: &[char],
     body_index: &HashMap<char, u32>,
+    modulus: &BigUint,
 ) -> Result<BigUint, BasehError> {
-    let modulus = &profile.checksum_modulus;
     let thirty_seven = BigUint::from(37u64);
     let mut state = BigUint::from(17u64);
     for byte in profile.profile.profile_id.bytes() {
@@ -52,4 +65,12 @@ fn checksum_value(
             % modulus;
     }
     Ok(state)
+}
+
+fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
+    let mut result = BigUint::from(1u64);
+    for _ in 0..exp {
+        result *= &base;
+    }
+    result
 }

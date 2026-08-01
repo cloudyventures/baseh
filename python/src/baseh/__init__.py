@@ -29,6 +29,8 @@ from .errors import (
     TOO_MANY_CANDIDATES,
     BasehError,
 )
+from .facade import decode, encode
+from .profile import effective_checksum_length
 from .profiles import (
     FROZEN_KEY_BYTES,
     baseh_expandable_p_v1,
@@ -55,6 +57,9 @@ __all__ = [
     "generation_base",
     "generation_capacity",
     "generation_for_id",
+    "effective_checksum_length",
+    "encode",
+    "decode",
     "FROZEN_KEY_BYTES",
     "baseh_expandable_v1",
     "baseh_expandable_p_v1",

@@ -8,7 +8,7 @@ import {
   Baseh, basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
   basehExpandableV1,
   FROZEN_KEY_BYTES, prepareProfile, calculateChecksum, permute, inversePermute,
-  generationBase, generationCapacity
+  generationBase, generationCapacity, effectiveChecksumLength
 } from "../src/index.js";
 
 const FROZEN_KEY_HEX = [...FROZEN_KEY_BYTES].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -471,6 +471,8 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
       minLength: expandable.minLength,
       checksumAlphabet: expandable.checksumAlphabet,
       checksumLength: expandable.checksumLength,
+      shortChecksumLength: expandable.shortChecksumLength,
+      shortChecksumUntil: expandable.shortChecksumUntil,
       caseSensitive: expandable.caseSensitive,
       separator: expandable.separator,
       separatorMinLength: expandable.separatorMinLength,
@@ -519,7 +521,9 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
       throw e;
     }
     const rawCode = canonical.replaceAll("-", "");
-    const bodyLength = rawCode.length - expandable.checksumLength;
+    // Spec 22: the body/checksum split uses the generation's effective
+    // checksum length (1 at lengths 4-5, 2 from 6 up on the frozen tier).
+    const bodyLength = rawCode.length - effectiveChecksumLength(prepared, rawCode.length);
     codecVectors.push({
       profileId: expandable.profileId,
       id: id.toString(10),
@@ -541,7 +545,8 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
       continue;
     }
     const rawCode = canonical.replaceAll("-", "");
-    const check = rawCode.slice(-2);
+    const k = effectiveChecksumLength(prepared, rawCode.length);
+    const check = rawCode.slice(rawCode.length - k);
     if (check.endsWith("0") && zeroFinal === null) {
       zeroFinal = id;
     } else if (check.includes("0") && zeroInside < 3) {
@@ -549,7 +554,7 @@ for (const [capacityStr, rounds] of [["100000", 8], ["1073741824", 8], ["36", 4]
     } else {
       continue;
     }
-    const bodyLength = rawCode.length - expandable.checksumLength;
+    const bodyLength = rawCode.length - k;
     codecVectors.push({
       profileId: expandable.profileId,
       id: id.toString(10),

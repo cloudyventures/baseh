@@ -12,6 +12,8 @@ module Baseh
   #   profanity: { mode: "none" | "no-vowels" | "blocklist",
   #                words: [...], extra_words: [...] } (optional, spec 18)
   #   max_repetition: 0 (off) or an integer >= 3 (optional, spec 21)
+  #   short_checksum_length:, short_checksum_until: (expandable only,
+  #     spec 22; 0 or absent disables)
   module Profile
     ASCII_ONLY = /\A[\x20-\x7e]*\z/.freeze
 
@@ -19,6 +21,7 @@ module Baseh
     class Prepared
       attr_reader :profile_id, :mode, :body_alphabet, :body_length,
                   :min_length, :checksum_alphabet, :checksum_length,
+                  :short_checksum_length, :short_checksum_until,
                   :case_sensitive, :separator, :separator_min_length,
                   :grouping, :aliases, :permutation,
                   :capacity, :checksum_modulus, :profanity_mode, :blocklist,
@@ -65,6 +68,32 @@ module Baseh
           unless @separator_min_length.is_a?(Integer) && @separator_min_length >= 0
             self.class.fail_profile!("separatorMinLength must be an integer of at least 0")
           end
+        end
+        # Spec 22. The short checksum is expandable-only; 0 or absent turns
+        # it off.
+        @short_checksum_length = profile[:short_checksum_length] || 0
+        @short_checksum_until = profile[:short_checksum_until] || 0
+        if @mode == "fixed"
+          unless @short_checksum_length == 0 && @short_checksum_until == 0
+            self.class.fail_profile!(
+              "shortChecksumLength and shortChecksumUntil are expandable-mode only"
+            )
+          end
+        elsif @short_checksum_length != 0
+          unless @short_checksum_length.is_a?(Integer) && @short_checksum_length >= 1
+            self.class.fail_profile!("shortChecksumLength must be an integer of at least 1")
+          end
+          unless @checksum_length >= 1 && @short_checksum_length < @checksum_length
+            self.class.fail_profile!("shortChecksumLength must be less than checksumLength")
+          end
+          unless @short_checksum_until.is_a?(Integer) && @short_checksum_until >= @min_length
+            self.class.fail_profile!("shortChecksumUntil must be an integer of at least minLength")
+          end
+          unless @min_length > @short_checksum_length
+            self.class.fail_profile!("minLength must be greater than shortChecksumLength")
+          end
+        elsif @short_checksum_until != 0
+          self.class.fail_profile!("shortChecksumUntil requires shortChecksumLength")
         end
         # Spec 19.3: in expandable mode the checksum alphabet is derived from
         # the body alphabet after every body strip; the configured
@@ -131,6 +160,19 @@ module Baseh
         @capacity = @body_alphabet.length**(@body_length || 0)
         @checksum_modulus = [@checksum_alphabet.length, 1].max**@checksum_length
         freeze
+      end
+
+      # Spec 22. The checksum length that applies to a generation of the
+      # given total length: short_checksum_length at or below
+      # short_checksum_until, checksum_length above it (and always in fixed
+      # mode).
+      def effective_checksum_length(length)
+        if @mode == "expandable" && @short_checksum_length.positive? &&
+           length <= @short_checksum_until
+          @short_checksum_length
+        else
+          @checksum_length
+        end
       end
 
       private

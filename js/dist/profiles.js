@@ -139,8 +139,11 @@ const EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
  * is small, gaining one symbol automatically as issuance climbs past each
  * generation's capacity. The body alphabet is the full alphanumeric set
  * minus 0/O (the zero ban, spec 19.2); the checksum alphabet derives as "0"
- * plus the body (35 symbols, modulus 1225). The hyphen appears from six
- * characters up, split by the balanced grouping rule of spec 19.5.
+ * plus the body (35 symbols). The short checksum of spec 22 is on: one
+ * checksum symbol through five characters (34^3 = 32,768 ids at length 4,
+ * 34^4 = 1,336,336 at length 5), two from six characters up. The hyphen
+ * appears from six characters up, split by the balanced grouping rule of
+ * spec 19.5.
  */
 function expandableTier(permutation, pSuffix) {
     return {
@@ -150,6 +153,8 @@ function expandableTier(permutation, pSuffix) {
         minLength: 4,
         checksumAlphabet: "0" + EXPANDABLE_BODY,
         checksumLength: 2,
+        shortChecksumLength: 1,
+        shortChecksumUntil: 5,
         caseSensitive: false,
         separator: "-",
         separatorMinLength: 6,

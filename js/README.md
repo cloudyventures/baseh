@@ -46,6 +46,10 @@ Expandable mode differs from the fixed tiers as follows:
   default). The `O -> 0` input alias remains, so a misread `O` in a checksum
   position resolves to `0`; a `0` or `O` in a body position is simply an
   invalid character.
+- The short checksum is on by default (codec spec 22): one checksum symbol
+  through 5 characters, two beyond — generation 4 holds 39,304 ids (3 body +
+  1 checksum) instead of 1,156. Configure with `shortChecksumLength` and
+  `shortChecksumUntil`; `0` turns it off.
 - There is no left-padding; codes use exactly the length of the current
   generation.
 - The Feistel permutation stays on, applied per generation with the code

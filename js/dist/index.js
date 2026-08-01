@@ -1,5 +1,5 @@
 export { BasehError } from "./errors.js";
-export { prepareProfile } from "./profile.js";
+export { prepareProfile, effectiveChecksumLength } from "./profile.js";
 export { Baseh, normalize, formatRaw, generateCandidates, CONFUSION_MAPS } from "./codec.js";
 export { encodeBaseN, decodeBaseN, alphabetIndex } from "./basen.js";
 export { calculateChecksum, checksumValue } from "./checksum.js";

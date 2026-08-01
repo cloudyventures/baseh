@@ -125,6 +125,8 @@ fn tier(shape: &TierShape, permutation: Permutation, p_suffix: bool) -> Profile 
         min_length: 0,
         checksum_alphabet: shape.checksum_alphabet.to_string(),
         checksum_length: shape.checksum_length,
+        short_checksum_length: 0,
+        short_checksum_until: 0,
         case_sensitive: false,
         separator: shape.separator.to_string(),
         separator_min_length: 0,
@@ -183,6 +185,9 @@ fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
         min_length: 4,
         checksum_alphabet: format!("0{EXPANDABLE_BODY}"),
         checksum_length: 2,
+        // Spec 22.5: one checksum symbol through total length 5, two above.
+        short_checksum_length: 1,
+        short_checksum_until: 5,
         case_sensitive: false,
         separator: "-".to_string(),
         separator_min_length: 6,

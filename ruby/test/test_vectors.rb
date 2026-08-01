@@ -54,6 +54,8 @@ class TestVectors < Minitest::Test
       min_length: definition["minLength"],
       checksum_alphabet: definition["checksumAlphabet"],
       checksum_length: definition["checksumLength"],
+      short_checksum_length: definition["shortChecksumLength"],
+      short_checksum_until: definition["shortChecksumUntil"],
       case_sensitive: definition["caseSensitive"],
       separator: definition["separator"],
       separator_min_length: definition["separatorMinLength"],

@@ -25,6 +25,17 @@ export interface BasehProfile {
     minLength?: number;
     checksumAlphabet: string;
     checksumLength: number;
+    /**
+     * Spec 22. Expandable mode only; 0 or absent disables the short checksum.
+     * When set, generations at or below `shortChecksumUntil` use this many
+     * checksum symbols instead of `checksumLength`.
+     */
+    shortChecksumLength?: number;
+    /**
+     * Spec 22. Required when `shortChecksumLength` is set: the last generation
+     * (total length) that uses the short checksum.
+     */
+    shortChecksumUntil?: number;
     caseSensitive: boolean;
     separator: string;
     /** Expandable mode only; default 0 (separator always applies). */
@@ -56,7 +67,17 @@ export interface PreparedProfile extends BasehProfile {
     readonly blocklist: string[];
     /** Spec 21. 0 disables the repetition filter. */
     readonly maxRepetition: number;
+    /** Spec 22. 0 disables the short checksum. */
+    readonly shortChecksumLength: number;
+    /** Spec 22. Last short-checksum generation; 0 when the feature is off. */
+    readonly shortChecksumUntil: number;
 }
+/**
+ * Spec 22. The checksum length that applies to a generation of the given
+ * total length: `shortChecksumLength` at or below `shortChecksumUntil`,
+ * `checksumLength` above it (and always in fixed mode).
+ */
+export declare function effectiveChecksumLength(profile: PreparedProfile, length: number): number;
 /**
  * Validates a profile per spec section 2.2 and returns it with derived,
  * pre-computed values. Throws BasehError INVALID_PROFILE on any violation.

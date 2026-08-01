@@ -17,6 +17,8 @@ type BasehProfile = {
   minLength: number;        // expandable mode only; default 4
   checksumAlphabet: string;
   checksumLength: number;
+  shortChecksumLength: number; // expandable mode only; 0 = off (default), section 22
+  shortChecksumUntil: number;  // required when shortChecksumLength is set, section 22
   caseSensitive: boolean;
   separator: string;
   separatorMinLength: number; // expandable mode only; default 0
@@ -64,6 +66,14 @@ A profile is valid only when all conditions are true:
   validation, and validation then asserts their absence like any other
   profile invariant.
 - `checksumLength` is an integer from 0 through 8.
+- The short checksum (section 22) is expandable-mode only: setting
+  `shortChecksumLength` or `shortChecksumUntil` in fixed mode is invalid.
+  When `shortChecksumLength` is set it must be an integer of at least `1`
+  and strictly less than `checksumLength` (which must be at least `1`),
+  `shortChecksumUntil` must be present and an integer of at least
+  `minLength`, and `minLength` must be greater than `shortChecksumLength` so
+  the smallest generation carries at least one body symbol.
+  `shortChecksumUntil` without `shortChecksumLength` is invalid.
 - If `checksumLength` is positive, `checksumAlphabet` has at least two symbols.
 - Checksum symbols are unique after case normalization.
 - The separator does not occur in either alphabet.
@@ -765,6 +775,8 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
   "minLength": 4,
   "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
   "checksumLength": 2,
+  "shortChecksumLength": 1,
+  "shortChecksumUntil": 5,
   "caseSensitive": false,
   "separator": "-",
   "separatorMinLength": 6,
@@ -791,17 +803,19 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
 }
 ```
 
-The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3), giving a checksum modulus of `35^2 = 1225`. Since `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well, at every generation (section 6.3). The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, and at or above six the balanced grouping rule of section 19.5 splits the length — 6 renders `XXX-XXX`, 7 `XXXX-XXX`, 8 `XXXX-XXXX`, 9 `XXXXX-XXXX`, 10 `XXXXX-XXXXX`, and so on per the pinned table.
+The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3). The tier ships the short checksum of section 22 on: one checksum symbol (modulus `35^1 = 35`) at total lengths 4 and 5, two symbols (modulus `35^2 = 1225`) from length 6 up. With two symbols, `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, so single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well — but only at lengths 6 and above (section 6.3). At lengths 4 and 5 the single checksum symbol catches about 97.1% of single substitutions and transposition detection is no longer total; this trade-off is explicit, shipped configuration (section 22.3), displayed by tooling. The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, and at or above six the balanced grouping rule of section 19.5 splits the length — 6 renders `XXX-XXX`, 7 `XXXX-XXX`, 8 `XXXX-XXXX`, 9 `XXXXX-XXXX`, 10 `XXXXX-XXXXX`, and so on per the pinned table.
 
-Generation capacities (body alphabet 34, checksum length 2, so generation `L` holds `34^(L-2)` ids; section 19.1):
+Generation capacities (body alphabet 34, effective checksum length of section 22 — one symbol at lengths 4 and 5, two from 6 up — so generation `L` holds `34^(L - effectiveChecksumLength(L))` ids; sections 19.1 and 22.3):
 
 | Total length | Body symbols | Generation capacity | Cumulative ids |
 |---:|---:|---:|---:|
-| 4 | 2 | 1,156 | 1,156 |
-| 5 | 3 | 39,304 | 40,460 |
-| 6 | 4 | 1,336,336 | 1,376,796 |
-| 7 | 5 | 45,435,424 | 46,812,220 |
-| 8 | 6 | 1,544,804,416 | 1,591,616,636 |
+| 4 | 3 | 39,304 | 39,304 |
+| 5 | 4 | 1,336,336 | 1,375,640 |
+| 6 | 4 | 1,336,336 | 2,711,976 |
+| 7 | 5 | 45,435,424 | 48,147,400 |
+| 8 | 6 | 1,544,804,416 | 1,592,951,816 |
+
+Generations 5 and 6 have equal capacity: the sixth symbol buys the second checksum instead of more room.
 
 `baseh-expandable-p-v1` is the keyed variant, mirroring the fixed `-p` tiers: identical to `baseh-expandable-v1` but with Feistel-v1 permutation keyed by caller-supplied key material (section 7) instead of the frozen published key, with the caller assigning its own `keyId`.
 
@@ -895,6 +909,10 @@ with body length `L - K` and generation capacity:
 generationCapacity(L) = A^(L - K)
 ```
 
+When the short checksum of section 22 is on, `K` is the per-generation
+`effectiveChecksumLength(L)` rather than a profile constant; everything in
+this section applies with that substitution.
+
 Generations tile the non-negative integers contiguously in ascending length.
 Generation `L` covers exactly the ids:
 
@@ -905,21 +923,25 @@ generationBase(L) = sum of A^(k - K) for k from min through L - 1
                   = (A^(L - K) - A^(min - K)) / (A - 1)
 ```
 
-with `generationBase(min) = 0`. The total length is bounded by 32, matching
-the fixed-mode body-length ceiling: an id that would require `L > 32` fails
-`OUT_OF_RANGE`. There is no other upper bound on the id; a growing sequence
-never runs out, it simply gets longer.
+with `generationBase(min) = 0`. The closed form assumes a constant `K`; with
+the short checksum on, `generationBase(L)` is simply the sum of the
+per-generation capacities below `L` and no closed form is needed. The total
+length is bounded by 32, matching the fixed-mode body-length ceiling: an id
+that would require `L > 32` fails `OUT_OF_RANGE`. There is no other upper
+bound on the id; a growing sequence never runs out, it simply gets longer.
 
-Worked example for `baseh-expandable-v1` (`A = 34`, `K = 2`, `min = 4`):
+Worked example for `baseh-expandable-v1` (`A = 34`, `K = 1` at lengths 4-5
+and `2` from 6 up under the shipped short checksum, `min = 4`; section
+17.1):
 
 ```text
 generationBase(4) = 0
-generationBase(5) = 34^2                    = 1,156
-generationBase(6) = 34^2 + 34^3             = 40,460
-generationBase(7) = ... + 34^4              = 1,376,796
+generationBase(5) = 34^3                    = 39,304
+generationBase(6) = 34^3 + 34^4             = 1,375,640
+generationBase(7) = ... + 34^4              = 2,711,976
 ```
 
-So id `1,155` is the last four-character code and id `1,156` is the first
+So id `39,303` is the last four-character code and id `39,304` is the first
 five-character code.
 
 ### 19.2 The zero ban and the no-padding rule
@@ -969,8 +991,9 @@ generation's own value range:
 domain(L) = A^(L - K)     values 0 through A^(L - K) - 1
 ```
 
-where `A` is the body alphabet size, `K` the checksum length and `L` the
-total length of the generation. The value permuted is the id's offset
+where `A` is the body alphabet size, `K` the generation's effective checksum
+length (section 22; equal to `checksumLength` when the short checksum is
+off) and `L` the total length of the generation. The value permuted is the id's offset
 within the generation (`id - generationBase(L)`), never the raw id. The
 total length `L` is mixed into the key derivation alongside the `profileId`
 via the expandable-mode message encoding of section 7.3, so each generation
@@ -1042,7 +1065,6 @@ the sum validation of section 2.2.
 function encodeExpandable(id, profile):
     validateProfile(profile)
     A = len(profile.bodyAlphabet)
-    K = profile.checksumLength
 
     if id < 0:
         error OUT_OF_RANGE
@@ -1053,6 +1075,8 @@ function encodeExpandable(id, profile):
     if L > 32:
         error OUT_OF_RANGE
 
+    K = effectiveChecksumLength(L, profile)    # section 22; checksumLength
+                                               # when the short checksum is off
     value = id - generationBase(L)             # offset within generation
     domain = pow(A, L - K)
 
@@ -1060,7 +1084,7 @@ function encodeExpandable(id, profile):
         value = permute(value, domain, profile.permutation, L)   # 19.4
 
     body = encodeBaseN(value, profile.bodyAlphabet, L - K)
-    checksum = calculateChecksum(profile, body)
+    checksum = calculateChecksum(profile, body, K)
     raw = body + checksum
 
     if profile.profanity.mode == "blocklist":
@@ -1081,7 +1105,8 @@ Decode follows section 9 with the fixed-mode steps replaced as follows:
 1. Normalize per section 3.1, without the re-pad step.
 2. `L = ` the normalized unformatted length. If `L < minLength`, error
    `INVALID_LENGTH`. If `L > 32`, error `INVALID_LENGTH`.
-3. Split `body = raw[0 : L - K]` and `suppliedChecksum = raw[L - K :]`.
+3. `K = effectiveChecksumLength(L, profile)` (section 22). Split
+   `body = raw[0 : L - K]` and `suppliedChecksum = raw[L - K :]`.
 4. If the body contains a symbol outside the body alphabet, error
    `INVALID_CHARACTER`. This is where a presented `0` or `O` in a body
    position fails (section 19.2).
@@ -1191,3 +1216,111 @@ four or more are blocked.
 are reserved, not subtracted. The cost is negligible — at `maxRepetition: 4`
 the blocked share of a generation is well under 0.5% for every frozen tier
 (see `DESIGN_NOTES.md`).
+
+## 22. Short checksum (expandable mode only)
+
+Expandable profiles gain two optional fields that let the shortest, most-typed
+generations carry fewer checksum symbols than the rest of the profile:
+
+```json
+{
+  "checksumLength": 2,
+  "shortChecksumLength": 1,
+  "shortChecksumUntil": 5
+}
+```
+
+For a total code length `L <= shortChecksumUntil` the generation's checksum is
+`shortChecksumLength` symbols; above it, `checksumLength` applies exactly as
+section 19 specifies. `shortChecksumLength` of `0`, or an absent field, turns
+the feature off and the profile behaves as if this section did not exist.
+Decode needs no marker: the generation — and therefore the effective checksum
+length — is selected by the presented total length (section 19.7), so a
+four-character code always validates against exactly the short checksum.
+
+Define the effective checksum length of a generation:
+
+```text
+effectiveChecksumLength(L) =
+    shortChecksumLength   if shortChecksumLength > 0 and L <= shortChecksumUntil
+    checksumLength        otherwise
+```
+
+Everything section 19 defines in terms of `K` — body size `L - K`, the
+per-generation Feistel domain `A^(L - K)` (section 19.4), the checksum modulus
+`S^K` (section 6.2), generation capacity and `generationBase` (section 19.1) —
+uses `effectiveChecksumLength(L)` per generation. The checksum alphabet and
+the version 1 rolling polynomial are unchanged; only the modulus and the
+rendered checksum width follow the effective length. Because body sizes are
+per-generation, `generationBase` is the sum of per-generation capacities and
+is no longer a single geometric series when the feature is on.
+
+### 22.1 Scope
+
+The fields are expandable-mode only. Setting either field in fixed mode is
+`INVALID_PROFILE`: fixed mode has one length and one checksum, so a "short"
+variant is meaningless there.
+
+### 22.2 Validation
+
+When `shortChecksumLength` is set (non-zero), a profile is valid only when all
+conditions hold:
+
+- `shortChecksumLength` is an integer of at least `1` and strictly less than
+  `checksumLength` (a value equal to or above `checksumLength` changes
+  nothing, so the profile is rejected rather than silently ignored).
+- `checksumLength` is an integer of at least `1`.
+- `shortChecksumUntil` is present and an integer of at least `minLength`.
+- `minLength` is greater than `shortChecksumLength`, so the smallest
+  generation still carries at least one body symbol.
+
+Setting `shortChecksumUntil` without `shortChecksumLength` is
+`INVALID_PROFILE`.
+
+### 22.3 Generations and capacity
+
+With the feature on, generation capacities are `A^(L -
+effectiveChecksumLength(L))`. For `baseh-expandable-v1` (body alphabet 34,
+`checksumLength` 2, `shortChecksumLength` 1, `shortChecksumUntil` 5):
+
+| Total length | Effective checksum | Body symbols | Generation capacity | Cumulative ids |
+|---:|---:|---:|---:|---:|
+| 4 | 1 | 3 | 39,304 | 39,304 |
+| 5 | 1 | 4 | 1,336,336 | 1,375,640 |
+| 6 | 2 | 4 | 1,336,336 | 2,711,976 |
+| 7 | 2 | 5 | 45,435,424 | 48,147,400 |
+| 8 | 2 | 6 | 1,544,804,416 | 1,592,951,816 |
+
+Note that generations 5 and 6 now have equal capacity: the sixth symbol buys
+the second checksum instead of more room. The shortest generation grows
+34-fold (1,156 to 39,304 ids) at the price of weaker typo detection there —
+one checksum symbol at modulus 35 catches about 97.1% of single
+substitutions and no longer detects every adjacent transposition, versus
+provably total detection with two symbols (section 6.3). This is explicit
+profile configuration, displayed by tooling, never a silent override of a
+requested `checksumLength`: presets are configuration helpers, not hidden
+rules.
+
+### 22.4 Interactions
+
+- The repetition filter (section 21) scans the rendered raw code — body plus
+  the effective checksum — exactly as before; a run spanning body and the
+  single short checksum symbol still counts.
+- `separatorMinLength` and the balanced grouping rule (section 19.5) are
+  functions of the total length and are unchanged.
+- The zero ban (section 19.2) and the derived checksum alphabet `"0" + body`
+  (section 19.3) are unchanged.
+- Decode of a typed code uses the effective checksum length of its
+  generation: a four-character code under `baseh-expandable-v1` validates
+  against one checksum symbol, never two; appending a second checksum symbol
+  presents a five-character code whose body/checksum split moves, so it fails
+  `INVALID_CHECKSUM` at the random-match rate (section 19.7).
+
+### 22.5 Frozen tiers
+
+`baseh-expandable-v1` and `baseh-expandable-p-v1` ship the feature on:
+`checksumLength` 2, `shortChecksumLength` 1, `shortChecksumUntil` 5
+(section 17.1). The fixed frozen tiers are unchanged and carry neither
+field. Codes issued under the pre-feature expandable tier do not decode
+under these definitions; the tier version string stays `v1` because the
+frozen tier was never published before this change (see section 17.1).

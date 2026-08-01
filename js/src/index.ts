@@ -1,7 +1,7 @@
 export { BasehError } from "./errors.js";
 export type { BasehErrorCode } from "./errors.js";
 export type { BasehProfile, BasehPermutation, PreparedProfile } from "./profile.js";
-export { prepareProfile } from "./profile.js";
+export { prepareProfile, effectiveChecksumLength } from "./profile.js";
 export {
   Baseh,
   normalize,
@@ -22,5 +22,6 @@ export {
 } from "./profiles.js";
 export { generationBase, generationCapacity, generationForId, expandableGrouping } from "./codec.js";
 export { toCode, fromCode } from "./zero.js";
+export { encode, decode, validate } from "./facade.js";
 export { DEFAULT_BLOCKLIST, effectiveBlocklist, stripVowels } from "./blocklist.js";
 export type { BasehProfanity, BasehProfanityMode } from "./blocklist.js";

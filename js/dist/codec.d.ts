@@ -30,11 +30,13 @@ export declare function formatRaw(raw: string, profile: PreparedProfile): string
  */
 export declare function expandableGrouping(length: number): number[];
 /**
- * Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
- * minLength through L-1.
+ * Spec 19.1/22.3. First id of generation L: the sum of each generation's
+ * capacity A^(k - effectiveK(k)) for k from minLength through L-1. The
+ * effective checksum length is per-generation (spec 22), so the sum is not
+ * a single geometric series when the short checksum is on.
  */
 export declare function generationBase(profile: PreparedProfile, length: number): bigint;
-/** Spec 19.1. Ids held by generation L: A^(L-K). */
+/** Spec 19.1/22.3. Ids held by generation L: A^(L - effectiveK(L)). */
 export declare function generationCapacity(profile: PreparedProfile, length: number): bigint;
 /** Smallest generation whose range holds id, per spec 19.6. */
 export declare function generationForId(profile: PreparedProfile, id: bigint): number;

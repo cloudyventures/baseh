@@ -54,22 +54,22 @@ module Baseh
       @profile.capacity
     end
 
-    # Spec 19.1. First id of generation length: the sum of A^(k-K) for k
-    # from minLength through length-1.
+    # Spec 19.1/22.3. First id of generation length: the sum of each
+    # generation's capacity A^(k - effectiveK(k)) for k from minLength
+    # through length-1. The effective checksum length is per-generation
+    # (spec 22), so the sum is not a single geometric series when the short
+    # checksum is on.
     def generation_base(length)
-      a = @profile.body_alphabet.length
       base = 0
-      cap = a**(@profile.min_length - @profile.checksum_length)
-      @profile.min_length.upto(length - 1) do |_l|
-        base += cap
-        cap *= a
+      @profile.min_length.upto(length - 1) do |l|
+        base += generation_capacity(l)
       end
       base
     end
 
-    # Spec 19.1. Ids held by generation length: A^(length-K).
+    # Spec 19.1/22.3. Ids held by generation length: A^(length - effectiveK).
     def generation_capacity(length)
-      @profile.body_alphabet.length**(length - @profile.checksum_length)
+      @profile.body_alphabet.length**(length - @profile.effective_checksum_length(length))
     end
 
     # Smallest generation whose range holds id, per spec 19.6.
@@ -79,8 +79,8 @@ module Baseh
       cap = generation_capacity(l)
       while id >= base + cap
         base += cap
-        cap *= @profile.body_alphabet.length
         l += 1
+        cap = generation_capacity(l)
       end
       l
     end
@@ -150,9 +150,17 @@ module Baseh
       end
 
       raw = normalize(input, accept_spaces)
+      # Spec 22: the generation is selected by the presented total length,
+      # so the effective checksum length is a deterministic function of it.
+      effective_k =
+        if @profile.mode == "expandable"
+          @profile.effective_checksum_length(raw.length)
+        else
+          @profile.checksum_length
+        end
       body_length =
         if @profile.mode == "expandable"
-          raw.length - @profile.checksum_length
+          raw.length - effective_k
         else
           @profile.body_length
         end
@@ -174,7 +182,7 @@ module Baseh
         )
       end
 
-      if Checksum.calculate_checksum(@profile, body, @body_index) != supplied_checksum
+      if Checksum.calculate_checksum(@profile, body, @body_index, effective_k) != supplied_checksum
         unless try_correction && max_corrections != 0
           raise BasehError.new(
             "INVALID_CHECKSUM",
@@ -195,7 +203,7 @@ module Baseh
         end
         valid = {}
         generate_candidates(body, filtered, max_corrections).each do |candidate|
-          if Checksum.calculate_checksum(@profile, candidate, @body_index) == supplied_checksum
+          if Checksum.calculate_checksum(@profile, candidate, @body_index, effective_k) == supplied_checksum
             valid[candidate] = true
           end
         end
@@ -412,6 +420,7 @@ module Baseh
       value = id - generation_base(l)
       domain = generation_capacity(l)
       perm = @profile.permutation
+      effective_k = @profile.effective_checksum_length(l)
       if perm[:enabled]
         value = Feistel.permute(
           value, domain,
@@ -421,8 +430,8 @@ module Baseh
           length: l
         )
       end
-      body = BaseN.encode_base_n(value, @profile.body_alphabet, l - @profile.checksum_length)
-      checksum = Checksum.calculate_checksum(@profile, body, @body_index)
+      body = BaseN.encode_base_n(value, @profile.body_alphabet, l - effective_k)
+      checksum = Checksum.calculate_checksum(@profile, body, @body_index, effective_k)
       raw = body + checksum
       check_blocklist!(raw)
       format_raw(raw)

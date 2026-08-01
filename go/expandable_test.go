@@ -73,17 +73,19 @@ func TestExpandableFrozenTierShape(t *testing.T) {
 			h.prep.mode, h.prep.minLength, h.prep.separatorMinLength)
 	}
 
-	// The generation table of spec 17.1.
+	// The generation table of spec 17.1/22.5: the short checksum (1 symbol
+	// through total length 5) buys generation 4 a third body symbol, and
+	// generation 6's extra symbol buys back the second checksum symbol.
 	expected := []struct {
 		length   int
 		base     string
 		capacity string
 	}{
-		{4, "0", "1156"},
-		{5, "1156", "39304"},
-		{6, "40460", "1336336"},
-		{7, "1376796", "45435424"},
-		{8, "46812220", "1544804416"},
+		{4, "0", "39304"},
+		{5, "39304", "1336336"},
+		{6, "1375640", "1336336"},
+		{7, "2711976", "45435424"},
+		{8, "48147400", "1544804416"},
 	}
 	for _, e := range expected {
 		if got := generationBase(h.prep, e.length).String(); got != e.base {
@@ -130,16 +132,16 @@ func TestExpandableBoundaryRoundTrips(t *testing.T) {
 		}
 	}
 
-	if got := len(rawCode(mustEncode(t, h, 1155))); got != 4 {
-		t.Errorf("id 1155 length = %d, want 4", got)
+	if got := len(rawCode(mustEncode(t, h, 39303))); got != 4 {
+		t.Errorf("id 39303 length = %d, want 4", got)
 	}
-	if got := len(rawCode(mustEncode(t, h, 1156))); got != 5 {
-		t.Errorf("id 1156 length = %d, want 5", got)
+	if got := len(rawCode(mustEncode(t, h, 39304))); got != 5 {
+		t.Errorf("id 39304 length = %d, want 5", got)
 	}
 
 	// Exhaustively round-trip every issuable id of generation 4.
 	issued := 0
-	for id := int64(0); id < 1156; id++ {
+	for id := int64(0); id < 39304; id++ {
 		code, ok := encodeOrSkip(t, h, big.NewInt(id))
 		if !ok {
 			continue
@@ -153,8 +155,8 @@ func TestExpandableBoundaryRoundTrips(t *testing.T) {
 		}
 		issued++
 	}
-	if issued <= 1100 {
-		t.Errorf("expected nearly all 1156 ids issuable, got %d", issued)
+	if issued <= 37000 {
+		t.Errorf("expected nearly all 39304 ids issuable, got %d", issued)
 	}
 }
 
@@ -282,12 +284,14 @@ func TestExpandableChecksumWithZero(t *testing.T) {
 }
 
 func TestExpandableChecksumDetection(t *testing.T) {
-	// M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-	// (spec 17.1); the sweep pins it at generations 4, 6 and 8.
+	// At each generation M = S^effectiveK > 33 and gcd(36, M) = 1 (35 at
+	// generations 4-5, 1225 above), so detection is provably total (spec
+	// 17.1/22.4); the sweep pins it at generations 4, 6 and 8.
 	h := mustNew(t, ExpandableV1())
 	for _, l := range []int{4, 6, 8} {
+		k := effectiveChecksumLength(h.prep, l)
 		base := generationBase(h.prep, l)
-		bodyLen := l - h.prep.profile.ChecksumLength
+		bodyLen := l - k
 		misses := 0
 		for i := int64(0); i < 50; i++ {
 			code, ok := encodeOrSkip(t, h, new(big.Int).Add(base, big.NewInt(i)))
@@ -295,7 +299,7 @@ func TestExpandableChecksumDetection(t *testing.T) {
 				continue
 			}
 			body := rawCode(code)[:bodyLen]
-			before, err := checksumValue(h.prep, body)
+			before, err := checksumValue(h.prep, body, k)
 			if err != nil {
 				t.Fatalf("checksumValue: %v", err)
 			}
@@ -304,7 +308,7 @@ func TestExpandableChecksumDetection(t *testing.T) {
 				for _, delta := range []int64{1, 5, 17} {
 					nv := (cur + delta) % int64(len(h.prep.bodyNorm))
 					candidate := body[:pos] + string(h.prep.bodyNorm[nv]) + body[pos+1:]
-					got, err := checksumValue(h.prep, candidate)
+					got, err := checksumValue(h.prep, candidate, k)
 					if err != nil {
 						t.Fatalf("checksumValue: %v", err)
 					}
@@ -318,7 +322,7 @@ func TestExpandableChecksumDetection(t *testing.T) {
 					continue
 				}
 				swapped := body[:pos] + string(body[pos+1]) + string(body[pos]) + body[pos+2:]
-				got, err := checksumValue(h.prep, swapped)
+				got, err := checksumValue(h.prep, swapped, k)
 				if err != nil {
 					t.Fatalf("checksumValue: %v", err)
 				}
@@ -350,7 +354,7 @@ func TestExpandableNoLeftPadding(t *testing.T) {
 	}
 
 	// canonicalCode always has exactly the presented length.
-	for _, id := range []int64{0, 1155, 1156, 40460, 123456789} {
+	for _, id := range []int64{0, 39303, 39304, 1375640, 123456789} {
 		code := mustEncode(t, h, id)
 		res, err := h.Decode(code, nil)
 		if err != nil {
@@ -368,7 +372,7 @@ func TestExpandableSeparatorThreshold(t *testing.T) {
 	if strings.Contains(mustEncode(t, h, 0), "-") {
 		t.Errorf("length-4 code contains a separator")
 	}
-	if strings.Contains(mustEncode(t, h, 1156), "-") {
+	if strings.Contains(mustEncode(t, h, 39304), "-") {
 		t.Errorf("length-5 code contains a separator")
 	}
 
@@ -461,7 +465,7 @@ func TestExpandableWrongGenerationRejection(t *testing.T) {
 		}
 	}
 
-	gen6 := rawCode(mustEncode(t, h, 40460))
+	gen6 := rawCode(mustEncode(t, h, 1375640))
 	if result := h.Validate(gen6[1:], nil); result.Valid {
 		t.Errorf("validate %q succeeded", gen6[1:])
 	}

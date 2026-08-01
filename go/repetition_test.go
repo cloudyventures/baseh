@@ -200,7 +200,7 @@ func TestRepetitionDecode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("prepareProfile: %v", err)
 		}
-		check, err := calculateChecksum(prep, "00BBBB")
+		check, err := calculateChecksum(prep, "00BBBB", prep.profile.ChecksumLength)
 		if err != nil {
 			t.Fatalf("calculateChecksum: %v", err)
 		}

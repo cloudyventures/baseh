@@ -10,9 +10,16 @@ module Baseh
     module_function
 
     # Returns the checksum value in [0, modulus).
-    def checksum_value(prepared, body, body_index = nil)
+    # Spec 22: expandable generations may pass a shorter effective checksum
+    # length; the modulus is then S^length instead of the profile default.
+    def checksum_value(prepared, body, body_index = nil, length = prepared.checksum_length)
       body_index ||= BaseN.alphabet_index(prepared.body_alphabet)
-      modulus = prepared.checksum_modulus
+      modulus =
+        if length == prepared.checksum_length
+          prepared.checksum_modulus
+        else
+          [prepared.checksum_alphabet.length, 1].max**length
+        end
 
       state = INITIAL_STATE
       prepared.profile_id.each_byte do |byte|
@@ -33,12 +40,12 @@ module Baseh
     end
 
     # Expected checksum string for a normalized body.
-    def calculate_checksum(prepared, body, body_index = nil)
-      return "" if prepared.checksum_length.zero?
+    def calculate_checksum(prepared, body, body_index = nil, length = prepared.checksum_length)
+      return "" if length.zero?
 
       body_index ||= BaseN.alphabet_index(prepared.body_alphabet)
-      value = checksum_value(prepared, body, body_index)
-      BaseN.encode_base_n(value, prepared.checksum_alphabet, prepared.checksum_length)
+      value = checksum_value(prepared, body, body_index, length)
+      BaseN.encode_base_n(value, prepared.checksum_alphabet, length)
     end
   end
 end

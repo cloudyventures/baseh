@@ -28,6 +28,17 @@ export interface BasehProfile {
   minLength?: number;
   checksumAlphabet: string;
   checksumLength: number;
+  /**
+   * Spec 22. Expandable mode only; 0 or absent disables the short checksum.
+   * When set, generations at or below `shortChecksumUntil` use this many
+   * checksum symbols instead of `checksumLength`.
+   */
+  shortChecksumLength?: number;
+  /**
+   * Spec 22. Required when `shortChecksumLength` is set: the last generation
+   * (total length) that uses the short checksum.
+   */
+  shortChecksumUntil?: number;
   caseSensitive: boolean;
   separator: string;
   /** Expandable mode only; default 0 (separator always applies). */
@@ -60,6 +71,22 @@ export interface PreparedProfile extends BasehProfile {
   readonly blocklist: string[];
   /** Spec 21. 0 disables the repetition filter. */
   readonly maxRepetition: number;
+  /** Spec 22. 0 disables the short checksum. */
+  readonly shortChecksumLength: number;
+  /** Spec 22. Last short-checksum generation; 0 when the feature is off. */
+  readonly shortChecksumUntil: number;
+}
+
+/**
+ * Spec 22. The checksum length that applies to a generation of the given
+ * total length: `shortChecksumLength` at or below `shortChecksumUntil`,
+ * `checksumLength` above it (and always in fixed mode).
+ */
+export function effectiveChecksumLength(profile: PreparedProfile, length: number): number {
+  if (profile.mode === "expandable" && profile.shortChecksumLength > 0 && length <= profile.shortChecksumUntil) {
+    return profile.shortChecksumLength;
+  }
+  return profile.checksumLength;
 }
 
 const ASCII_ONLY = /^[\x20-\x7e]*$/;
@@ -152,6 +179,30 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     if (!Number.isInteger(separatorMinLength) || separatorMinLength < 0) {
       fail("separatorMinLength must be an integer of at least 0");
     }
+  }
+
+  // Spec 22. The short checksum is expandable-only; 0 or absent turns it off.
+  const shortChecksumLength = profile.shortChecksumLength ?? 0;
+  const shortChecksumUntil = profile.shortChecksumUntil ?? 0;
+  if (mode === "fixed") {
+    if (shortChecksumLength !== 0 || shortChecksumUntil !== 0) {
+      fail("shortChecksumLength and shortChecksumUntil are expandable-mode only");
+    }
+  } else if (shortChecksumLength !== 0) {
+    if (!Number.isInteger(shortChecksumLength) || shortChecksumLength < 1) {
+      fail("shortChecksumLength must be an integer of at least 1");
+    }
+    if (profile.checksumLength < 1 || shortChecksumLength >= profile.checksumLength) {
+      fail("shortChecksumLength must be less than checksumLength");
+    }
+    if (!Number.isInteger(profile.shortChecksumUntil) || shortChecksumUntil < minLength) {
+      fail("shortChecksumUntil must be an integer of at least minLength");
+    }
+    if (minLength <= shortChecksumLength) {
+      fail("minLength must be greater than shortChecksumLength");
+    }
+  } else if (shortChecksumUntil !== 0) {
+    fail("shortChecksumUntil requires shortChecksumLength");
   }
 
   const checksumAlphabet = profile.checksumAlphabet ?? "";
@@ -287,7 +338,9 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
     capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength ?? 0),
     blocklist,
-    maxRepetition
+    maxRepetition,
+    shortChecksumLength,
+    shortChecksumUntil
   };
 }
 
