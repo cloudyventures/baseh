@@ -10,18 +10,34 @@ class TestCodec < Minitest::Test
   TEST_KEY = ["746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031"].pack("H*")
   BODY_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-  def baseh32
-    @baseh32 ||= BaseHuman::Baseh.new(BaseHuman.baseh32_v1(key_bytes: TEST_KEY, key_id: "test-01"))
+  def medium
+    @medium ||= BaseHuman::Baseh.new(
+      BaseHuman.baseh_medium_p_v1(key_bytes: TEST_KEY, key_id: "test-01")
+    )
   end
 
-  def baseh32s
-    @baseh32s ||= BaseHuman::Baseh.new(BaseHuman.baseh32s_v1(key_bytes: TEST_KEY, key_id: "test-01"))
+  def light
+    @light ||= BaseHuman::Baseh.new(
+      BaseHuman.baseh_light_p_v1(key_bytes: TEST_KEY, key_id: "test-01")
+    )
   end
 
+  # Test-local profile with the classic 32-symbol body and 26-symbol checksum
+  # alphabet (modulus 26), so the checksum and correction suites exercise the
+  # documented modulus-26 behaviour directly. No profanity, no permutation.
   def noperm
-    @noperm ||= BaseHuman.baseh32_v1(key_bytes: TEST_KEY, key_id: "test-01")
-                            .merge(profile_id: "baseh32-noperm-test",
-                                   permutation: { enabled: false })
+    @noperm ||= {
+      profile_id: "baseh32-noperm-test",
+      body_alphabet: BODY_ALPHABET,
+      body_length: 6,
+      checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+      checksum_length: 1,
+      case_sensitive: false,
+      separator: "",
+      grouping: [],
+      aliases: { "O" => "0", "I" => "1", "L" => "1" },
+      permutation: { enabled: false }
+    }
   end
 
   def noperm_codec
@@ -146,23 +162,34 @@ class TestCodec < Minitest::Test
   end
 
   def test_accepts_shipped_profiles
-    assert BaseHuman::Baseh.new(BaseHuman.baseh32_v1(key_bytes: TEST_KEY, key_id: "k"))
-    assert BaseHuman::Baseh.new(BaseHuman.baseh32s_v1(key_bytes: TEST_KEY, key_id: "k"))
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_minimum_v1)
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_light_v1)
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1)
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_heavy_v1)
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_minimum_p_v1(key_bytes: TEST_KEY))
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_light_p_v1(key_bytes: TEST_KEY))
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_medium_p_v1(key_bytes: TEST_KEY))
+    assert BaseHuman::Baseh.new(BaseHuman.baseh_heavy_p_v1(key_bytes: TEST_KEY))
   end
 
-  # --- helper key optionality ---
+  # --- frozen tier helpers ---
 
-  def test_helpers_without_key_disable_permutation
-    [BaseHuman.baseh32_v1, BaseHuman.baseh32s_v1].each do |profile|
+  def test_plain_helpers_disable_permutation_and_round_trip
+    [BaseHuman.baseh_minimum_v1,
+     BaseHuman.baseh_light_v1,
+     BaseHuman.baseh_medium_v1,
+     BaseHuman.baseh_heavy_v1].each do |profile|
       assert_equal({ enabled: false }, profile[:permutation])
       codec = BaseHuman::Baseh.new(profile)
       assert_equal 42, codec.decode(codec.encode(id: 42)).id
     end
   end
 
-  def test_helpers_with_key_enable_feistel_v1
-    [BaseHuman.baseh32_v1(key_bytes: TEST_KEY),
-     BaseHuman.baseh32s_v1(key_bytes: TEST_KEY)].each do |profile|
+  def test_keyed_helpers_enable_feistel_v1
+    [BaseHuman.baseh_minimum_p_v1(key_bytes: TEST_KEY),
+     BaseHuman.baseh_light_p_v1(key_bytes: TEST_KEY),
+     BaseHuman.baseh_medium_p_v1(key_bytes: TEST_KEY),
+     BaseHuman.baseh_heavy_p_v1(key_bytes: TEST_KEY)].each do |profile|
       permutation = profile[:permutation]
       assert_equal true, permutation[:enabled]
       assert_equal "feistel-v1", permutation[:algorithm]
@@ -174,10 +201,35 @@ class TestCodec < Minitest::Test
     end
   end
 
-  def test_helpers_apply_key_id_and_rounds_overrides
-    profile = BaseHuman.baseh32_v1(key_bytes: TEST_KEY, key_id: "k-2", rounds: 10)
+  def test_keyed_helpers_apply_key_id_and_rounds_overrides
+    profile = BaseHuman.baseh_medium_p_v1(key_bytes: TEST_KEY, key_id: "k-2", rounds: 10)
     assert_equal "k-2", profile[:permutation][:key_id]
     assert_equal 10, profile[:permutation][:rounds]
+  end
+
+  def test_keyed_helpers_require_key_bytes
+    assert_raises(ArgumentError) { BaseHuman.baseh_medium_p_v1 }
+  end
+
+  def test_keyed_profile_ids_carry_p_segment
+    assert_equal "baseh-minimum-p-v1",
+                 BaseHuman.baseh_minimum_p_v1(key_bytes: TEST_KEY)[:profile_id]
+    assert_equal "baseh-light-p-v1",
+                 BaseHuman.baseh_light_p_v1(key_bytes: TEST_KEY)[:profile_id]
+    assert_equal "baseh-medium-p-v1",
+                 BaseHuman.baseh_medium_p_v1(key_bytes: TEST_KEY)[:profile_id]
+    assert_equal "baseh-heavy-p-v1",
+                 BaseHuman.baseh_heavy_p_v1(key_bytes: TEST_KEY)[:profile_id]
+  end
+
+  def test_helpers_return_fresh_mutable_profiles
+    first = BaseHuman.baseh_medium_v1
+    second = BaseHuman.baseh_medium_v1
+    refute_same first, second
+    refute_same first[:aliases], second[:aliases]
+    first[:body_alphabet] << "!"
+    first[:aliases]["J"] = "0"
+    refute_equal first, BaseHuman.baseh_medium_v1
   end
 
   # --- base-N unit behaviour (test-suite section 4) ---
@@ -211,14 +263,16 @@ class TestCodec < Minitest::Test
 
   # --- boundary round trips (test-suite section 5) ---
 
-  def test_capacity
-    assert_equal 1_073_741_824, baseh32.capacity
-    assert_equal 1_073_741_824, baseh32s.capacity
+  def test_frozen_profiles_have_documented_tiers_and_capacities
+    assert_equal 2_176_782_336, BaseHuman::Baseh.new(BaseHuman.baseh_minimum_v1).capacity
+    assert_equal 887_503_681, BaseHuman::Baseh.new(BaseHuman.baseh_light_v1).capacity
+    assert_equal 481_890_304, BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1).capacity
+    assert_equal 308_915_776, BaseHuman::Baseh.new(BaseHuman.baseh_heavy_v1).capacity
   end
 
   def test_boundary_round_trips
-    [0, 1, 31, 32, 33, 1_073_741_822, 1_073_741_823].each do |id|
-      [baseh32, baseh32s, noperm_codec].each do |codec|
+    [0, 1, 31, 32, 33, 481_890_302, 481_890_303].each do |id|
+      [medium, light, noperm_codec].each do |codec|
         result = codec.decode(codec.encode(id: id))
         assert_equal id, result.id
         assert_equal codec.encode(id: id), result.canonical_code
@@ -227,31 +281,43 @@ class TestCodec < Minitest::Test
   end
 
   def test_capacity_encode_rejected
-    [baseh32, baseh32s].each do |codec|
-      error = assert_raises(BaseHuman::BasehError) { codec.encode(id: 1_073_741_824) }
+    [medium, light].each do |codec|
+      error = assert_raises(BaseHuman::BasehError) { codec.encode(id: codec.capacity) }
       assert_equal "OUT_OF_RANGE", error.code
     end
   end
 
   def test_encoder_never_emits_alias_sources
+    # Medium tier aliases O/I/L/T/N/W; none may appear in issued codes. The
+    # tier blocklist reserves some ids, so skip those.
+    codec = BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1)
     1_000.times do |i|
-      code = baseh32.encode(id: i * 997)
-      refute_match(/[OIL]/, code)
+      begin
+        code = codec.encode(id: i * 997)
+      rescue BaseHuman::BasehError => e
+        assert_equal "BLOCKED_CODE", e.code
+        next
+      end
+      refute_match(/[OILTNW]/, code)
+    end
+    # The classic 32-symbol alphabet aliases only O/I/L.
+    1_000.times do |i|
+      refute_match(/[OIL]/, noperm_codec.encode(id: i * 997))
     end
   end
 
   # --- normalization and aliases (test-suite sections 7-8) ---
 
   def test_lowercase_and_whitespace_decode
-    code = baseh32.encode(id: 42)
-    assert_equal 42, baseh32.decode(code.downcase).id
-    assert_equal 42, baseh32.decode("  #{code}  ").id
-    assert_equal 42, baseh32.decode("\t#{code}\n").id
+    code = medium.encode(id: 42)
+    assert_equal 42, medium.decode(code.downcase).id
+    assert_equal 42, medium.decode("  #{code}  ").id
+    assert_equal 42, medium.decode("\t#{code}\n").id
   end
 
   def test_separator_chars_rejected_when_no_separator_configured
-    code = baseh32.encode(id: 42)
-    error = assert_raises(BaseHuman::BasehError) { baseh32.decode(code[0, 3] + "-" + code[3..]) }
+    code = medium.encode(id: 42)
+    error = assert_raises(BaseHuman::BasehError) { medium.decode(code[0, 3] + "-" + code[3..]) }
     assert_equal "INVALID_CHARACTER", error.code
   end
 
@@ -261,29 +327,29 @@ class TestCodec < Minitest::Test
     assert_equal 0, noperm_codec.decode(raw_code.sub("0", "O")).id
 
     # I and L map to 1. Find an id whose body contains a canonical 1.
-    id_of_one = BODY_ALPHABET.index("1") # body value with last digit 1 and rest 0
+    id_of_one = noperm_codec.profile.body_alphabet.index("1")
     raw_one = noperm_codec.encode(id: id_of_one)
     assert raw_one.include?("1")
     assert_equal id_of_one, noperm_codec.decode(raw_one.sub("1", "I")).id
     assert_equal id_of_one, noperm_codec.decode(raw_one.sub("1", "L")).id
     assert_equal id_of_one, noperm_codec.decode(raw_one.sub("1", "i")).id
 
-    # Unknown alias source fails.
+    # Unknown alias source fails. U is absent from the classic alphabet.
     error = assert_raises(BaseHuman::BasehError) { noperm_codec.decode("UUUUUUU") }
     assert_equal "INVALID_CHARACTER", error.code
   end
 
   def test_accept_spaces_option
-    code = baseh32.encode(id: 7)
+    code = medium.encode(id: 7)
     spaced = code.chars.join(" ")
-    assert_equal 7, baseh32.decode(spaced, accept_spaces: true).id
-    error = assert_raises(BaseHuman::BasehError) { baseh32.decode(spaced) }
+    assert_equal 7, medium.decode(spaced, accept_spaces: true).id
+    error = assert_raises(BaseHuman::BasehError) { medium.decode(spaced) }
     assert_equal "INVALID_CHARACTER", error.code
   end
 
   def test_validate_never_raises_on_user_input
     ["", nil, 42, "@@@@", "0" * 100, "OIOIL01", "a b c"].each do |input|
-      result = baseh32.validate(input)
+      result = medium.validate(input)
       assert_includes [true, false], result.valid
       if result.valid
         refute_nil result.canonical_code
@@ -312,10 +378,11 @@ class TestCodec < Minitest::Test
     index = BaseHuman::BaseN.alphabet_index(body_alphabet)
     original = BaseHuman::Checksum.calculate_checksum(noperm_codec.profile, body)
     changed = body.dup
-    changed[3] = body_alphabet[(index[body[3]] + 1) % 32]
+    changed[3] = body_alphabet[(index[body[3]] + 1) % body_alphabet.length]
     altered = BaseHuman::Checksum.calculate_checksum(noperm_codec.profile, changed)
-    # baseh32 has known structured misses, so only check same-position swaps
-    # with delta 1 (always detected since 1 is not a multiple of 26).
+    # Modulus-26 checksums have documented structured misses, so only check
+    # same-position swaps with delta 1 (always detected since 1 is not a
+    # multiple of 26).
     refute_equal original, altered
   end
 
@@ -329,10 +396,10 @@ class TestCodec < Minitest::Test
 
   def test_checksum_fixed_width
     100.times do |i|
-      assert_equal 7, baseh32.encode(id: i * 1234).length
+      assert_equal 7, medium.encode(id: i * 1234).length
     end
     100.times do |i|
-      assert_equal 8, baseh32s.encode(id: i * 1234).length
+      assert_equal 7, light.encode(id: i * 1234).length
     end
   end
 
@@ -566,7 +633,15 @@ class TestCodec < Minitest::Test
   def test_sequential_round_trip_smoke
     limit = ENV["SLOW"] == "1" ? 10_000 : 1_000
     limit.times do |id|
-      assert_equal id, baseh32.decode(baseh32.encode(id: id)).id
+      begin
+        code = medium.encode(id: id)
+      rescue BaseHuman::BasehError => e
+        # The tier blocklist reserves some ids; skip those and round-trip the
+        # rest.
+        assert_equal "BLOCKED_CODE", e.code
+        next
+      end
+      assert_equal id, medium.decode(code).id
     end
   end
 
@@ -577,16 +652,16 @@ class TestCodec < Minitest::Test
       length = rng.rand(0..40)
       input = Array.new(length) { alphabet[rng.rand(alphabet.size)] }.join
       begin
-        baseh32.decode(input)
+        medium.decode(input)
       rescue BaseHuman::BasehError
         # expected category
       end
       # validate must never raise on user input
-      result = baseh32.validate(input)
+      result = medium.validate(input)
       assert_includes [true, false], result.valid
     end
     # Very long string must not hang or blow up.
-    result = baseh32.validate("0" * 10_000)
+    result = medium.validate("0" * 10_000)
     refute result.valid
   end
 

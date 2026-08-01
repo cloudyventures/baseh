@@ -12,8 +12,35 @@ import (
 
 var testKey, _ = hex.DecodeString("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
 
+// baseh32Shape returns the baseh32-noperm-test shape from the shared
+// vectors. It is a test-only fixture, not a shipped helper: the shipped
+// profiles are the four frozen tiers in profiles.go.
+func baseh32Shape() Profile {
+	return Profile{
+		ProfileID:        "baseh32-noperm-test",
+		BodyAlphabet:     "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+		BodyLength:       6,
+		ChecksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+		ChecksumLength:   1,
+		CaseSensitive:    false,
+		Separator:        "",
+		Grouping:         nil,
+		Aliases:          map[string]string{"O": "0", "I": "1", "L": "1"},
+		Permutation:      Permutation{Enabled: false},
+	}
+}
+
 func baseProfile() Profile {
-	return Baseh32V1Profile(testKey, "test-01")
+	p := baseh32Shape()
+	p.ProfileID = "baseh32-perm-test"
+	p.Permutation = Permutation{
+		Enabled:   true,
+		Algorithm: "feistel-v1",
+		KeyID:     "test-01",
+		KeyBytes:  testKey,
+		Rounds:    8,
+	}
+	return p
 }
 
 func mustNew(t *testing.T, p Profile) *Baseh {
@@ -116,38 +143,124 @@ func TestProfileValidationRejections(t *testing.T) {
 	}
 }
 
-func TestShippedProfilesAccepted(t *testing.T) {
-	if _, err := NewBaseh(Baseh32V1Profile(nil, "")); err != nil {
-		t.Errorf("baseh32-v1: %v", err)
-	}
-	if _, err := NewBaseh(Baseh32SV1Profile(nil, "")); err != nil {
-		t.Errorf("baseh32s-v1: %v", err)
-	}
-	if _, err := NewBaseh(Baseh32V1Profile(testKey, "test-01")); err != nil {
-		t.Errorf("baseh32-v1 keyed: %v", err)
-	}
-	if _, err := NewBaseh(Baseh32SV1Profile(testKey, "test-01")); err != nil {
-		t.Errorf("baseh32s-v1 keyed: %v", err)
+func keyedTiers() map[string]Profile {
+	return map[string]Profile{
+		"baseh-minimum-p-v1": BasehMinimumPV1(testKey, "test-01", 8),
+		"baseh-light-p-v1":   BasehLightPV1(testKey, "test-01", 8),
+		"baseh-medium-p-v1":  BasehMediumPV1(testKey, "test-01", 8),
+		"baseh-heavy-p-v1":   BasehHeavyPV1(testKey, "test-01", 8),
 	}
 }
 
-func TestPermutationOptIn(t *testing.T) {
-	// No key: permutation disabled and deterministic across implementations.
-	noKey := Baseh32V1Profile(nil, "ignored-key-id")
-	if noKey.Permutation.Enabled {
-		t.Fatalf("no-key profile has permutation enabled: %+v", noKey.Permutation)
+func plainTiers() map[string]Profile {
+	return map[string]Profile{
+		"baseh-minimum-v1": BasehMinimumV1(),
+		"baseh-light-v1":   BasehLightV1(),
+		"baseh-medium-v1":  BasehMediumV1(),
+		"baseh-heavy-v1":   BasehHeavyV1(),
 	}
-	// Keyed: feistel-v1 enabled with the given key id and 8 rounds.
-	keyed := Baseh32V1Profile(testKey, "test-01")
+}
+
+func TestShippedProfilesAccepted(t *testing.T) {
+	for id, p := range plainTiers() {
+		if p.Permutation.Enabled {
+			t.Errorf("%s: plain tier has permutation enabled", id)
+		}
+		if _, err := NewBaseh(p); err != nil {
+			t.Errorf("%s: %v", id, err)
+		}
+	}
+	for id, p := range keyedTiers() {
+		if _, err := NewBaseh(p); err != nil {
+			t.Errorf("%s: %v", id, err)
+		}
+	}
+	// The keyed variants require key material: empty key bytes must fail
+	// validation at NewBaseh.
+	for _, p := range []Profile{
+		BasehMinimumPV1(nil, "", 0),
+		BasehLightPV1(nil, "", 0),
+		BasehMediumPV1(nil, "", 0),
+		BasehHeavyPV1(nil, "", 0),
+	} {
+		if _, err := NewBaseh(p); err == nil {
+			t.Errorf("%s accepted without key material", p.ProfileID)
+		} else {
+			assertCode(t, err, INVALID_PROFILE)
+		}
+	}
+}
+
+func TestHelpersReturnFreshProfiles(t *testing.T) {
+	p := BasehMediumV1()
+	delete(p.Aliases, "T")
+	if _, ok := BasehMediumV1().Aliases["T"]; !ok {
+		t.Errorf("alias mutation leaked into a fresh profile")
+	}
+	g := BasehMinimumV1()
+	g.Grouping[0] = 1
+	if got := BasehMinimumV1().Grouping[0]; got != 3 {
+		t.Errorf("grouping mutation leaked into a fresh profile: %d", got)
+	}
+	k := BasehMediumPV1(testKey, "test-01", 8)
+	k.Permutation.KeyBytes = nil
+	if got := BasehMediumPV1(testKey, "test-01", 8); len(got.Permutation.KeyBytes) == 0 {
+		t.Errorf("keyed tier returned a shared key slice")
+	}
+}
+
+func TestTierCapacities(t *testing.T) {
+	want := map[string]string{
+		"baseh-minimum-v1": "2176782336",
+		"baseh-light-v1":   "887503681",
+		"baseh-medium-v1":  "481890304",
+		"baseh-heavy-v1":   "308915776",
+	}
+	tiers := plainTiers()
+	for id, p := range keyedTiers() {
+		tiers[id] = p
+	}
+	for id, p := range tiers {
+		h := mustNew(t, p)
+		plain := id
+		if strings.HasSuffix(id, "-p-v1") {
+			plain = strings.TrimSuffix(id, "-p-v1") + "-v1"
+		}
+		if got := h.Capacity().String(); got != want[plain] {
+			t.Errorf("%s capacity = %s, want %s", id, got, want[plain])
+		}
+	}
+}
+
+func TestKeyedPermutationDefaults(t *testing.T) {
+	// Explicit key id and rounds pass through.
+	keyed := BasehMediumPV1(testKey, "test-01", 8)
 	perm := keyed.Permutation
 	if !perm.Enabled || perm.Algorithm != "feistel-v1" || perm.KeyID != "test-01" || perm.Rounds != 8 {
 		t.Errorf("keyed permutation = %+v", perm)
 	}
-	// Empty key id with key material defaults to "default".
-	if got := Baseh32V1Profile(testKey, "").Permutation.KeyID; got != "default" {
-		t.Errorf("default key id = %q", got)
+	if keyed.ProfileID != "baseh-medium-p-v1" {
+		t.Errorf("keyed profile id = %q", keyed.ProfileID)
 	}
-	for name, p := range map[string]Profile{"no-key": noKey, "keyed": keyed} {
+	// Empty key id defaults to "default" and zero rounds to 8.
+	def := BasehMediumPV1(testKey, "", 0)
+	if def.Permutation.KeyID != "default" || def.Permutation.Rounds != 8 {
+		t.Errorf("defaults = %+v", def.Permutation)
+	}
+	// The keyed variant matches its plain tier on every shared field.
+	plain := BasehMediumV1()
+	if def.BodyAlphabet != plain.BodyAlphabet ||
+		def.BodyLength != plain.BodyLength ||
+		def.ChecksumAlphabet != plain.ChecksumAlphabet ||
+		def.ChecksumLength != plain.ChecksumLength ||
+		def.CaseSensitive != plain.CaseSensitive ||
+		def.Separator != plain.Separator ||
+		!reflect.DeepEqual(def.Aliases, plain.Aliases) ||
+		!reflect.DeepEqual(def.Profanity, plain.Profanity) {
+		t.Errorf("keyed tier diverges from plain tier")
+	}
+	// Boundary round trips hold with and without permutation.
+	for name, p := range map[string]Profile{"plain": plain, "keyed": def} {
 		h := mustNew(t, p)
 		for _, id := range []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(123456789), new(big.Int).Sub(h.Capacity(), big.NewInt(1))} {
 			code, err := h.Encode(id)
@@ -230,10 +343,10 @@ func TestAliasesAndNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	if code != "GZEYHTN" {
+	if code != "R0XMCMT" {
 		t.Fatalf("canonical = %q", code)
 	}
-	inputs := []string{"gzeyhtn", "  GZEYHTN ", "GZEYHTN"}
+	inputs := []string{"r0xmcmt", "  R0XMCMT ", "R0XMCMT"}
 	for _, in := range inputs {
 		res, err := h.Decode(in, nil)
 		if err != nil {
@@ -245,7 +358,7 @@ func TestAliasesAndNormalization(t *testing.T) {
 		}
 	}
 	// Internal space only with acceptSpaces.
-	spaced := "GZE YHTN"
+	spaced := "R0X MCMT"
 	if _, err := h.Decode(spaced, nil); err == nil {
 		t.Errorf("internal space accepted without acceptSpaces")
 	}
@@ -254,7 +367,7 @@ func TestAliasesAndNormalization(t *testing.T) {
 	}
 
 	// Aliases decode to the canonical id on a no-permutation profile.
-	p := Baseh32V1Profile(nil, "")
+	p := baseh32Shape()
 	np := mustNew(t, p)
 	c, err := np.Encode(big.NewInt(1))
 	if err != nil {
@@ -271,8 +384,7 @@ func TestAliasesAndNormalization(t *testing.T) {
 }
 
 func TestCorrectionModes(t *testing.T) {
-	p := Baseh32V1Profile(nil, "")
-	p.ProfileID = "baseh32-noperm-test"
+	p := baseh32Shape()
 	h := mustNew(t, p)
 
 	// Without tryCorrection a substituted symbol stays a checksum error.
@@ -303,7 +415,7 @@ func TestCorrectionModes(t *testing.T) {
 
 func TestProfanityBlocklist(t *testing.T) {
 	base := func() Profile {
-		p := Baseh32V1Profile(nil, "")
+		p := baseh32Shape()
 		p.ProfileID = "block32-test"
 		p.Profanity = Profanity{Mode: ProfanityBlocklist}
 		return p
@@ -373,7 +485,7 @@ func TestProfanityBlocklist(t *testing.T) {
 }
 
 func TestProfanityNoVowels(t *testing.T) {
-	p := Baseh32V1Profile(nil, "")
+	p := baseh32Shape()
 	p.ProfileID = "novowel32-test"
 	p.Profanity = Profanity{Mode: ProfanityNoVowels}
 	h, err := NewBaseh(p)

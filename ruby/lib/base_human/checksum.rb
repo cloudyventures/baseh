@@ -20,7 +20,13 @@ module BaseHuman
       end
       state = (state * MULTIPLIER) % modulus
       body.each_char.each_with_index do |ch, pos|
-        symbol_value = body_index.fetch(ch)
+        symbol_value = body_index[ch]
+        unless symbol_value
+          raise BasehError.new(
+            "INVALID_CHARACTER",
+            "Body symbol #{ch.inspect} is not in the body alphabet"
+          )
+        end
         state = (state * MULTIPLIER + symbol_value + pos + 1) % modulus
       end
       state

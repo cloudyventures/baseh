@@ -21,26 +21,50 @@ from base_human import (  # noqa: E402
     Baseh,
     BasehError,
     generate_candidates,
-    baseh32_v1,
-    baseh32s_v1,
+    baseh_heavy_p_v1,
+    baseh_heavy_v1,
+    baseh_light_p_v1,
+    baseh_light_v1,
+    baseh_medium_p_v1,
+    baseh_medium_v1,
+    baseh_minimum_p_v1,
+    baseh_minimum_v1,
 )
 
 _TEST_KEY = bytes.fromhex("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
-_CAPACITY = 32 ** 6  # 1,073,741,824
+_CAPACITY = 481_890_304  # 28 ** 6, baseh-medium
+
+_ALL_HELPERS = (
+    baseh_minimum_v1,
+    baseh_light_v1,
+    baseh_medium_v1,
+    baseh_heavy_v1,
+)
+_ALL_KEYED_HELPERS = (
+    baseh_minimum_p_v1,
+    baseh_light_p_v1,
+    baseh_medium_p_v1,
+    baseh_heavy_p_v1,
+)
 
 
 def _base_profile() -> dict:
-    # Permutation-specific tests opt in by supplying a key explicitly.
-    return baseh32_v1(key_bytes=_TEST_KEY, key_id="test-01")
+    # Permutation-specific tests opt in by supplying a key explicitly. The
+    # blocklist is switched off so generic round-trip tests can encode
+    # sequentially; TestProfanity arms it case by case.
+    profile = baseh_medium_p_v1(_TEST_KEY, key_id="test-01")
+    profile["profanity"] = {"mode": "none"}
+    return profile
 
 
 class TestProfileHelpers(unittest.TestCase):
-    def test_no_key_disables_permutation(self):
-        self.assertEqual(baseh32_v1()["permutation"], {"enabled": False})
-        self.assertEqual(baseh32s_v1()["permutation"], {"enabled": False})
+    def test_plain_helpers_disable_permutation(self):
+        for helper in _ALL_HELPERS:
+            with self.subTest(helper=helper.__name__):
+                self.assertEqual(helper()["permutation"], {"enabled": False})
 
-    def test_keyed_opt_in_enables_feistel_v1(self):
-        permutation = baseh32_v1(key_bytes=_TEST_KEY)["permutation"]
+    def test_keyed_helpers_enable_feistel_v1(self):
+        permutation = baseh_medium_p_v1(_TEST_KEY)["permutation"]
         self.assertEqual(
             permutation,
             {
@@ -51,25 +75,49 @@ class TestProfileHelpers(unittest.TestCase):
                 "rounds": 8,
             },
         )
-        permutation = baseh32_v1(
-            key_bytes=_TEST_KEY, key_id="test-01", rounds=10
+        permutation = baseh_medium_p_v1(
+            _TEST_KEY, key_id="test-01", rounds=10
         )["permutation"]
         self.assertEqual(permutation["keyId"], "test-01")
         self.assertEqual(permutation["rounds"], 10)
+        self.assertEqual(
+            baseh_medium_p_v1(_TEST_KEY)["profileId"], "baseh-medium-p-v1"
+        )
 
-    def test_round_trip_no_key(self):
-        for profile in (baseh32_v1(), baseh32s_v1()):
+    def test_helpers_are_fresh_and_mutable(self):
+        first, second = baseh_medium_v1(), baseh_medium_v1()
+        first["bodyLength"] = 99
+        first["aliases"]["Q"] = "0"
+        self.assertEqual(second["bodyLength"], 6)
+        self.assertNotIn("Q", second["aliases"])
+
+    def test_tier_capacities(self):
+        self.assertEqual(Baseh(baseh_minimum_v1()).capacity(), 2_176_782_336)
+        self.assertEqual(Baseh(baseh_light_v1()).capacity(), 887_503_681)
+        self.assertEqual(Baseh(baseh_medium_v1()).capacity(), 481_890_304)
+        self.assertEqual(Baseh(baseh_heavy_v1()).capacity(), 308_915_776)
+
+    def test_all_helpers_accepted(self):
+        for helper in _ALL_HELPERS:
+            Baseh(helper())
+        for helper in _ALL_KEYED_HELPERS:
+            Baseh(helper(_TEST_KEY))
+
+    def test_round_trip_plain(self):
+        for helper in _ALL_HELPERS:
+            profile = helper()
             codec = Baseh(profile)
-            for value in (0, 7, _CAPACITY - 1):
+            for value in (0, 7, codec.capacity() - 1):
                 with self.subTest(profile_id=profile["profileId"], id=value):
                     result = codec.decode(codec.encode(value))
                     self.assertEqual(result.id, value)
                     self.assertFalse(result.corrected)
 
     def test_round_trip_keyed(self):
-        for profile in (baseh32_v1(_TEST_KEY), baseh32s_v1(_TEST_KEY)):
+        for helper in _ALL_KEYED_HELPERS:
+            profile = helper(_TEST_KEY)
             codec = Baseh(profile)
-            for value in (0, 7, _CAPACITY - 1):
+            for value in (0, 7, codec.capacity() - 1):
                 with self.subTest(profile_id=profile["profileId"], id=value):
                     result = codec.decode(codec.encode(value))
                     self.assertEqual(result.id, value)
@@ -98,12 +146,12 @@ class TestProfileValidation(_ProfileCase):
         def separator_in_body(p):
             p["separator"] = "-"
             p["grouping"] = [3, 3, 1]
-            p["bodyAlphabet"] = "0123456789ABCDEFGHJKMNPQRSTVWXY-"
+            p["bodyAlphabet"] = "0123456789ACDEFGHJKMPQRUVXY-"
 
         def separator_in_checksum(p):
             p["separator"] = "-"
             p["grouping"] = [3, 3, 1]
-            p["checksumAlphabet"] = "234679ACDEFGHJKMNPQRTUVWXY"[:25] + "-"
+            p["checksumAlphabet"] = "234679ACDEFGHJKMPQRUVXY"[:23] + "-"
 
         def group_sum_mismatch(p):
             p["separator"] = "-"
@@ -123,8 +171,8 @@ class TestProfileValidation(_ProfileCase):
             (separator_in_body, "separator in body alphabet"),
             (separator_in_checksum, "separator in checksum alphabet"),
             (lambda p: p.update(aliases={"Z": "@"}), "alias target not canonical"),
-            (lambda p: p.update(aliases={"Q": "O"}), "alias chain"),
-            (lambda p: p.update(aliases={"Q": "Q"}), "alias cycle (source canonical)"),
+            (lambda p: p.update(aliases={"B": "X", "X": "0"}), "alias chain"),
+            (lambda p: p.update(aliases={"A": "A"}), "alias cycle (source canonical)"),
             (group_sum_mismatch, "group total mismatch"),
             (lambda p: p.update(grouping=[3]), "grouping with empty separator"),
             (lambda p: p["permutation"].pop("keyBytes"), "missing permutation key"),
@@ -141,10 +189,6 @@ class TestProfileValidation(_ProfileCase):
         ]
         for mutate, label in cases:
             self.assertRejects(mutate, label)
-
-    def test_shipped_profiles_accepted(self):
-        Baseh(_base_profile())
-        Baseh(baseh32s_v1(key_bytes=_TEST_KEY, key_id="test-01"))
 
     def test_zero_checksum_profile_accepted(self):
         profile = _base_profile()
@@ -169,6 +213,10 @@ class TestProfanity(unittest.TestCase):
         profile.update(overrides)
         profile["profanity"] = profanity
         return profile
+
+    def test_default_tiers_use_blocklist(self):
+        codec = Baseh(baseh_medium_v1())
+        self.assertNotEqual(codec.profile.blocklist, ())
 
     def test_blocklist_default_blocks_raw_substring(self):
         codec = Baseh(self._profile({"mode": "blocklist"}))
@@ -201,7 +249,8 @@ class TestProfanity(unittest.TestCase):
         codec = Baseh(self._profile({"mode": "no-vowels"}))
         for vowel in "AEIOU":
             self.assertNotIn(vowel, codec.profile.body_alphabet_norm)
-        self.assertEqual(codec.capacity(), 30 ** 6)
+        # Medium drops three vowels (A, E, U) from its 28 symbols.
+        self.assertEqual(codec.capacity(), 25 ** 6)
         code = codec.encode(0)
         self.assertEqual(len(code), 7)
         self.assertEqual(codec.decode(code).id, 0)
@@ -217,10 +266,14 @@ class TestRoundTrip(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.codec = Baseh(_base_profile())
-        cls.codec_s = Baseh(baseh32s_v1(key_bytes=_TEST_KEY, key_id="test-01"))
+        # A two-checksum variant built by mutating a fresh helper profile.
+        profile_s = _base_profile()
+        profile_s["profileId"] = "baseh-medium-p2-test"
+        profile_s["checksumLength"] = 2
+        cls.codec_s = Baseh(profile_s)
 
     def test_boundary_ids(self):
-        boundary = [0, 1, 31, 32, 33, _CAPACITY - 2, _CAPACITY - 1]
+        boundary = [0, 1, 27, 28, 29, _CAPACITY - 2, _CAPACITY - 1]
         for codec in (self.codec, self.codec_s):
             for value in boundary:
                 with self.subTest(id=value):
@@ -238,8 +291,8 @@ class TestRoundTrip(unittest.TestCase):
                 self.assertEqual(ctx.exception.code, OUT_OF_RANGE)
 
     def test_capacity(self):
-        self.assertEqual(self.codec.capacity(), 1073741824)
-        self.assertEqual(self.codec_s.capacity(), 1073741824)
+        self.assertEqual(self.codec.capacity(), _CAPACITY)
+        self.assertEqual(self.codec_s.capacity(), _CAPACITY)
 
     def test_sequential_round_trip(self):
         codec = self.codec
