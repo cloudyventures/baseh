@@ -2,7 +2,8 @@
 
 Three usage patterns for each implementation:
 
-1. **Zero configuration**: `toCode` / `fromCode` over the default Medium tier.
+1. **Zero configuration**: `encode` / `decode` over the default expandable
+   profile (`baseh-expandable-v1`); `decode` returns the full `DecodeResult`.
 2. **Frozen preset**: load `baseh-medium-v1` and use the full codec.
 3. **Customized**: load a preset, modify it and build a codec from the result.
 
@@ -12,11 +13,10 @@ plain handler), and the Ruby section adds **issuing codes**: a shared codec
 wrapping a single issuance counter. Both patterns are covered in depth in
 `docs/cookbook.md`.
 
-Each language section also leads with the new **expandable** mode
+Each language section also leads with the **expandable** mode
 (`baseh-expandable-v1`): codes start at 4 characters and grow automatically
-as the id sequence climbs. Expandable mode is documented ahead of its
-implementation release — it ships in the next release and is shown here as
-the new default — so no concrete encoded outputs are printed for it yet.
+as the id sequence climbs. Expandable is the default for new users and backs
+the zero-configuration `encode` / `decode` facade above.
 
 Every implementation produces identical codes for identical inputs (enforced
 by the shared test vectors in `vectors/`). Error codes are identical too;
@@ -66,15 +66,18 @@ invoices.encode(42n);  // starts at 5 characters, no separator until 8+
 ### Zero configuration
 
 ```typescript
-import { toCode, fromCode } from "@cloudyventures/baseh";
+import { encode, decode, validate } from "@cloudyventures/baseh";
 
-toCode(123456789n);           // "C8XP-8J49"   (bigint, number or decimal string)
-toCode("123456789");          // "C8XP-8J49"
-fromCode("C8XP-8J49");        // 123456789n
-fromCode("c8xp 8j4 9");       // 123456789n  (lowercase and stray spaces accepted)
+// Backed by the expandable v1 default profile: codes start at 4 characters
+// and grow with the id sequence, so there is no practical capacity limit.
+encode(123456789n);           // "KUQU-ANMD"   (bigint or number)
+encode(123456789);            // "KUQU-ANMD"
+decode("KUQU-ANMD").id;       // 123456789n   (full DecodeResult: { id, canonicalCode, corrected })
+decode("kuqu-anmd").id;       // 123456789n   (lowercase accepted; spaces via { acceptSpaces: true })
 
-fromCode("C8XP-8J4X");        // throws BasehError [INVALID_CHECKSUM]
-toCode(481890304n);           // throws BasehError [OUT_OF_RANGE]: id == capacity
+decode("KUQU-ANMX");          // throws BasehError [INVALID_CHECKSUM]
+encode(-1);                   // throws BasehError [OUT_OF_RANGE]: negative id
+validate("KUQU-ANMD");        // { valid: true, canonicalCode: "KUQU-ANMD" }
 ```
 
 ### Frozen preset
@@ -184,15 +187,16 @@ tickets.encode(123456789)  # 5+ characters, no hyphen until codes reach 8 charac
 ### Zero configuration
 
 ```python
-from baseh import to_code, from_code
+from baseh import encode, decode
 
-to_code(123456789)            # "C8XP-8J49"   (int or decimal string)
-to_code("123456789")          # "C8XP-8J49"
-from_code("C8XP-8J49")        # 123456789
-from_code("c8xp 8j4 9")       # 123456789
+# Backed by the expandable v1 default profile: codes start at 4 characters
+# and grow with the id sequence, so there is no practical capacity limit.
+encode(123456789)             # "KUQU-ANMD"
+decode("KUQU-ANMD").id        # 123456789   (full DecodeResult: id, canonical_code, corrected)
+decode("kuqu-anmd").id        # 123456789   (lowercase accepted; spaces via accept_spaces=True)
 
-from_code("C8XP-8J4X")        # raises BasehError [INVALID_CHECKSUM]
-to_code(481890304)            # raises BasehError [OUT_OF_RANGE]
+decode("KUQU-ANMX")           # raises BasehError [INVALID_CHECKSUM]
+encode(-1)                    # raises BasehError [OUT_OF_RANGE]: negative id
 ```
 
 ### Frozen preset
@@ -290,13 +294,17 @@ result.ID  // 123456789 (round trip)
 ### Zero configuration
 
 ```go
-baseh.ToCode(big.NewInt(123456789))   // "C8XP-8J49", nil
-baseh.ToCodeString("123456789")       // "C8XP-8J49", nil
-baseh.FromCode("C8XP-8J49")           // 123456789, nil
-baseh.FromCode("c8xp 8j4 9")          // 123456789, nil
+// Backed by the expandable v1 default profile: codes start at 4 characters
+// and grow with the id sequence, so there is no practical capacity limit.
+baseh.Encode(big.NewInt(123456789))   // "KUQU-ANMD", nil
 
-baseh.FromCode("C8XP-8J4X")           // nil, *Error [INVALID_CHECKSUM]
-baseh.ToCode(big.NewInt(481890304))   // "", *Error [OUT_OF_RANGE]
+result, err := baseh.Decode("KUQU-ANMD", nil)
+result.ID                             // 123456789 (DecodeResult: ID, CanonicalCode, Corrected)
+baseh.Decode("kuqu-anmd", nil)        // id 123456789 (lowercase accepted)
+
+baseh.Decode("KUQU-ANMX", nil)        // nil, *Error [INVALID_CHECKSUM]
+baseh.Validate("KUQU-ANMD", nil)      // ValidateResult{Valid: true, ...}
+baseh.Default()                       // the shared default codec behind Encode/Decode
 ```
 
 ### Frozen preset
@@ -408,15 +416,16 @@ invoices.encode(&BigUint::from(123456789u64))
 ### Zero configuration
 
 ```rust
-use baseh::{from_code, to_code};
+use baseh::{encode, decode};
+use num_bigint::BigUint;
 
-to_code(123456789u64)         // Ok("C8XP-8J49")   (u8..u128, usize, BigUint, &str)
-to_code("123456789")          // Ok("C8XP-8J49")
-from_code("C8XP-8J49")        // Ok(123456789)
-from_code("c8xp 8j4 9")       // Ok(123456789)
+// Backed by the expandable v1 default profile: codes start at 4 characters
+// and grow with the id sequence, so there is no practical capacity limit.
+encode(&BigUint::from(123456789u64))  // Ok("KUQU-ANMD")
+decode("KUQU-ANMD")?.id;              // 123456789 (DecodeResult: id, canonical_code, corrected)
+decode("kuqu-anmd")?.id;              // 123456789 (lowercase accepted)
 
-from_code("C8XP-8J4X")        // Err(BasehError { code: InvalidChecksum, .. })
-to_code(481890304u64)         // Err(BasehError { code: OutOfRange, .. })
+decode("KUQU-ANMX")                   // Err(BasehError { code: InvalidChecksum, .. })
 ```
 
 ### Frozen preset
@@ -498,13 +507,14 @@ expandable.decode(expandable.encode(id: 123456)).id  # 123456 (round trip)
 ```ruby
 require "baseh"
 
-Baseh.to_code(123456789)      # "C8XP-8J49"   (Integer or decimal String)
-Baseh.to_code("123456789")    # "C8XP-8J49"
-Baseh.from_code("C8XP-8J49")  # 123456789
-Baseh.from_code("c8xp 8j4 9") # 123456789
+# Backed by the expandable v1 default profile: codes start at 4 characters
+# and grow with the id sequence, so there is no practical capacity limit.
+Baseh.encode(123456789)       # "KUQU-ANMD"
+Baseh.decode("KUQU-ANMD").id  # 123456789   (DecodeResult: id, canonical_code, corrected)
+Baseh.decode("kuqu-anmd").id  # 123456789   (lowercase accepted; spaces via accept_spaces: true)
 
-Baseh.from_code("C8XP-8J4X")  # raises BasehError [INVALID_CHECKSUM]
-Baseh.to_code(481890304)      # raises BasehError [OUT_OF_RANGE]
+Baseh.decode("KUQU-ANMX")     # raises BasehError [INVALID_CHECKSUM]
+Baseh.default                 # the shared codec behind Baseh.encode/decode
 ```
 
 ### Frozen preset

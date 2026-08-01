@@ -64,25 +64,36 @@ func main() {
 		return r.ID, nil
 	})
 
-	// 2. Zero configuration: the default Medium tier behind two functions.
+	// 2. Zero configuration: the package-level facade behind the shared
+	// baseh-expandable-v1 codec.
 	fmt.Println("== zero config ==")
-	showStr("ToCode(123456789)", func() (string, error) {
-		return baseh.ToCode(big.NewInt(123456789))
+	showStr("Encode(123456789)", func() (string, error) {
+		return baseh.Encode(big.NewInt(123456789))
 	})
-	showStr(`ToCodeString("123456789")`, func() (string, error) {
-		return baseh.ToCodeString("123456789")
+	zcCode, err := baseh.Encode(big.NewInt(123456789))
+	if err != nil {
+		panic(err)
+	}
+	showID("Decode(...) round trip", func() (*big.Int, error) {
+		r, e := baseh.Decode(zcCode, nil)
+		if e != nil {
+			return nil, e
+		}
+		return r.ID, nil
 	})
-	showID(`FromCode("C8XP-8J49")`, func() (*big.Int, error) {
-		return baseh.FromCode("C8XP-8J49")
+	showID(`Decode("c8xp-8j49") (wrong tier)`, func() (*big.Int, error) {
+		r, e := baseh.Decode("c8xp-8j49", nil)
+		if e != nil {
+			return nil, e
+		}
+		return r.ID, nil
 	})
-	showID(`FromCode("c8xp 8j49")`, func() (*big.Int, error) {
-		return baseh.FromCode("c8xp 8j49")
-	})
-	showID(`FromCode("C8XP-8J4X")`, func() (*big.Int, error) {
-		return baseh.FromCode("C8XP-8J4X")
-	})
-	showStr("ToCode(481890304)", func() (string, error) {
-		return baseh.ToCode(big.NewInt(481890304))
+	showID(`Validate("ZZZZZZZZ")`, func() (*big.Int, error) {
+		v := baseh.Validate("ZZZZZZZZ", nil)
+		if !v.Valid {
+			return nil, fmt.Errorf("invalid: %s", v.Reason)
+		}
+		return nil, nil
 	})
 
 	// 3. A fixed-mode frozen preset: load baseh-medium-v1 and use the full codec.

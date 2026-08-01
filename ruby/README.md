@@ -24,8 +24,6 @@ library are used.
 
 ## Expandable mode (recommended default)
 
-> Shipping in the next release; documented here ahead of the implementation.
-
 Profiles carry a `mode:` field: `"expandable"` or `"fixed"`. Expandable is
 the recommended default for new users. The frozen tier
 `Baseh.baseh_expandable_v1` ships as the starting point, with a keyed

@@ -2,8 +2,7 @@
 //! Run from rust/:  cargo run --example examples
 
 use baseh::{
-    baseh_expandable_v1, baseh_medium_v1, from_code, to_code, Baseh, ConfusionProfile,
-    DecodeOptions,
+    baseh_expandable_v1, baseh_medium_v1, decode, encode, Baseh, ConfusionProfile, DecodeOptions,
 };
 use num_bigint::BigUint;
 
@@ -46,15 +45,18 @@ fn main() {
         expandable.decode(&code, &strict).map(|r| r.id),
     );
 
-    // 2. Zero configuration: the default Medium tier behind two functions.
+    // 2. Zero configuration: the default expandable tier behind two
+    // package-level functions. `decode` returns the full DecodeResult.
     println!("== zero config ==");
-    show_str("to_code(123456789u64)", to_code(123456789u64));
-    show_str("to_code(id.clone())", to_code(id.clone()));
-    show_str("to_code(\"123456789\")", to_code("123456789"));
-    show_id("from_code(\"C8XP-8J49\")", from_code("C8XP-8J49"));
-    show_id("from_code(\"c8xp 8j49\")", from_code("c8xp 8j49"));
-    show_id("from_code(\"C8XP-8J4X\")", from_code("C8XP-8J4X"));
-    show_str("to_code(481890304u64)", to_code(481890304u64));
+    show_str("encode(&id)", encode(&id));
+    let zero_code = encode(&id).expect("in range");
+    show_id(
+        "decode(...) round trip",
+        decode(&zero_code).map(|r| r.id),
+    );
+    show_id("decode(...) lowercase", decode(&zero_code.to_lowercase()).map(|r| r.id));
+    show_str("encode(813) (blocked word)", encode(&BigUint::from(813u64)));
+    show_id("decode(\"!!!!\") (bogus code)", decode("!!!!").map(|r| r.id));
 
     // 3. A frozen preset: load baseh-medium-v1 and use the full codec.
     println!("== preset ==");

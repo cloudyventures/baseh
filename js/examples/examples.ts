@@ -2,8 +2,7 @@
  * Runnable examples for the baseh JavaScript/TypeScript package.
  * Run from js/:  ./node_modules/.bin/tsx examples/examples.ts
  */
-import { Baseh, BasehError, basehExpandableV1, basehMediumV1 } from "../src/index.js";
-import { toCode, fromCode } from "../src/index.js";
+import { Baseh, BasehError, basehExpandableV1, basehMediumV1, encode, decode } from "../src/index.js";
 
 function show(label: string, fn: () => unknown): void {
   try {
@@ -32,14 +31,13 @@ show("decode round trip", () => {
   return expandable.decode(code).id;
 });
 
-// 1. Zero configuration: the default Medium tier behind two functions.
+// 1. Zero configuration: the package-level encode/decode facade over the
+// default expandable v1 profile. decode returns the full DecodeResult.
 console.log("== zero config ==");
-show("toCode(123456789n)", () => toCode(123456789n));
-show('toCode("123456789")', () => toCode("123456789"));
-show('fromCode("C8XP-8J49")', () => fromCode("C8XP-8J49"));
-show('fromCode("c8xp 8j4 9")', () => fromCode("c8xp 8j4 9"));
-show('fromCode("C8XP-8J4X") (checksum typo)', () => fromCode("C8XP-8J4X"));
-show("toCode(481890304n) (out of range)", () => toCode(481890304n));
+show("encode(123456789n)", () => encode(123456789n));
+show("encode(123456789)", () => encode(123456789));
+show('decode("...") round trip', () => decode(encode(123456789n)).id);
+show("decode (bogus code)", () => decode("ZZZZ-ZZZZ"));
 
 // 2. A frozen preset: load baseh-medium-v1 and use the full codec.
 console.log("== preset ==");

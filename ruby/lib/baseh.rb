@@ -10,7 +10,6 @@ require_relative "baseh/checksum"
 require_relative "baseh/feistel"
 require_relative "baseh/profiles"
 require_relative "baseh/baseh"
-require_relative "baseh/zero"
 
 # baseH (Human Reference Code) codec. See spec/IMPLEMENTATION_CODEC.md in the
 # repository root for the normative specification.
@@ -80,6 +79,42 @@ module Baseh
     # baseh-expandable permuted with caller-supplied key material. key_bytes is required.
     def baseh_expandable_p_v1(key_bytes:, key_id: "default", rounds: 8)
       Profiles.baseh_expandable_p_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
+    end
+
+    # Zero-config facade over the frozen baseh-expandable-v1 profile, the
+    # recommended default for new namespaces. Most applications never need a
+    # profile object at all: these two methods share one lazily constructed,
+    # stateless codec instance (thread-safe once built, per Baseh::Baseh).
+    #
+    #   Baseh.encode(123456)        -> String canonical code
+    #   Baseh.decode(code).id       -> 123456
+    #
+    # decode returns the full DecodeResult (id, canonical_code, corrected),
+    # exactly as the instance API does.
+
+    # Encode an identifier with the default expandable profile.
+    #
+    # @param id [Integer] any non-negative id
+    # @return [String] canonical code
+    # @raise [BasehError] OUT_OF_RANGE, BLOCKED_CODE
+    def encode(id)
+      default.encode(id: id)
+    end
+
+    # Decode a code from the default expandable profile.
+    #
+    # @param input [String]
+    # @param options keyword options of Baseh::Baseh#decode (accept_spaces:,
+    #   try_correction:, confusion_profile:, max_corrections:)
+    # @return [Baseh::Baseh::DecodeResult]
+    # @raise [BasehError] same codes as the instance decode
+    def decode(input, **options)
+      default.decode(input, **options)
+    end
+
+    # The shared default-profile codec, built on first use.
+    def default
+      @default ||= Baseh.new(Profiles.baseh_expandable_v1)
     end
   end
 end
