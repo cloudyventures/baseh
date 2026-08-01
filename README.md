@@ -95,3 +95,9 @@ The codec, both frozen profiles and the vector suite are version 1. Releases
 are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module.
+
+## License
+
+AGPL-3.0 (see [`LICENSE`](LICENSE)). Free for any project whose own source
+is also released under the AGPL. Proprietary use, for example a closed SaaS
+product, requires a commercial license: see [`COMMERCIAL.md`](COMMERCIAL.md).

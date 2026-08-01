@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
                        "specification: fixed-length base-N bodies, rolling polynomial " \
                        "checksums, optional feistel-v1 permutation and spoken-confusion " \
                        "correction."
-  spec.license       = "MIT"
+  spec.license       = "AGPL-3.0"
   spec.required_ruby_version = ">= 3.0"
   spec.files         = Dir["lib/**/*.rb"] + ["README.md"]
   spec.require_paths = ["lib"]

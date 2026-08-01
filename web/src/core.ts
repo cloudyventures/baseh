@@ -220,12 +220,14 @@ export interface DesignerInput {
 
 interface AlphabetEntry {
   id: string;
+  alphabet: string;
   size: number;
   penalty: number;
 }
 
 export interface Candidate {
   alphabetId: string;
+  alphabet: string;
   alphabetSize: number;
   bodyLength: number;
   checksumLength: number;
@@ -248,17 +250,18 @@ function allowedAlphabets(input: DesignerInput): AlphabetEntry[] {
   const out: AlphabetEntry[] = [];
   const visual = input.visualSafety;
   if (visual === "heavy") {
-    return [{ id: "safe32", size: 32, penalty: 0 }];
+    return [{ id: "safe32", alphabet: SAFE_BODY, size: 32, penalty: 0 }];
   }
   if (input.allowAlnum) {
     const derived = deriveAlphabet("alnum", "", visual);
-    out.push({ id: visual === "none" ? "alnum36" : `alnum${derived.length}-${visual}`, size: derived.length, penalty: 0 });
+    out.push({ id: visual === "none" ? "alnum36" : `alnum${derived.length}-${visual}`, alphabet: derived, size: derived.length, penalty: 0 });
   }
   if (input.allowUpper) {
-    out.push({ id: visual === "none" ? "upper26" : `upper-${visual}`, size: deriveAlphabet("upper", "", visual).length, penalty: 10 });
+    const derived = deriveAlphabet("upper", "", visual);
+    out.push({ id: visual === "none" ? "upper26" : `upper-${visual}`, alphabet: derived, size: derived.length, penalty: 10 });
   }
   if (input.allowDigits) {
-    out.push({ id: "digits10", size: 10, penalty: 10 });
+    out.push({ id: "digits10", alphabet: DIGITS, size: 10, penalty: 10 });
   }
   return out;
 }
@@ -303,6 +306,7 @@ export function design(input: DesignerInput): DesignerResult {
         const score = displayed * 1000 + utilPenalty + alpha.penalty + checksumPenalty + correctionPenalty;
         candidates.push({
           alphabetId: alpha.id,
+          alphabet: alpha.alphabet,
           alphabetSize: alpha.size,
           bodyLength,
           checksumLength,
@@ -354,6 +358,38 @@ export function design(input: DesignerInput): DesignerResult {
   }
 
   return { feasible: withReasons, recommended, alternatives: alternatives.slice(0, 5), repair, requiredCapacity: required };
+}
+
+/** Rendered example codes for a candidate, using the published demo key. */
+export function sampleCodes(
+  alphabet: string,
+  bodyLength: number,
+  checksumLength: number,
+  capacity: bigint
+): Array<{ id: string; code: string }> {
+  const out: Array<{ id: string; code: string }> = [];
+  try {
+    const totalLen = bodyLength + checksumLength;
+    const profile: HrcProfile = {
+      profileId: "ui-preview",
+      bodyAlphabet: alphabet,
+      bodyLength,
+      checksumAlphabet: SAFE_CHECKSUM,
+      checksumLength,
+      caseSensitive: false,
+      separator: "-",
+      grouping: groupingFor(totalLen),
+      aliases: { O: "0", I: "1", L: "1" },
+      permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
+    };
+    const h = new Hrc(profile);
+    for (const id of new Set([0n, 1n, capacity - 1n])) {
+      if (id >= 0n && id < capacity) out.push({ id: id.toString(), code: h.encode(id) });
+    }
+  } catch {
+    // An unsamplable candidate simply shows no examples.
+  }
+  return out;
 }
 
 export function exportDesign(input: DesignerInput, result: DesignerResult): string {

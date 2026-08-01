@@ -34,7 +34,7 @@
         <input id="max-len" type="number" min="3" max="20" value="9" />
       </div>
       <div class="field">
-        <label for="min-check">Minimum checksum length</label>
+        <label for="min-check">Minimum checksum length<span class="tip" tabindex="0" aria-label="Minimum checksum length details"><span class="i">i</span><span class="tip-body">Rejects every candidate with fewer checksum symbols than this. 0 allows unvalidated codes, where a typo silently matches the wrong record or fails with no explanation. 1 matches assisted-support workflows: about 98.8% of single-symbol substitutions are caught and a human handles the rest (the hrc32-v1 posture). 2 forces self-service strength: provable detection of every single substitution and every adjacent transposition (the hrc32s-v1 posture). 3 exists for very noisy channels.</span></span></label>
         <select id="min-check">
           <option value="0">0</option>
           <option value="1" selected>1</option>
@@ -43,7 +43,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="max-util">Maximum utilization</label>
+        <label for="max-util">Maximum utilization<span class="tip" tabindex="0" aria-label="Maximum utilization details"><span class="i">i</span><span class="tip-body">Hides any candidate whose required capacity exceeds this fraction of its total capacity. Lower values reserve more growth headroom: at 50% you can double demand before you must re-issue a longer code and migrate references. Fuller codes are shorter today but risk exhausting the namespace at exactly the moment the product is succeeding.</span></span></label>
         <select id="max-util">
           <option value="0.5" selected>50%</option>
           <option value="0.7">70%</option>
@@ -52,7 +52,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="d-visual">Visual safety</label>
+        <label for="d-visual">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Applied to every alphabet the solver considers: look-alike symbols are excluded so printed codes are harder to misread. None keeps all symbols. Light drops O, I and L (covered by 0 and 1). Medium also drops B and S. Heavy restricts every candidate to the reviewed 32-symbol alphabet, which also drops U. Higher safety shrinks the alphabet, so a candidate may need a longer body to reach your required capacity.</span></span></label>
         <select id="d-visual">
           <option value="none">None</option>
           <option value="light" selected>Light</option>
@@ -61,7 +61,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="d-spoken">Spoken safety</label>
+        <label for="d-spoken">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">Sets the sound-alike correction map recorded with each recommendation: which substitutions the decoder may try when a code fails validation. None attempts no corrections. Light tries B/D and P/T. Medium adds M/N and V/W. Heavy adds F/S and C/G. This does not change capacity, but heavier maps raise ambiguity risk at decode time, and the solver scores larger maps worse so recommendations stay conservative.</span></span></label>
         <select id="d-spoken">
           <option value="none">None</option>
           <option value="light" selected>Light</option>
@@ -85,7 +85,7 @@
       <div id="alternatives"></div>
     </section>
 
-    <section aria-labelledby="compare">
+    <section aria-labelledby="compare" class="wide">
       <h2 id="compare">Comparison</h2>
       <table id="candidates">
         <thead>

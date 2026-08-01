@@ -15,7 +15,7 @@
     <section aria-labelledby="cfg">
       <h2 id="cfg">Configuration</h2>
       <div class="field">
-        <label for="preset">Preset</label>
+        <label for="preset">Preset<span class="tip" tabindex="0" aria-label="Preset details"><span class="i">i</span><span class="tip-body">Loads a documented configuration. Compact numeric: digits only, 6 body symbols, 1,000,000 codes. Safe alphanumeric: the reviewed 32-symbol alphabet, 6 body symbols, 1,073,741,824 codes (the frozen hrc32-v1 shape). Short support: same alphabet with a 5-symbol body, 33,554,432 codes. High validation: 6 body symbols plus 2 checksum symbols. Choose Custom to keep whatever you have set by hand.</span></span></label>
         <select id="preset">
           <option value="">Custom</option>
           <option value="compact-numeric">Compact numeric (10^6)</option>
@@ -29,7 +29,7 @@
         <input id="namespace" type="text" placeholder="support tickets" />
       </div>
       <div class="field">
-        <label for="alphabet-mode">Base alphabet</label>
+        <label for="alphabet-mode">Base alphabet<span class="tip" tabindex="0" aria-label="Base alphabet details"><span class="i">i</span><span class="tip-body">The pool of symbols the encoder draws body characters from. Digits only: 0-9, 10 symbols, needs the longest codes for a given capacity. Uppercase letters: 26 symbols. Alphanumeric: digits plus uppercase, up to 36 symbols before safety exclusions. Custom: type your own ASCII symbol list. Visual safety exclusions are applied on top of whichever mode you pick, and the exact resulting alphabet is always shown in the live preview.</span></span></label>
         <select id="alphabet-mode">
           <option value="digits">Digits only</option>
           <option value="upper">Uppercase letters only</option>
@@ -42,7 +42,7 @@
         <input id="custom-alphabet" type="text" spellcheck="false" />
       </div>
       <div class="field">
-        <label for="visual-safety">Visual safety</label>
+        <label for="visual-safety">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Removes look-alike symbols from the generated alphabet so printed or on-screen codes are harder to misread. None: keep everything. Light: drop O, I and L when digits are present, since 0 and 1 already cover them. Medium: also drop B and S, which blur into 8 and 5 in many fonts. Heavy: the fully reviewed 32-symbol alphabet, which also drops U. Smaller alphabets need a longer body for the same capacity; the trade-off is shown live on the right.</span></span></label>
         <select id="visual-safety">
           <option value="none">None</option>
           <option value="light" selected>Light (drop O, I, L)</option>
@@ -51,7 +51,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="spoken-safety">Spoken safety</label>
+        <label for="spoken-safety">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">Sets which sound-alike substitutions the decoder may try when a code fails validation, for codes read out over the phone. None: no correction attempts. Light: B/D and P/T. Medium: adds M/N and V/W. Heavy: adds F/S and C/G. Larger maps rescue more misheard codes but raise the chance that two different codes both validate; when that happens the decoder refuses with AMBIGUOUS_INPUT rather than guessing.</span></span></label>
         <select id="spoken-safety">
           <option value="none">None</option>
           <option value="light" selected>Light</option>
@@ -64,7 +64,7 @@
         <input id="body-length" type="range" min="1" max="10" value="6" />
       </div>
       <div class="field">
-        <label for="checksum-length">Checksum length</label>
+        <label for="checksum-length">Checksum length<span class="tip" tabindex="0" aria-label="Checksum length details"><span class="i">i</span><span class="tip-body">Appended validation symbols; they detect typos but add no identifier capacity. 0: typed errors are never detected and silently hit wrong records. 1: catches all but about 1 in 26 random mistakes and about 98.8% of single-symbol substitutions; suited to assisted support, where a human resolves the misses. 2: modulus 676 checksum, provably catches every single-symbol substitution and every adjacent transposition; the right choice for unattended self-service. 3: stronger still against random corruption.</span></span></label>
         <select id="checksum-length">
           <option value="0">0 (no detection)</option>
           <option value="1" selected>1 (assisted support)</option>

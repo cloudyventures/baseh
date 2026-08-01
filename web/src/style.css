@@ -51,6 +51,23 @@ th { color: var(--muted); font-weight: 600; }
 td code, .card code { letter-spacing: 0.06em; }
 #problems p, #repair p { color: var(--err); font-size: 0.9rem; background: #fdeeee; padding: 0.5rem; border-radius: 4px; }
 .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tip { position: relative; display: inline-block; margin-left: 0.35rem; vertical-align: middle; }
+.tip .i {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 0.95rem; height: 0.95rem; border: 1px solid var(--muted); border-radius: 50%;
+  font-size: 0.65rem; font-style: italic; color: var(--muted); cursor: help;
+}
+.tip-body {
+  display: none; position: absolute; left: 0; top: 1.35rem; z-index: 10;
+  width: 22rem; max-width: 80vw; background: var(--card); border: 1px solid var(--line);
+  border-radius: 4px; padding: 0.6rem; font-size: 0.82rem; font-weight: normal;
+  line-height: 1.4; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.tip:hover .tip-body, .tip:focus-within .tip-body { display: block; }
+section.wide { grid-column: 1 / -1; }
+#candidates { table-layout: auto; }
+#candidates th:nth-child(-n+5), #candidates td:nth-child(-n+5) { white-space: nowrap; width: 1%; }
+#candidates th:nth-child(6), #candidates td:nth-child(6) { width: auto; }
 button {
   font: inherit; padding: 0.45rem 0.9rem; border: 1px solid var(--line); background: var(--card);
   border-radius: 4px; cursor: pointer;
@@ -58,6 +75,8 @@ button {
 button:hover { border-color: var(--accent); }
 .alt-card { margin-bottom: 0.6rem; }
 .alt-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.samples { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+.samples code { color: var(--ink); }
 @media (max-width: 900px) {
   .cols { grid-template-columns: 1fr; }
 }

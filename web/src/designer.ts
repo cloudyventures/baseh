@@ -1,4 +1,4 @@
-import { design, exportDesign, type DesignerInput, type SafetyLevel, type Candidate } from "./core.js";
+import { design, exportDesign, sampleCodes, type DesignerInput, type SafetyLevel, type Candidate } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -48,12 +48,16 @@ function readInput(): DesignerInput | null {
 }
 
 function card(c: Candidate, label?: string): string {
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity)
+    .map((s) => `${fmt(BigInt(s.id))}: <code>${s.code}</code>`)
+    .join(" &middot; ");
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
     <div>Capacity: <strong>${fmt(c.capacity)}</strong></div>
     <div>Utilization: ${(c.utilization * 100).toFixed(1)}% &middot; Displayed: ${c.displayedLength} chars</div>
     <div>Alphabet: ${c.alphabetId} (${c.alphabetSize} symbols)</div>
+    ${samples ? `<div class="samples">${samples}</div>` : ""}
   </div>`;
 }
 
