@@ -12,7 +12,7 @@ export function renderTryList(container: HTMLElement, items: TryItem[], apply: (
   lead.textContent = "Try: ";
   container.appendChild(lead);
   items.forEach((item, i) => {
-    if (i > 0) container.appendChild(document.createTextNode(" \u00b7 "));
+    if (i > 0) container.appendChild(document.createTextNode("; "));
     if (item.code !== undefined) {
       const b = document.createElement("button");
       b.type = "button";

@@ -7,6 +7,8 @@
    against the frozen vectors. Any disagreement stops the release.
 3. On green, it publishes to npm, PyPI, crates.io and RubyGems and creates
    the `go/vX.Y.Z` tag for the Go module.
+4. Once every publish and the Go tag succeed, it creates a GitHub Release
+   on the tag with auto-generated release notes.
 
 Publishing uses **OIDC trusted publishing**. There are no registry API
 tokens, no GitHub secrets and nothing to rotate. GitHub vouches for the

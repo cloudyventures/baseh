@@ -57,7 +57,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="d-visual">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Applied to every alphabet the solver considers: look-alike symbols are excluded so printed codes are harder to misread. None keeps all symbols. Light drops O, I and L (covered by 0 and 1). Medium also drops B and S. Heavy restricts every candidate to the reviewed 32-symbol alphabet, which also drops U. Codes typed with a stripped letter still decode: B is read as 8, S as 5 and U as V, always, so there is never a wrong choice. Higher safety shrinks the alphabet, so a candidate may need a longer body to reach your required capacity.</span></span></label>
+        <label for="d-visual">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Applied to every alphabet the solver considers: look-alike symbols are excluded so printed codes are harder to misread. None keeps all symbols. Light drops O, I and L (covered by 0 and 1). Medium also drops B and S. Heavy is not cumulative: every candidate switches outright to the reviewed 32-symbol alphabet, which keeps B and S but drops U. A typed letter that was stripped still decodes without ambiguity: O, I and L read as 0, 1 and 1, B and S as 8 and 5, and U as V, so there is never a wrong choice. Higher safety shrinks the alphabet, so a candidate may need a longer body to reach your required capacity.</span></span></label>
         <select id="d-visual">
           <option value="none">None</option>
           <option value="light" selected>Light (drop O, I, L)</option>

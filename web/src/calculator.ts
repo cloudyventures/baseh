@@ -109,7 +109,7 @@ function render() {
   {
     const beforeVisual = deriveAlphabet(input.alphabetMode, input.customAlphabet, "none", "none", input.profanity);
     const afterVisual = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, "none", input.profanity);
-    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual);
+    els.visualDrops.textContent = input.visualSafety === "none" ? "" : visualDropsExplainer(beforeVisual, afterVisual, input.visualSafety);
     els.spokenDrops.textContent = spokenDropsExplainer(afterVisual, input.spokenSafety);
   }
   const r = calculate(input);
@@ -175,9 +175,11 @@ function render() {
   } else {
     try {
       els.convIdOut.innerHTML = "";
+      const lab = document.createElement("span");
+      lab.textContent = "Code: ";
       const out = document.createElement("code");
       out.textContent = h.encode(BigInt(idRaw));
-      els.convIdOut.appendChild(out);
+      els.convIdOut.append(lab, out);
     } catch (e) {
       els.convIdOut.textContent = friendlyError(e);
     }
@@ -189,7 +191,19 @@ function render() {
     els.convCodeOut.textContent = "the configuration is invalid, fix it to convert";
   } else {
     try {
-      els.convCodeOut.textContent = `identifier ${h.decode(codeRaw).id}`;
+      const result = h.decode(codeRaw, { tryCorrection: true, confusionProfile: "heavy" });
+      els.convCodeOut.innerHTML = "";
+      const lab = document.createElement("span");
+      lab.textContent = "Identifier: ";
+      const val = document.createElement("code");
+      val.textContent = String(result.id);
+      if (result.corrected) {
+        const canonical = document.createElement("code");
+        canonical.textContent = result.canonicalCode;
+        els.convCodeOut.append(lab, val, " - corrected to ", canonical);
+      } else {
+        els.convCodeOut.append(lab, val);
+      }
     } catch (e) {
       els.convCodeOut.textContent = friendlyError(e);
     }
@@ -199,7 +213,7 @@ function render() {
   // current configuration; the sample is the largest deterministic example,
   // so every chip lands on a real issued code.
   const sample = [...r.examples].reverse().find((e) => !e.blocked && e.code)?.code ?? null;
-  renderTryList(els.convTry, previewProfile ? trySuggestions(previewProfile, sample) : [], (code) => {
+  renderTryList(els.convTry, previewProfile ? trySuggestions(previewProfile, sample, h ?? undefined) : [], (code) => {
     els.convCode.value = code;
     els.convCode.dispatchEvent(new Event("input", { bubbles: true }));
   });

@@ -160,9 +160,26 @@ export function spokenAliases(bodyAlphabet: string, spoken: SafetyLevel): Record
  * One-line explanation of what a visual safety level removes, comparing the
  * alphabet before and after the drops. Removed symbols that survive as
  * typed aliases are shown with what they read as; removed symbols with no
- * surviving twin are listed plain.
+ * surviving twin are listed plain. Heavy is special: it replaces the
+ * alphabet with the reviewed 32-symbol set rather than adding drops, so
+ * B and S (dropped at medium) come back and the line says so.
  */
-export function visualDropsExplainer(before: string, after: string): string {
+export function visualDropsExplainer(before: string, after: string, level: SafetyLevel): string {
+  if (level === "heavy") {
+    const removed = [...before].filter((c) => !after.includes(c));
+    const aliases = baseAliases(after);
+    const drops = removed.map((c) => (aliases[c] ? `${c} (read as ${aliases[c]})` : c)).join(", ");
+    const added = [...after].filter((c) => !before.includes(c));
+    const grows = added.length > 0
+      ? ` ${/[0-9]/.test(added.join(""))
+          ? /[A-Z]/.test(added.join(""))
+            ? "Digits and letters are added to reach it."
+            : "Digits are added to reach it."
+          : "Letters are added to reach it."}`
+      : "";
+    const dropPart = drops ? `removes ${drops}; ` : "";
+    return `Restricts to the reviewed 32-symbol alphabet, its own alphabet rather than a further drop from medium: ${dropPart}B, S and W remain in the alphabet.${grows}`;
+  }
   const removed = [...before].filter((c) => !after.includes(c));
   if (removed.length === 0) return "No visual drops apply with the current alphabet.";
   const aliases = baseAliases(after);
@@ -181,51 +198,79 @@ export function spokenDropsExplainer(preSpoken: string, spoken: SafetyLevel): st
 }
 
 export interface TryItem {
-  /** What to try, in words ("substitute Ts for Ps"). */
+  /** What to try, in words ("change case"). */
   label: string;
   /** The sample code mutated accordingly; absent for prose-only items. */
   code?: string;
 }
 
 /**
- * Suggestions for poking at a Code converter under the current profile:
- * every alias substitution a tired typist or a phone caller can produce,
- * the formatting laxities the decoder accepts (case, stray spaces, a
- * missing delimiter, leading zero body symbols) and one guaranteed
- * checksum failure, each labelled with the direction a human would make
- * the mistake. When a sample code is supplied, items carry it mutated and
- * ready to paste.
+ * Suggestions for poking at a Code converter under the current profile.
+ * The first item summarises every alias substitution the configuration
+ * admits ("substitutions: O for 0, I for 1") and the rest are single
+ * clicks: case change, delimiter removal or insertion, a stray space,
+ * a stripped leading zero, a guaranteed checksum failure and, when the
+ * alphabet keeps both partners of a sound-alike pair, a mistyped
+ * character the decoder amends. Correction chips are verified against
+ * the codec at build time, so each one genuinely demonstrates an amended
+ * code when a codec is supplied.
  */
-export function trySuggestions(profile: BasehProfile, sample: string | null): TryItem[] {
+export function trySuggestions(profile: BasehProfile, sample: string | null, codec?: Baseh): TryItem[] {
   const items: TryItem[] = [];
-  for (const [src, tgt] of Object.entries(profile.aliases ?? {})) {
-    if (sample && sample.includes(tgt)) {
-      items.push({ label: `substitute ${src}s for ${tgt}s`, code: sample.replace(tgt, src) });
-    } else {
-      // Vowel-sounding symbol names read with "an", the rest with "a".
-      const article = "AEFHILMNORSX8".includes(tgt) ? "an" : "a";
-      items.push({ label: `substitute ${src}s for ${tgt}s (when ${article} ${tgt} appears in the code)` });
-    }
+  const aliases = Object.entries(profile.aliases ?? {});
+  if (aliases.length > 0) {
+    items.push({ label: `substitutions: ${aliases.map(([src, tgt]) => `${src} for ${tgt}`).join(", ")}` });
   }
   if (!sample) return items;
-  items.push({ label: "use lowercase", code: sample.toLowerCase() });
-  if (profile.separator && sample.includes(profile.separator)) {
-    items.push({ label: `drop the "${profile.separator}"`, code: sample.replaceAll(profile.separator, "") });
+  items.push({ label: "change case", code: sample.toLowerCase() });
+  if (profile.separator) {
+    if (sample.includes(profile.separator)) {
+      items.push({ label: "remove the delimiters", code: sample.replaceAll(profile.separator, "") });
+      items.push({ label: "add a delimiter", code: sample.slice(0, 2) + profile.separator + sample.slice(2) });
+    } else {
+      const cut = Math.max(1, Math.floor(sample.length / 2));
+      items.push({ label: "add a delimiter", code: sample.slice(0, cut) + profile.separator + sample.slice(cut) });
+    }
   }
-  const cut = Math.max(1, Math.floor(sample.length / 2));
-  items.push({ label: "add a stray space", code: `${sample.slice(0, cut)} ${sample.slice(cut)}` });
+  {
+    const cut = Math.max(1, Math.floor(sample.length / 2));
+    items.push({ label: "add spaces", code: `${sample.slice(0, cut)} ${sample.slice(cut)}` });
+  }
   const zero = profile.bodyAlphabet[0]!;
   if (sample.startsWith(zero)) {
     const stripped = sample.replace(new RegExp(`^${zero}+`), "");
     if (stripped.length >= Math.max(profile.checksumLength, 1)) {
-      items.push({ label: `strip the leading ${zero} body symbols`, code: stripped });
+      items.push({ label: "strip the leading zero symbols", code: stripped });
     }
   }
   if (profile.checksumLength > 0) {
+    if (codec) {
+      // Sound-alike pairs keep both members canonical exactly when the
+      // alphabet still contains the dropped partner, so mistyping one as
+      // the other fails the checksum and the decoder must amend it.
+      const pairs = [...SPOKEN_PAIRS.light, ...SPOKEN_PAIRS.medium, ...SPOKEN_PAIRS.heavy];
+      for (const [keep, drop] of pairs) {
+        if (!profile.bodyAlphabet.includes(keep) || !profile.bodyAlphabet.includes(drop)) continue;
+        for (const [from, to] of [[keep, drop], [drop, keep]] as Array<[string, string]>) {
+          const idx = sample.indexOf(from);
+          if (idx < 0) continue;
+          const mutated = sample.slice(0, idx) + to + sample.slice(idx + 1);
+          try {
+            const decoded = codec.decode(mutated, { tryCorrection: true, confusionProfile: "heavy" });
+            if (decoded.corrected) {
+              items.push({ label: `mistype ${from} as ${to} (the decoder corrects it)`, code: mutated });
+              break;
+            }
+          } catch {
+            // Ambiguous or rejected: not a clean demonstration, skip it.
+          }
+        }
+      }
+    }
     const last = sample[sample.length - 1];
     const replacement = [...profile.checksumAlphabet].find((c) => c !== last);
     if (replacement) {
-      items.push({ label: "change the last symbol (breaks the checksum)", code: sample.slice(0, -1) + replacement });
+      items.push({ label: "change the last character (breaks the checksum)", code: sample.slice(0, -1) + replacement });
     }
   } else {
     items.push({ label: "no checksum here: a typo silently decodes to a different identifier" });

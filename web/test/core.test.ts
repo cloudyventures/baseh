@@ -297,19 +297,22 @@ describe("safety explainer lines", async () => {
   it("visual medium names every dropped symbol and its typed alias", () => {
     const before = deriveAlphabet("alnum", "", "none", "none");
     const after = deriveAlphabet("alnum", "", "medium", "none");
-    assert.equal(visualDropsExplainer(before, after),
+    assert.equal(visualDropsExplainer(before, after, "medium"),
       "Removes from the alphabet: B (read as 8), I (read as 1), L (read as 1), O (read as 0), S (read as 5).");
   });
-  it("visual heavy lists U with its V alias", () => {
+  it("visual heavy describes the restriction and notes B, S and W remain", () => {
     const before = deriveAlphabet("alnum", "", "none", "none");
     const after = deriveAlphabet("alnum", "", "heavy", "none");
-    assert.equal(visualDropsExplainer(before, after),
-      "Removes from the alphabet: I (read as 1), L (read as 1), O (read as 0), U (read as V).");
+    const text = visualDropsExplainer(before, after, "heavy");
+    assert.ok(text.startsWith("Restricts to the reviewed 32-symbol alphabet"));
+    for (const frag of ["I (read as 1)", "L (read as 1)", "O (read as 0)", "U (read as V)", "B, S and W remain"]) {
+      assert.ok(text.includes(frag), `missing ${frag}`);
+    }
   });
-  it("visual light on a digits-free alphabet reports nothing to drop", () => {
+  it("visual light on a digits alphabet reports nothing to drop", () => {
     const before = deriveAlphabet("digits", "", "none", "none");
     const after = deriveAlphabet("digits", "", "medium", "none");
-    assert.equal(visualDropsExplainer(before, after), "No visual drops apply with the current alphabet.");
+    assert.equal(visualDropsExplainer(before, after, "medium"), "No visual drops apply with the current alphabet.");
   });
   it("spoken medium names D, T, N and W", () => {
     const pre = deriveAlphabet("alnum", "", "medium", "none");
@@ -330,49 +333,70 @@ describe("trySuggestions", async () => {
     return calculatorProfile(calcInput({ visualSafety: "medium", spokenSafety: "medium", checksumLength: 2 }))!;
   }
 
-  it("offers every alias substitution the configuration admits", () => {
+  it("opens with a substitutions summary of every admitted alias", () => {
     const items = trySuggestions(mediumProfile(), "C8XP-8J49");
-    const labels = items.map((i) => i.label);
-    for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"], ["B", "8"], ["S", "5"], ["T", "P"], ["N", "M"], ["W", "V"]]) {
-      assert.ok(labels.some((l) => l.startsWith(`substitute ${src}s for ${tgt}s`)), `missing ${src} for ${tgt}`);
+    assert.ok(items[0]!.label.startsWith("substitutions: "));
+    for (const frag of ["O for 0", "I for 1", "L for 1", "B for 8", "S for 5", "T for P", "N for M", "W for V"]) {
+      assert.ok(items[0]!.label.includes(frag), `missing ${frag}`);
     }
+    assert.equal(items[0]!.code, undefined);
   });
-  it("substitution chips decode to the original identifier", () => {
-    const profile = mediumProfile();
-    const h = new Baseh(profile);
-    const code = h.encode(481890303n);
-    const items = trySuggestions(profile, code);
-    for (const item of items.filter((i) => i.code && i.label.startsWith("substitute"))) {
-      assert.equal(h.decode((item.code as string).replace(/\s+/g, "")).id, 481890303n, item.code);
-    }
-  });
-  it("includes lowercase, delimiter drop, stray space and a checksum break", () => {
+  it("offers case, delimiter, space and checksum probes of the compact shape", () => {
     const profile = mediumProfile();
     const h = new Baseh(profile);
     const code = h.encode(123456789n);
     const items = trySuggestions(profile, code);
     const labels = items.map((i) => i.label);
-    assert.ok(labels.includes("use lowercase"));
-    assert.ok(labels.includes('drop the "-"'));
-    assert.ok(labels.includes("add a stray space"));
-    assert.ok(labels.includes("change the last symbol (breaks the checksum)"));
-    const broken = items.find((i) => i.label.startsWith("change the last"))!.code!;
+    assert.ok(labels.includes("change case"));
+    assert.ok(labels.includes("remove the delimiters"));
+    assert.ok(labels.includes("add a delimiter"));
+    assert.ok(labels.includes("add spaces"));
+    assert.ok(labels.includes("change the last character (breaks the checksum)"));
+    assert.ok(!labels.some((l) => l.startsWith("mistype")), "no correction demo on alias-absorbing profiles");
+  });
+  it("category chips decode or fail as labelled", () => {
+    const profile = mediumProfile();
+    const h = new Baseh(profile);
+    const code = h.encode(123456789n);
+    const items = trySuggestions(profile, code);
+    for (const label of ["change case", "remove the delimiters", "add a delimiter", "add spaces"]) {
+      const c = items.find((i) => i.label === label)!.code!;
+      assert.equal(h.decode(c.replace(/\s+/g, "")).id, 123456789n, label);
+    }
+    const broken = items.find((i) => i.label.startsWith("change the last character"))!.code!;
     assert.throws(() => h.decode(broken), (e: unknown) => {
       const be = e as { code?: string };
       return e instanceof Error && be.code === "INVALID_CHECKSUM";
     });
-    const lowered = items.find((i) => i.label === "use lowercase")!.code!;
-    assert.equal(h.decode(lowered).id, 123456789n);
-    const unhyphenated = items.find((i) => i.label.startsWith("drop the"))!.code!;
-    assert.equal(h.decode(unhyphenated).id, 123456789n);
+  });
+  it("a profile keeping both partners of a sound-alike pair gets verified correction demos", () => {
+    const profile = calculatorProfile(calcInput({ visualSafety: "none", spokenSafety: "none", checksumLength: 2 }))!;
+    const h = new Baseh(profile);
+    // 123456791 encodes to 21I3-VBRJ, whose body holds two letters whose
+    // sound-alike partner is dropped: V (from the V, W pair) and B (from B, D).
+    const code = h.encode(123456791n);
+    const items = trySuggestions(profile, code, h);
+    const demos = items.filter((i) => i.label.startsWith("mistype"));
+    assert.ok(demos.length >= 2, "expected several correction demos");
+    for (const demo of demos) {
+      const decoded = h.decode(demo.code!, { tryCorrection: true, confusionProfile: "heavy" });
+      assert.equal(decoded.corrected, true, demo.code);
+      assert.equal(decoded.id, 123456791n);
+      assert.equal(decoded.canonicalCode, code);
+    }
+  });
+  it("with codec omitted the correction demos are simply not offered", () => {
+    const profile = calculatorProfile(calcInput({ visualSafety: "none", spokenSafety: "none", checksumLength: 2 }))!;
+    const items = trySuggestions(profile, "ABCDEFGH");
+    assert.ok(!items.some((i) => i.label.startsWith("mistype")));
   });
   it("a zero-checksum profile warns that typos silently decode", () => {
     const items = trySuggestions(calculatorProfile(calcInput({ checksumLength: 0 }))!, "ABCDEF");
     assert.ok(items.some((i) => i.label.includes("silently decodes") && !i.code));
-    assert.ok(!items.some((i) => i.label.startsWith("change the last symbol")));
+    assert.ok(!items.some((i) => i.label.startsWith("change the last character")));
   });
-  it("without a sample the substitutions degrade to prose", () => {
+  it("without a sample only the substitutions summary remains", () => {
     const items = trySuggestions(mediumProfile(), null);
-    assert.ok(items.length > 0 && items.every((i) => !i.code));
+    assert.deepEqual(items.map((i) => i.label.startsWith("substitutions: ")), [true]);
   });
 });
