@@ -1,6 +1,6 @@
 {
   "name": "@cloudyventures/baseh",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "baseH: reversible, checksummed, human-safe short references for integers.",
   "repository": "github:cloudyventures/baseh",
   "type": "module",
