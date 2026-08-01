@@ -1,9 +1,10 @@
 # @cloudyventures/baseh
 
 TypeScript implementation of the baseH (Human Reference Code) codec. Encodes
-integer IDs as fixed-length, checksummed, human-friendly reference codes with
-a feistel-v1 permutation on every tier and profanity safety. The normative
-spec is `spec/IMPLEMENTATION_CODEC.md` in the
+integer IDs as checksummed, human-friendly reference codes — short codes that
+grow automatically in expandable mode (recommended), or fixed-length codes on
+the classic tiers — with a feistel-v1 permutation on every tier and profanity
+safety. The normative spec is `spec/IMPLEMENTATION_CODEC.md` in the
 [monorepo](https://github.com/cloudyventures/baseh).
 
 ## Install
@@ -14,12 +15,77 @@ npm install @cloudyventures/baseh
 
 Zero runtime dependencies. Requires Node 18 or later (native `BigInt`).
 
-## Frozen tiers
+## Expandable mode (recommended)
 
-Four frozen tiers ship with the package, built from the full alphanumeric set
-with cumulative visual and spoken strips. All four encode 6 body symbols,
-are case-insensitive, hyphen-delimit at the midpoint, run the default
-profanity blocklist and permute with the published frozen key.
+Every profile carries a `mode` field: `"expandable"` or `"fixed"`. Expandable
+is the recommended default for new users: codes start short (minimum 4
+characters, profile field `minLength`) and grow automatically as the ID
+sequence climbs past each length's capacity — transparently, with no
+migration and no re-issue. Shorter codes already issued keep decoding
+forever; the code's length selects the generation on decode.
+
+The recommended starting tier is `baseh-expandable-v1`:
+
+```typescript
+import { Baseh, basehExpandableV1 } from "@cloudyventures/baseh";
+
+const codec = new Baseh(basehExpandableV1());
+
+const code = codec.encode(123456n); // short code; grows as ids climb
+
+const result = codec.decode(code);
+result.id;                          // 123456n
+```
+
+Expandable mode differs from the fixed tiers as follows:
+
+- The body alphabet never contains `0` or `O`; the default body alphabet is
+  the 34 remaining alphanumeric symbols. A custom alphabet that includes
+  `0`/`O` has those symbols silently removed during profile preparation.
+- The checksum alphabet is the body alphabet plus `0` (35 symbols by
+  default). The `O -> 0` input alias remains, so a misread `O` in a checksum
+  position resolves to `0`; a `0` or `O` in a body position is simply an
+  invalid character.
+- There is no left-padding; codes use exactly the length of the current
+  generation.
+- The Feistel permutation stays on, applied per generation with the code
+  length mixed into the key derivation alongside the profile id. Codes within
+  each length look random even though issuance is a sequential counter.
+  Presentation only, not encryption — same caveat as the fixed tiers.
+- Separators only appear once codes reach `separatorMinLength` characters
+  (6 in the shipped tier). Below that threshold there is no separator and no
+  grouping.
+- All other profile options — visual/spoken safety levels, profanity modes,
+  blocklists — compose with expandable unchanged.
+
+A keyed private-mapping variant `baseh-expandable-p-v1` mirrors the `-p`
+fixed tiers:
+
+```typescript
+import { basehExpandablePV1 } from "@cloudyventures/baseh";
+
+const codec = new Baseh(
+  basehExpandablePV1({ keyBytes, keyId: "prod-01" })
+);
+```
+
+Security posture is unchanged: a code is a reference alias, never an
+authorization token. The smallest expandable generations are a small
+namespace, so rate-limit public lookups and enforce authorization after
+decode.
+
+> Note: expandable mode is documented ahead of its implementation release.
+> The `basehExpandableV1` helper lands in the next published version; the
+> fixed tiers below work today.
+
+## Frozen tiers (fixed mode)
+
+The classic frozen tiers are all `mode: "fixed"`: constant-width codes for
+when you need a stable printed length. Four frozen tiers ship with the
+package, built from the full alphanumeric set with cumulative visual and
+spoken strips. All four encode 6 body symbols, are case-insensitive,
+hyphen-delimit at the midpoint, run the default profanity blocklist and
+permute with the published frozen key.
 
 | Tier | Helper | Body symbols | Checksum | Format | Capacity |
 | ---- | ------ | ------------ | -------- | ------ | -------- |
@@ -28,24 +94,24 @@ profanity blocklist and permute with the published frozen key.
 | Medium | `basehMediumV1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 |
 | Heavy | `basehHeavyV1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 |
 
-Medium is the default. The frozen key is public by design: it hides sequence,
-not records. See the spec, section 7.5.
+Medium is the default fixed tier. The frozen key is public by design: it
+hides sequence, not records. See the spec, section 7.5.
 
 ## Usage
 
 ```typescript
-import { Baseh, basehMediumV1 } from "@cloudyventures/baseh";
+import { Baseh, basehExpandableV1 } from "@cloudyventures/baseh";
 
-const codec = new Baseh(basehMediumV1());
+const codec = new Baseh(basehExpandableV1());
 
-const code = codec.encode(123456n);        // fixed-width hyphenated code
+const code = codec.encode(123456n);        // short code; grows as ids climb
 
 const result = codec.decode(code);
 result.id;                                 // 123456n
 result.canonicalCode;                      // canonical form
 result.corrected;                          // true when input needed correction
 
-codec.capacity;                            // 481890304n
+codec.capacity;                            // capacity of the current generation
 
 const check = codec.validate("00000000");
 check.valid;                               // false
@@ -53,6 +119,15 @@ check.reason;                              // "INVALID_CHECKSUM"
 
 // Spoken-confusion correction
 codec.decode("TB14QDFU", { tryCorrection: true, confusionProfile: "light" });
+```
+
+Fixed mode works the same way, through a fixed tier helper:
+
+```typescript
+import { basehMediumV1 } from "@cloudyventures/baseh";
+
+const fixed = new Baseh(basehMediumV1());
+const code = fixed.encode(123456n);        // fixed-width hyphenated code
 ```
 
 IDs are `bigint`, so every capacity and ID operation is exact at any size.

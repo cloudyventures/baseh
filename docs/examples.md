@@ -6,6 +6,12 @@ Three usage patterns for each implementation:
 2. **Frozen preset**: load `baseh-medium-v1` and use the full codec.
 3. **Customized**: load a preset, modify it and build a codec from the result.
 
+Each language section also leads with the new **expandable** mode
+(`baseh-expandable-v1`): codes start at 4 characters and grow automatically
+as the id sequence climbs. Expandable mode is documented ahead of its
+implementation release — it ships in the next release and is shown here as
+the new default — so no concrete encoded outputs are printed for it yet.
+
 Every implementation produces identical codes for identical inputs (enforced
 by the shared test vectors in `vectors/`). Error codes are identical too;
 only message casing differs between languages.
@@ -25,6 +31,30 @@ also a runnable file that prints exactly the output shown:
 
 ```bash
 npm install @cloudyventures/baseh
+```
+
+### Expandable mode (shipping in the next release)
+
+```typescript
+import { Baseh, basehExpandableV1 } from "@cloudyventures/baseh";
+
+// Codes start at 4 characters and grow automatically as ids climb past
+// each length's capacity. No `0`/`O` in the body, no left-padding, and no
+// separator until codes reach 6 characters. Shorter codes already issued
+// keep decoding forever.
+const expandable = new Baseh(basehExpandableV1());
+
+expandable.encode(123456789n);  // 4 characters at this namespace size; grows as ids climb
+expandable.decode(expandable.encode(42n)).id;  // 42n (round trip)
+
+// Customized expandable: `minLength` sets the starting length and
+// `separatorMinLength` sets when hyphen grouping kicks in.
+const growable = basehExpandableV1();
+growable.profileId = "invoices-v1";
+growable.minLength = 5;
+growable.separatorMinLength = 8;
+const invoices = new Baseh(growable);
+invoices.encode(42n);  // starts at 5 characters, no separator until 8+
 ```
 
 ### Zero configuration
@@ -102,6 +132,30 @@ working demonstration of this case.
 pip install baseh
 ```
 
+### Expandable mode (shipping in the next release)
+
+```python
+from baseh import Baseh, baseh_expandable_v1
+
+# Codes start at 4 characters and grow automatically as ids climb;
+# shorter codes keep decoding forever.
+expandable = Baseh(baseh_expandable_v1())
+
+expandable.encode(123456789)  # 4 characters at this namespace size; grows as ids climb
+expandable.decode(expandable.encode(123456789)).id  # 123456789 (round trip)
+expandable.decode(expandable.encode(42).lower()).id  # 42 (case-insensitive)
+
+# Customized expandable: "minLength" sets the starting length and
+# "separatorMinLength" sets when hyphen grouping kicks in. A custom
+# bodyAlphabet has any 0/O silently removed.
+custom_exp = baseh_expandable_v1()
+custom_exp["profileId"] = "tickets-v1"
+custom_exp["minLength"] = 5
+custom_exp["separatorMinLength"] = 8
+tickets = Baseh(custom_exp)
+tickets.encode(123456789)  # 5+ characters, no hyphen until codes reach 8 characters
+```
+
 ### Zero configuration
 
 ```python
@@ -157,22 +211,47 @@ orders.capacity()            # 13492928512
 go get github.com/cloudyventures/baseh/go/v2
 ```
 
+### Expandable mode (shipping in the next release)
+
+```go
+// Codes start at 4 characters and grow automatically as ids climb past
+// each length's capacity — no migration, and old short codes keep decoding.
+exp, err := baseh.New(baseh.ExpandableV1())
+if err != nil {
+    panic(err)
+}
+
+exp.Encode(big.NewInt(123456789))  // 4 characters at this namespace size; grows as ids climb
+
+expCode, err := exp.Encode(big.NewInt(123456789))
+if err != nil {
+    panic(err)
+}
+result, err := exp.Decode(expCode, nil)
+result.ID  // 123456789 (round trip)
+
+// Expandable profiles customize like any other: Mode is "expandable",
+// MinLength (default 4) sets the starting code width and
+// SeparatorMinLength (6 in the baseh-expandable-v1 tier) controls when
+// hyphens and grouping kick in.
+```
+
 ### Zero configuration
 
 ```go
-basehuman.ToCode(big.NewInt(123456789))   // "C8XP-8J49", nil
-basehuman.ToCodeString("123456789")       // "C8XP-8J49", nil
-basehuman.FromCode("C8XP-8J49")           // 123456789, nil
-basehuman.FromCode("c8xp 8j4 9")          // 123456789, nil
+baseh.ToCode(big.NewInt(123456789))   // "C8XP-8J49", nil
+baseh.ToCodeString("123456789")       // "C8XP-8J49", nil
+baseh.FromCode("C8XP-8J49")           // 123456789, nil
+baseh.FromCode("c8xp 8j4 9")          // 123456789, nil
 
-basehuman.FromCode("C8XP-8J4X")           // nil, *Error [INVALID_CHECKSUM]
-basehuman.ToCode(big.NewInt(481890304))   // "", *Error [OUT_OF_RANGE]
+baseh.FromCode("C8XP-8J4X")           // nil, *Error [INVALID_CHECKSUM]
+baseh.ToCode(big.NewInt(481890304))   // "", *Error [OUT_OF_RANGE]
 ```
 
 ### Frozen preset
 
 ```go
-medium, err := basehuman.NewBaseh(basehuman.BasehMediumV1())
+medium, err := baseh.New(baseh.MediumV1())
 if err != nil {
     panic(err) // only possible if the frozen profile itself were broken
 }
@@ -181,7 +260,7 @@ medium.Encode(big.NewInt(123456789))      // "C8XP-8J49", nil
 
 result, err := medium.Decode("C8XP-8J49", nil)
 if err != nil {
-    var be *basehuman.Error
+    var be *baseh.Error
     if errors.As(err, &be) {
         // be.Code, be.Message, be.SafeForCustomer
     }
@@ -196,11 +275,11 @@ medium.Encode(big.NewInt(813))            // "", *Error [BLOCKED_CODE]
 ### Customized profile
 
 ```go
-custom := basehuman.BasehMediumV1()  // fresh mutable Profile per call
+custom := baseh.MediumV1()  // fresh mutable Profile per call
 custom.ProfileID = "orders-v1"
 custom.BodyLength = 7
 custom.Grouping = []int{5, 4}
-orders, err := basehuman.NewBaseh(custom)
+orders, err := baseh.New(custom)
 
 orders.Encode(big.NewInt(123456789))             // "ZC8VR-EMJY", nil
 orders.Decode("ZC8VR-EMJX", nil)                 // nil, *Error [INVALID_CHECKSUM]
@@ -211,6 +290,34 @@ orders.Capacity()                                // 13492928512
 
 ```bash
 cargo add baseh
+```
+
+### Expandable mode (shipping in the next release)
+
+```rust
+use baseh::{baseh_expandable_v1, Baseh, DecodeOptions};
+use num_bigint::BigUint;
+
+// Codes start at 4 characters and grow one character at a time as the id
+// sequence climbs — old shorter codes keep decoding forever.
+let expandable = Baseh::new(baseh_expandable_v1())?;
+let strict = DecodeOptions::strict();
+
+expandable.encode(&BigUint::from(123456789u64))
+// a few characters longer than the 4-character minimum; no left-padding
+
+let code = expandable.encode(&BigUint::from(123456789u64))?;
+expandable.decode(&code, &strict)?.id  // 123456789 (round trip)
+
+// Customized expandable: `min_length` sets the shortest codes (default 4)
+// and `separator_min_length` controls when hyphen grouping appears (the
+// shipped tier uses 6 — shorter codes carry no separator).
+let mut growing = baseh_expandable_v1();
+growing.profile_id = "invoices-v1".to_string();
+growing.min_length = 5;
+growing.separator_min_length = 7;
+let invoices = Baseh::new(growing)?;
+invoices.encode(&BigUint::from(123456789u64))
 ```
 
 ### Zero configuration
@@ -264,6 +371,22 @@ orders.capacity()                              // 13492928512
 
 ```bash
 gem install baseh
+```
+
+### Expandable mode (shipping in the next release)
+
+```ruby
+# Codes start short and grow one character as the id sequence climbs.
+expandable = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+
+expandable.encode(id: 123456)   # 4 characters at this namespace size; grows as ids climb
+expandable.decode(expandable.encode(id: 123456)).id  # 123456 (round trip)
+
+# A keyed private-mapping variant mirrors the other -p tiers:
+#   Baseh.baseh_expandable_p_v1(key_bytes: ..., key_id: "prod-01")
+# Expandable profiles accept :mode ("expandable" or "fixed"), :min_length
+# (default 4) and :separator_min_length (the tier uses 6 — no hyphen until
+# codes reach that length).
 ```
 
 ### Zero configuration

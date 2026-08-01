@@ -1,7 +1,7 @@
 # baseh
 
 Ruby port of the baseH (Human Reference Code) codec. Encodes integer IDs as
-fixed-length, checksummed, human-friendly reference codes with a feistel-v1
+short, checksummed, human-friendly reference codes with a feistel-v1
 permutation on every tier and profanity safety. The normative spec is
 `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
 
@@ -22,10 +22,63 @@ gem install ./baseh-1.0.0.gem
 Zero runtime dependencies. Only `openssl` and `json` from the standard
 library are used.
 
-## Frozen tiers
+## Expandable mode (recommended default)
 
-Four frozen tiers ship with the gem, built from the full alphanumeric set
-with cumulative visual and spoken strips. All four encode 6 body symbols,
+> Shipping in the next release; documented here ahead of the implementation.
+
+Profiles carry a `mode:` field: `"expandable"` or `"fixed"`. Expandable is
+the recommended default for new users. The frozen tier
+`Baseh.baseh_expandable_v1` ships as the starting point, with a keyed
+private-mapping variant `Baseh.baseh_expandable_p_v1` that relates to it
+exactly as the other `-p` tiers relate to their plain tiers.
+
+```ruby
+require "baseh"
+
+codec = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+
+code = codec.encode(id: 123_456)   # 4 characters at this namespace size
+codec.decode(code).id              # => 123456
+```
+
+How expandable differs from fixed:
+
+- **Codes start short and grow.** Minimum length is 4 characters
+  (`min_length`, default 4). When the id sequence climbs past a length's
+  capacity, codes simply become one character longer — transparently, no
+  migration, no re-issue. Old shorter codes keep decoding forever.
+- **No `0` or `O` in the body.** The default expandable alphabet is the 34
+  remaining alphanumeric symbols. A custom alphabet containing `0`/`O` has
+  those symbols silently removed during profile preparation (the derived
+  alphabet is always displayed in tooling). This applies on top of whatever
+  visual/spoken safety levels, profanity modes, or blocklists are configured
+  — every existing profile option composes with expandable unchanged.
+- **Checksum alphabet gains `0`.** The checksum alphabet is the body
+  alphabet plus `0` (35 symbols for the default). The existing input alias
+  `O -> 0` remains, so a typed or misread `O` in a checksum position
+  resolves to `0`. There is no left-padding in expandable mode; a `0` or
+  `O` in a body position of presented input is simply an invalid character.
+- **Permutation stays on.** The Feistel permutation is applied per
+  generation (per code length), with the length mixed into the key
+  derivation alongside the profile id. Codes within each length look random
+  even though issuance is a sequential counter. Presentation only, not
+  encryption.
+- **Separators appear later.** Grouping only kicks in once codes reach
+  `separator_min_length` (the shipped tier uses 6, so no hyphen until codes
+  are 6+ characters). Below the threshold there is no separator.
+- **Decode is length-driven.** The code's length selects the generation;
+  the checksum validates exactly as in fixed mode, domain-separated by
+  profile id.
+
+The security posture is unchanged: a code is a reference alias, never an
+authorization token. Expandable codes in the smallest generations are a
+small namespace, so rate-limit public lookups and enforce authorization
+after decode.
+
+## Fixed mode (frozen tiers)
+
+Four frozen tiers ship with the gem, all `mode: "fixed"`, built from the
+full alphanumeric set with cumulative visual and spoken strips. All four encode 6 body symbols,
 are case-insensitive, hyphen-delimit at the midpoint, run the default
 profanity blocklist and permute with the published frozen key.
 
@@ -36,8 +89,8 @@ profanity blocklist and permute with the published frozen key.
 | Medium | `Baseh.baseh_medium_v1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 |
 | Heavy | `Baseh.baseh_heavy_v1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 |
 
-Medium is the default. The frozen key is public by design: it hides sequence,
-not records. It is not a secret and anyone can read it at
+Medium is the default of the fixed tiers. The frozen key is public by
+design: it hides sequence, not records. It is not a secret and anyone can read it at
 `Baseh::FROZEN_KEY_BYTES`; it must never change for a live namespace. Each
 tier keeps the typed O/I/L aliases where possible and adds spoken-confusion
 aliases for the stripped symbols.
@@ -50,16 +103,14 @@ callers can load a default and modify it before constructing a codec.
 ```ruby
 require "baseh"
 
-codec = Baseh::Baseh.new(Baseh.baseh_medium_v1)
+codec = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
 
-code = codec.encode(id: 123_456)           # => raw fixed-width code
+code = codec.encode(id: 123_456)           # => short code, grows as ids climb
 
 result = codec.decode(code)
 result.id                                  # => 123456
 result.canonical_code                      # => canonical form
 result.corrected                           # => true when input needed correction
-
-codec.capacity                             # => 481890304
 
 check = codec.validate("00000000")
 check.valid                                # => false
@@ -67,6 +118,14 @@ check.reason                               # => "INVALID_CHECKSUM"
 
 # Spoken-confusion correction
 result = codec.decode("TB14QDFU", try_correction: true, confusion_profile: :light)
+```
+
+The same API applies to the fixed tiers (`codec.capacity` reports the fixed
+namespace size there; expandable grows instead):
+
+```ruby
+codec = Baseh::Baseh.new(Baseh.baseh_medium_v1)
+codec.capacity                             # => 481890304
 ```
 
 ## Permutation

@@ -2,7 +2,7 @@
  * Runnable examples for the baseh JavaScript/TypeScript package.
  * Run from js/:  ./node_modules/.bin/tsx examples/examples.ts
  */
-import { Baseh, BasehError, basehMediumV1 } from "../src/index.js";
+import { Baseh, BasehError, basehExpandableV1, basehMediumV1 } from "../src/index.js";
 import { toCode, fromCode } from "../src/index.js";
 
 function show(label: string, fn: () => unknown): void {
@@ -17,6 +17,20 @@ function show(label: string, fn: () => unknown): void {
     }
   }
 }
+
+// 0. Expandable mode: shipping in the next release; shown here as the new
+// default. Codes start at 4 characters and grow automatically as ids climb
+// past each length's capacity. No `0`/`O` in the body, no left-padding, and
+// no separator until codes reach 6 characters. Shorter codes already issued
+// keep decoding forever.
+console.log("== expandable ==");
+const expandable = new Baseh(basehExpandableV1());
+show("encode(42n)", () => expandable.encode(42n));
+show("encode(123456789n)", () => expandable.encode(123456789n));
+show("decode round trip", () => {
+  const code = expandable.encode(42n); // 4 characters at this namespace size; grows as ids climb
+  return expandable.decode(code).id;
+});
 
 // 1. Zero configuration: the default Medium tier behind two functions.
 console.log("== zero config ==");
@@ -70,3 +84,20 @@ show("encode(123456789n)", () => orders.encode(123456789n));
 show('decode(...) round trip', () => orders.decode(orders.encode(123456789n)).id);
 show('decode("ZC8VR-EMJX") (bad check)', () => orders.decode("ZC8VR-EMJX"));
 show("capacity", () => orders.capacity());
+
+// 5. Customized expandable: start from the expandable tier and tune how
+// codes grow. `mode` is already "expandable" on this profile; `minLength`
+// sets the starting length and `separatorMinLength` sets when hyphen
+// grouping kicks in. Also part of the next release, like section 0.
+console.log("== customized expandable ==");
+const growable = basehExpandableV1();
+growable.profileId = "invoices-v1";
+growable.mode = "expandable";
+growable.minLength = 5;
+growable.separatorMinLength = 8;
+const invoices = new Baseh(growable);
+show("encode(42n)", () => invoices.encode(42n)); // starts at 5 characters, no separator until 8+
+show("decode round trip", () => {
+  const code = invoices.encode(42n);
+  return invoices.decode(code).id;
+});

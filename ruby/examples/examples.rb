@@ -11,8 +11,19 @@ rescue Baseh::BasehError => e
   puts "#{label} -> raises BasehError [#{e.code}]: #{e.message}"
 end
 
-# 1. Zero configuration: the default Medium tier behind two functions.
-puts "== zero config =="
+# 0. Zero configuration, expandable mode (the recommended default):
+#    codes start short and grow one character as the id sequence climbs.
+#    Expandable mode: shipping in the next release; shown here as the new default.
+puts "== expandable (zero config) =="
+expandable = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+show("expandable.encode(id: 123456)") { expandable.encode(id: 123456) }
+# => 4 characters at this namespace size; grows as ids climb
+show("expandable round trip") { expandable.decode(expandable.encode(id: 123456)).id }
+# A keyed private-mapping variant mirrors the other -p tiers:
+#   Baseh.baseh_expandable_p_v1(key_bytes: ..., key_id: "prod-01")
+
+# 1. Zero configuration, fixed mode: the default Medium tier behind two functions.
+puts "== zero config (fixed) =="
 show("Baseh.to_code(123456789)") { Baseh.to_code(123456789) }
 show('Baseh.to_code("123456789")') { Baseh.to_code("123456789") }
 show('Baseh.from_code("C8XP-8J49")') { Baseh.from_code("C8XP-8J49") }
@@ -31,6 +42,9 @@ show('decode("C8XP-8J4X") (checksum typo)') { medium.decode("C8XP-8J4X").id }
 show("capacity") { medium.capacity }
 
 # 3. Customized: load a preset, extend the body and regroup the delimiter.
+#    For expandable profiles the same hash accepts :mode ("expandable" or
+#    "fixed"), :min_length (default 4) and :separator_min_length (the tier
+#    uses 6 — no hyphen until codes reach that length).
 puts "== customized =="
 custom = Baseh.baseh_medium_v1
 custom[:profile_id] = "orders-v1"

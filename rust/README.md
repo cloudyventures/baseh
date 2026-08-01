@@ -1,11 +1,55 @@
 # baseh
 
-Rust implementation of the baseH codec: fixed-length,
-checksummed, optionally permuted human-readable identifiers for internal
-integer IDs. The normative specification is `../spec/IMPLEMENTATION_CODEC.md`
-and cross-language conformance vectors live in `../vectors/`.
+Rust implementation of the baseH codec: checksummed, optionally permuted
+human-readable identifiers for internal integer IDs. Codes are expandable by
+default — they start short and grow as the id sequence climbs — with
+fixed-length tiers available for constant-width needs. The normative
+specification is `../spec/IMPLEMENTATION_CODEC.md` and cross-language
+conformance vectors live in `../vectors/`.
 
 ## Usage
+
+Expandable mode (shipping in the next release) is the recommended default for
+new users: codes start at 4 characters and grow one character at a time as
+ids climb past each length's capacity — transparently, with no migration and
+no re-issue. Old shorter codes keep decoding forever.
+
+```rust
+use baseh::{baseh_expandable_v1, Baseh, DecodeOptions};
+use num_bigint::BigUint;
+
+let baseh = Baseh::new(baseh_expandable_v1())?;
+
+let code = baseh.encode(&BigUint::from(48_284_291u64))?;
+// a few characters long at this namespace size; grows as ids climb.
+let result = baseh.decode(&code, &DecodeOptions::default())?;
+assert_eq!(result.id, BigUint::from(48_284_291u64));
+# Ok::<(), baseh::BasehError>(())
+```
+
+The expandable body alphabet never contains `0` or `O` (34 symbols by
+default; any `0`/`O` in a custom alphabet are silently removed during profile
+preparation). The checksum alphabet adds `0` back (35 symbols), and the
+existing `O -> 0` input alias still repairs a misread checksum character.
+There is no left-padding, the Feistel permutation stays on (applied per code
+length, so codes within each length look random even though issuance is
+sequential), and separators only appear once codes reach
+`separator_min_length` (6 in the shipped tier). All existing profile options
+— visual/spoken safety levels, profanity modes, blocklists — compose with
+expandable unchanged. For private scrambling use `baseh_expandable_p_v1`
+with your own key material, exactly like the fixed `*_p_v1` tiers below.
+
+For validation, spoken-typo correction and the rest of the codec surface see
+the fixed-mode example below and the API summary; they work identically in
+expandable mode. Security posture is unchanged: a code is a reference alias,
+never an authorization token — expandable codes in the smallest generations
+are a small namespace, so rate-limit public lookups and enforce authorization
+after decode.
+
+## Fixed mode
+
+Fixed mode keeps codes at one constant width, left-padding as today, for
+layouts that need a stable shape. Medium is the default fixed tier.
 
 ```rust
 use baseh::{baseh_medium_v1, Baseh, ConfusionProfile, DecodeOptions};
@@ -40,10 +84,11 @@ assert_eq!(fixed?.canonical_code, "MCV3-JKDJ");
 
 ## Frozen tiers
 
-Four frozen tiers trade alphabet safety for capacity. All are 6 body symbols,
-case-insensitive, hyphen-delimited at the midpoint, run the default profanity
-blocklist and keep the typed O/I/L aliases where possible. Medium is the
-default.
+All frozen tiers below are `mode: "fixed"` and behave exactly as they always
+have. Four frozen tiers trade alphabet safety for capacity. All are 6 body
+symbols, case-insensitive, hyphen-delimited at the midpoint, run the default
+profanity blocklist and keep the typed O/I/L aliases where possible. Medium
+is the default fixed tier.
 
 | Tier                | Symbols | Checksums | Shape     | Capacity      |
 | ------------------- | ------- | --------- | --------- | ------------- |
@@ -98,10 +143,14 @@ Profiles accept an optional `profanity` object with three modes:
 - `capacity() -> &BigUint` (arbitrary precision, may exceed u64).
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
+- `baseh_expandable_v1` builds the recommended expandable tier profile
+  (`mode: "expandable"`, `min_length` 4, `separator_min_length` 6), permuting
+  per code length with the public frozen key; `baseh_expandable_p_v1` takes
+  caller-supplied key material instead.
 - `baseh_minimum_v1` / `baseh_light_v1` / `baseh_medium_v1` /
-  `baseh_heavy_v1` build the frozen tier profiles, each permuting with the
-  public frozen key. The `*_p_v1` variants permute with caller-supplied key
-  material instead.
+  `baseh_heavy_v1` build the frozen fixed-mode tier profiles, each permuting
+  with the public frozen key. The `*_p_v1` variants permute with
+  caller-supplied key material instead.
 - `feistel::permute` / `feistel::inverse_permute` are public for conformance
   testing against `../vectors/feistel-vectors.json`.
 
