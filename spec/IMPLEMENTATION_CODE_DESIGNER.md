@@ -27,8 +27,11 @@ Optional:
 - Allowed alphabet types.
 - Visual safety level.
 - Spoken safety level.
+- Permutation preview (off by default).
 - Maximum utilization.
 - Preferred grouping.
+
+The permutation preview only changes how example codes render (via the built-in public preview key). It never affects feasibility, ranking or capacity and is not part of the exported design.
 
 ## 4. Derived required capacity
 
