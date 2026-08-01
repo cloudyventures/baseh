@@ -1,9 +1,9 @@
 # baseH code review
 
-An external readiness review of the baseH codec, tools and release
-process, run before the first public release. Findings are prioritized by
-what an open-source audience will hit first. Each item carries a severity,
-a concrete location and a recommended fix.
+A pre-release readiness review of the baseH codec, tools and release
+process, re-run against current `main`. Findings are prioritized by what an
+open-source audience will hit first. Each item carries a severity, a
+concrete location and a recommended fix.
 
 The headline: the engineering that matters most, the codec itself across all
 five ports, is sound. The frozen profiles, checksum, Feistel permutation,
@@ -12,6 +12,22 @@ in TypeScript, Python, Ruby, Rust and Go, and all five test against one
 shared vector file with no vendored copies. The exposure is around that
 core: repo hygiene, the web tools, the untested non-frozen paths and the
 gap between the aspirational test spec and what CI actually enforces.
+
+## Re-review note
+
+This is the second pass. Since the first review, several items were
+rectified and are removed from this document: the zero-config convenience
+wrappers (`zero.*`) were replaced by `facade.*` across all five ports, which
+removes the Rust `zero.rs` panic, the Ruby eager global init and the Go/Rust
+Unicode-whitespace stripping that exceeded the spec's ASCII scope; Python
+`minLength` now rejects 0 like the JS reference; the duplicated Rust
+`pow_bigint` was consolidated; the README status note was softened to an
+acceptable release-timing caveat; and a cross-language round-trip soak suite
+now runs in CI (a 100,000-id cap per profile and variant) in all five
+ports, which closes most of the "thin coverage" gap and downgrades the
+cross-language-conformance concern to a residual P2 item.
+
+The items below all still stand against current `main`.
 
 ## P0 - fix before any public release
 
@@ -44,18 +60,20 @@ chain), and add `npm test` plus `tsc --noEmit` to the build step.
 
 ### 3. XSS in the calculator
 
-`web/src/calculator.ts:168` builds `els.examplesBody.innerHTML` with a
-template that interpolates `e.code` directly. Custom-alphabet mode accepts
-any ASCII printable character (`web/index.html:50`, `web/src/core.ts:294`),
-and alphabet validation at `core.ts:496` only rejects non-ASCII, so `<`,
-`>`, `&`, `"` and `'` all pass. A custom alphabet such as `<>&a` produces
-codes the browser parses as HTML inside the `innerHTML` assignment.
+`web/src/calculator.ts:208` builds `els.examplesBody.innerHTML` with a
+template that interpolates `e.code` directly into `<code>${e.code}</code>`.
+Custom-alphabet mode accepts any ASCII printable character
+(`web/index.html`, `web/src/core.ts`), and alphabet validation only rejects
+non-ASCII, so `<`, `>`, `&`, `"` and `'` all pass. A custom alphabet such
+as `<>&a` produces codes the browser parses as HTML inside the `innerHTML`
+assignment.
 
 It is self-XSS today (the malicious alphabet is not carried in share-URL
 params, so it cannot be triggered via a link), but it is unescaped
 user-controlled input in `innerHTML` in a tool marketed as
 security-conscious. The user-typed separator reaches `innerHTML` via the
-repair and problems text too (`calculator.ts:193`, `web/src/designer.ts:195`).
+problems and repair text too (`calculator.ts:235`,
+`web/src/designer.ts:195`).
 
 Safe paths confirmed: `web/src/try-list.ts` uses `textContent` and
 `document.createElement` throughout, and the conversion outputs build safe
@@ -73,13 +91,14 @@ HTML files.
 `generationForId` loops with no ceiling; the `L > 32` guard runs only after
 the loop returns. For an adversarial id (`10**100000`) the loop runs roughly
 600,000 iterations of big-integer multiplication on exponentially growing
-values before the caller rejects.
+values before the caller rejects. The new zero-config facades expose this
+directly: `baseh.encode(hugeInt)` in every port routes straight to the
+unbounded loop.
 
-- Python `python/src/baseh/codec.py:152-161`: measured ~1.5s for `10**100000`
-  and a timeout for `10**1000000`. The zero-config `to_code(int)` and direct
-  `Baseh.encode(int)` are both exposed.
-- JavaScript `js/src/codec.ts:157-167` (`generationForId`): same shape.
-- Go `go/codec.go:470-482`: same shape.
+- Python `python/src/baseh/codec.py:153-161`: measured ~1.5s for `10**100000`
+  and a timeout for `10**1000000`.
+- JavaScript `js/src/codec.ts:158-167` (`generationForId`): same shape.
+- Go `go/codec.go:474` (`generationForId`): same shape.
 
 On top of the loop, Python 3.11's int-to-str 4300-digit limit means the
 error message at `codec.py:264` (`f"ID {id} requires a code longer than 32
@@ -93,22 +112,20 @@ In Python, do not embed the raw id in the error message, or truncate it.
 
 ### 5. Public-API panics in Rust
 
-- `rust/src/codec.rs:353-357`: `capacity()` uses `assert!` (panic) for an
+- `rust/src/codec.rs:352`: `capacity()` uses `assert!` (panic) for an
   expandable profile where the JS reference throws a catchable
-  `BasehError("INVALID_PROFILE")`. The test `capacity_is_fixed_mode_only`
-  bakes the panic in with `#[should_panic]`. Should return
-  `Result<&BigUint, BasehError>`.
-- `rust/src/zero.rs:70-74`: `decimal_to_biguint` panics on a user-supplied
-  non-digit string. `to_code` is public and accepts `&str`. A bad string
-  panics the caller. JS throws a catchable `TypeError`. Should return a
-  `BasehError` and be folded into the existing `Result`.
-- `rust/src/feistel.rs:81,193-212`: `permute` and `inverse_permute` are
-  exported via `pub mod feistel` and accept any `u32` for `rounds`. Inside
-  `round_message`, the round number is cast `round as u8`, so `rounds = 256`
-  makes round 0 and round 256 produce identical messages, silently breaking
-  the permutation. Profile validation caps rounds at 4-16, but the public
-  `feistel` module bypasses that. Either validate inside `permute` or make
-  the module private.
+  `BasehError("INVALID_PROFILE")`. The test bakes the panic in with
+  `#[should_panic]`. Should return `Result<&BigUint, BasehError>`.
+- `rust/src/lib.rs:26` exports `pub mod feistel`, and
+  `rust/src/feistel.rs:81,193` expose `permute`/`inverse_permute` accepting
+  any `u32` for `rounds`. Inside `round_message` the round number is cast
+  `round as u8`, so `rounds = 256` makes round 0 and round 256 produce
+  identical messages, silently breaking the permutation. Profile validation
+  caps rounds at 4-16, but the public `feistel` module bypasses that. Either
+  validate inside `permute` or make the module private.
+
+(The former Rust `zero.rs` panic on non-digit strings was removed when the
+zero wrappers were replaced by `facade.rs`.)
 
 ## P1 - correctness drift and broken contracts
 
@@ -118,13 +135,13 @@ Frozen tiers all use `"-"` so the shared vectors pass, but the non-frozen
 path disagrees:
 
 - JavaScript `js/src/codec.ts:46`: `s.split(separator).join("")` (literal
-  substring), and `codec.ts:345` splits on the separator string for the
+  substring), and `codec.ts:352` splits on the separator string for the
   `corrected` flag.
-- Ruby `ruby/lib/baseh/baseh.rb:267,457`: `s.delete(separator)`, which
+- Ruby `ruby/lib/baseh/baseh.rb:275,466`: `s.delete(separator)`, which
   interprets its argument as a character class, not a literal substring. A
-  separator such as `".."` or `"X-"` corrupts decoding. `canonical_raw`
+  separator such as `".."` or `"X-"` corrupts decoding. `canonical_code`
   has the same bug.
-- Rust `rust/src/codec.rs:605-608`: filters individual characters
+- Rust `rust/src/codec.rs:616`: filters individual characters
   (`filter(|c| !separator.contains(*c))`), which diverges from JS for any
   multi-character separator.
 
@@ -133,55 +150,44 @@ in Python, etc.) and add a shared vector with a multi-character separator.
 
 ### 7. Same input, different behavior across ports on the option fields
 
-- `minLength: 0`: Rust coerces silently to 4 (`rust/src/profile.rs:214-218`,
+- `minLength: 0`: Rust coerces silently to 4 (`rust/src/profile.rs:240`,
   using `0` as a default sentinel because the struct uses `usize` not
-  `Option<usize>`). JS rejects 0 (`js/src/profile.ts:146-148`). Python raises
-  `TypeError` on a non-int value (`python/src/baseh/profile.py:97-102,275`).
-- `maxCorrections: 0`: Go silently coerces 0 to 1
-  (`go/codec.go:202-204`) because the zero value cannot be distinguished
-  from an explicit 0, so the field is dead code that lies about supporting
-  `0`. The spec API is `maxCorrections?: 0 | 1`.
-
-These are exactly the cross-language inconsistencies the spec's "stable
-behaviour across implementations" goal exists to prevent.
+  `Option<usize>`). JS rejects 0. Python now rejects 0 too (aligned in this
+  pass), so the divergence is now Rust-only.
+- `maxCorrections: 0`: Go silently coerces 0 to 1 (`go/codec.go:203-204`)
+  because the zero value cannot be distinguished from an explicit 0, so the
+  field is dead code that lies about supporting `0`. The spec API is
+  `maxCorrections?: 0 | 1`.
 
 Fix: use `Option<usize>` for `min_length` in Rust (or reject 0 explicitly);
 use `*int` for `MaxCorrections` in Go (or drop the field and gate on
-`TryCorrection` alone); validate `maxCorrections` to `0 | 1` at every
-API boundary.
+`TryCorrection` alone); validate `maxCorrections` to `0 | 1` at every API
+boundary.
 
 ### 8. Spec and docs contradict the shipped code
 
-- `README.md:196-205` says expandable mode "is the headline of the next
-  release" and "the `baseh-expandable-v1` helpers will not exist in
-  published packages until then." All five ports ship the helpers
-  (`js/src/profiles.ts:203`, `python/src/baseh/profiles.py:181`,
-  `ruby/lib/baseh/profiles.rb:138`, `rust/src/profiles.rs:210`,
-  `go/profiles.go:253`) and test against expandable vectors. The paragraph
-  should be deleted or rewritten.
 - `spec/IMPLEMENTATION_TEST_SUITE.md` section 5 ("Default profile boundary
   tests") says the default is 32 symbols, length 6, capacity 1,073,741,824.
   No shipped frozen tier is 32 symbols (minimum 36, light 31, medium 28,
   heavy 26). The numbers describe the synthetic `baseh32-*` test profiles,
   not a default; the section title is wrong.
-- `spec/IMPLEMENTATION_CODEC.md` section 7.3 says `"BASEH-FEISTEL-V1"` is
-  "14 ASCII bytes" but the string is 16 bytes. Implementations use the
-  literal and agree, so this is a doc typo, not drift.
-- `python/pyproject.toml:7` is `version = "2.0.0"` while
-  `python/src/baseh/__init__.py:82` is `__version__ = "1.0.0"`.
+- `spec/IMPLEMENTATION_CODEC.md` section 7.3 (lines 363 and 378) says
+  `"BASEH-FEISTEL-V1"` is "14 ASCII bytes" but the string is 16 bytes.
+  Implementations use the literal and agree, so this is a doc typo, not
+  drift.
+- `python/pyproject.toml` is `version = "2.0.0"` while
+  `python/src/baseh/__init__.py` is `__version__ = "1.0.0"`.
   `importlib.metadata.version("baseh")` and `baseh.__version__` disagree.
 
 ### 9. `validate()` leaks non-`BasehError` exceptions (Python)
 
-`python/src/baseh/codec.py:323-325` raises a plain `ValueError` for an
-unknown `confusion_profile`. `validate()` at `codec.py:388` only catches
-`BasehError`, so the `ValueError` escapes. Confirmed:
-`codec.validate("C8XP-8J4X", try_correction=True, confusion_profile="bogus")`
-raises an uncaught `ValueError`. The spec says `validate` must "never raise
-on user input."
+`python/src/baseh/codec.py:332` raises a plain `ValueError` for an unknown
+`confusion_profile`. `validate()` at `codec.py:397` only catches `BasehError`,
+so the `ValueError` escapes. The spec says `validate` must "never raise on
+user input."
 
 A non-string `decode` input is reported as `INVALID_CHARACTER`
-(`codec.py:51`) rather than a `TypeError`, which is semantically wrong and
+(`codec.py`) rather than a `TypeError`, which is semantically wrong and
 gets swallowed by `validate()` as a user-facing "invalid character" result.
 
 Fix: raise `BasehError(INVALID_PROFILE, ...)` for a bad confusion profile
@@ -202,26 +208,26 @@ Fix: either add a `strict` option and enforce separator positions, or
 remove the strict-mode language from the spec and test-suite and document
 the lenient-by-default behavior.
 
-## P1 - process: the conformance story is weaker than it looks
-
-### 11. The 100k-substitution checksum sweep is a release gate implemented by zero of five
+### 11. The 100k-substitution checksum sweep is still missing
 
 `spec/IMPLEMENTATION_TEST_SUITE.md` section 6 requires "at least 100,000
 sampled bodies" with total single-substitution detection for Light, Medium
-and Heavy. Section 19 lists "single-substitution checksum performance is
-measured" as a freeze gate.
+and Heavy, and section 19 lists it as a freeze gate. The new soak suite is
+a round-trip soak, not a single-substitution detection sweep, so it does
+not satisfy this gate. The expandable test
+(`python/tests/test_expandable.py:231` and equivalents) only sweeps a small
+sample at two generations.
 
-- JS: sampled only (`js/test/codec.test.ts:171`).
-- Python: 50 ids/generation on the expandable tier
-  (`python/tests/test_expandable.py:228-262`).
-- Ruby: 50 ids/generation (`ruby/test/test_expandable.rb:198-229`).
-- Rust: none, only id-hunting loops (`rust/tests/codec.rs:612`).
-- Go: none, only a 100k round-trip and a filter hunt (`go/codec_test.go:509`).
+Fix: add the 100k-substitution and adjacent-transposition sweep to each
+port and run it in CI, or formally retract the gate from the spec.
 
-Fix: add the sweep to each port and run it in CI, or formally retract the
-gate from the spec.
+## P1 - process
 
-### 12. Most of the test-suite spec is aspirational
+### 12. Most of the test-suite spec is still aspirational
+
+The new soak suite runs in CI (100,000 ids per profile and variant, all
+five ports) and closes the largest coverage gap, but the rest of the
+test-suite spec is still unenforced:
 
 | Layer | JS | Python | Ruby | Rust | Go |
 |---|---|---|---|---|---|
@@ -232,33 +238,29 @@ gate from the spec.
 | 24 CPU-hr fuzz (release gate 19) | no | no | no | no | no |
 
 Spec section 19 release gates ("fuzzing for at least 24 cumulative CPU
-hours", "security review is complete", "single-substitution checksum
-performance is measured") are not enforced in `.github/workflows/ci.yml` or
-`release.yml`. Go notably lacks a `func Fuzz` target despite shipping
-native fuzzing.
+hours", "security review is complete") are not enforced in
+`.github/workflows/ci.yml` or `release.yml`. Go notably lacks a `func Fuzz`
+target despite shipping native fuzzing.
 
 Fix: add a `func Fuzz` target to Go, add `proptest`/`hypothesis`-style
 property tests to Python, Ruby and Rust, and add at least one benchmark
-per port to guard the spec's p99 targets. Decide explicitly which gates are
-real and remove the rest from the spec.
+per port to guard the spec's p99 targets. Decide explicitly which gates
+are real and remove the rest from the spec.
 
-### 13. Cross-language agreement rests on matching 299 frozen vectors
+## P2 - hygiene, OSS credibility and residual risks
 
-`ci.yml` runs five independent jobs. `release.yml` runs all five in a
-`verify` job and gates publishing on it, which satisfies spec section 13
-("a release fails if any supported implementation disagrees") transitively:
-each must match the same frozen vectors. But there is no step that runs all
-five and diffs their outputs. Conformance is only as strong as vector
-coverage (299 vectors, 76 Feistel, 20 errors, 2 correction, 7 encodeErrors)
-plus the property/fuzz backstop, which item 12 shows is thin. Two ports
-could agree on all 299 vectors but disagree on an untested id, and nothing
-would catch it.
+### 13. Cross-language agreement is round-trip only, not a cross-language diff
 
-Fix: add a single conformance job that encodes and decodes a dense id
-sample across all five ports and asserts identical outputs, independent of
-the shared vector file.
+The soak suite is per-language round-trip (encode then decode within each
+port), not a cross-language output comparison. The residual risk is small:
+each port now round-trips 100,000 ids per profile in CI, so a port with an
+encode/decode bug would fail its own soak. The case it cannot catch is a
+port that is internally consistent but cross-inconsistent on an untested
+transformation. The shared frozen vectors still pin the canonical surface.
 
-## P2 - hygiene and OSS credibility
+Fix (optional): add a single conformance job that encodes and decodes a
+dense id sample across all five ports and asserts identical outputs,
+independent of the shared vector file.
 
 ### 14. No linters anywhere; CI runs `go vet` and nothing else
 
@@ -274,7 +276,7 @@ additions) and a `rust-version`/MSRV to `Cargo.toml` (the code uses
 
 ### 15. Incomplete package metadata
 
-- Ruby `ruby/baseh.gemspec:20-22`: `spec.metadata` has only
+- Ruby `ruby/baseh.gemspec`: `spec.metadata` has only
   `rubygems_mfa_required`. Missing `homepage`, `source_code_uri`,
   `changelog_uri`, `bug_tracker_uri`, `spec.email`. RubyGems warns on
   publish without these.
@@ -301,62 +303,52 @@ declare an MSRV. Bump the Go minimum only if a newer stdlib is needed.
   plus write is a data race. This contradicts the library's "concurrent
   safe" claim. Unexport them, return deep copies via functions or document
   "do not mutate."
-- Go `go/codec.go:202-204`: `MaxCorrections` is dead code (see item 7).
-- Go `go/zero.go:62-67`: `FromCode` strips all Unicode whitespace via
-  `unicode.IsSpace`, exceeding the spec's ASCII-only scope.
 - Rust `rust/src/basen.rs:15-19`: `encode_base_n` uses `unwrap_or(0)`,
   which would silently produce digit 0 on an impossible conversion failure
   rather than failing. Use `expect`.
-- Rust `rust/src/codec.rs:288-294` and `rust/src/profile.rs:134-140`:
-  `pow_bigint` is duplicated across two modules. Share one utility.
-- Rust `rust/src/codec.rs:563`: `expect("exactly one valid candidate")` in
-  a user-facing decode path. Logically unreachable, but restructure to
-  avoid the panic.
-- JavaScript `js/src/codec.ts:169-173` and `js/src/profile.ts:79-83`:
-  `powBigInt` is duplicated across two modules.
-- JavaScript `js/src/checksum.ts:34-38`: `calculateChecksum` rebuilds the
+- Rust `rust/src/codec.rs`: `expect("exactly one valid candidate")` in a
+  user-facing decode path. Logically unreachable, but restructure to avoid
+  the panic.
+- JavaScript `js/src/codec.ts:170` and `js/src/profile.ts:111`:
+  `powBigInt` is duplicated across two modules. Share one utility.
+- JavaScript `js/src/checksum.ts:46`: `calculateChecksum` rebuilds the
   body-index `Map` on every call (up to 64 times during correction) instead
   of reusing the `Baseh.bodyIndex` already held on the instance. Pass the
   index in or cache it.
-- Ruby `ruby/lib/baseh/basen.rb:9-18`: `encode_base_n` does not validate
-  `value < capacity` and silently truncates. The function is a public
-  `module_function`, so a direct caller gets silent corruption.
-- Ruby `ruby/lib/baseh/profiles.rb:126-129`: a comment claims the
-  expandable body alphabet "lists only 32 symbols (it also drops I and L)."
-  It actually has 34 symbols and includes I and L (it drops only 0 and O,
-  per the zero ban). The code is correct; the comment would mislead a
-  maintainer into "fixing" the alphabet and breaking every capacity.
-- Ruby `ruby/lib/baseh/zero.rb:21`: `ZERO = Baseh.new(...)` eager-initializes
-  at file load, so a frozen-profile validation failure would stop the gem
-  from loading. Lazy initialization is safer.
 - Ruby `ruby/lib/baseh/feistel.rb:13`: internal Feistel helpers (`walk`,
   `run_rounds`, `round_message`, etc.) are public `module_function`. Only
   `permute` and `inverse_permute` need to be public.
+- Ruby `ruby/lib/baseh/basen.rs`: `encode_base_n` does not validate
+  `value < capacity` and silently truncates. The function is a public
+  `module_function`, so a direct caller gets silent corruption.
 - Python `python/src/baseh/profile.py:51`: `PreparedProfile` is a frozen
   dataclass but `aliases_norm` is a plain `dict` (mutable in place). Other
   collections are tuples. Use `types.MappingProxyType`.
-- Python `python/src/baseh/profile.py:215-216`: a non-list `grouping`
-  reports "grouping must be empty when separator is empty" regardless of
-  the actual separator. The profile is correctly rejected; the message
-  misleads debugging.
+- Python `python/src/baseh/profile.py:215`: a non-list `grouping` reports
+  "grouping must be empty when separator is empty" regardless of the actual
+  separator. The profile is correctly rejected; the message misleads
+  debugging.
+
+(The duplicated Rust `pow_bigint` and the Ruby eager `ZERO` global init
+were removed in the facade refactor.)
 
 ### 18. Divergent input-validation strictness
 
-- Blocklist word regex: JS `js/src/blocklist.ts:20` uses
-  `^[A-Za-z]{2,32}$`, which accepts a trailing newline; Ruby
-  `ruby/lib/baseh/profanity.rb:14` uses `\A[A-Za-z]{2,32}\z`, which does
-  not. Ruby is stricter and correct; JS is slightly lenient.
-- `from_code` whitespace stripping strips Unicode whitespace in Go
-  (`go/zero.go:62-67`) and Rust (`rust/src/zero.rs:105`), matching JS's
-  `/\s+/g`, while the spec restricts the format to ASCII. Harmless in
-  practice (spaces are not symbols) but a documented divergence.
+Blocklist word regex: JS `js/src/blocklist.ts:20` uses
+`^[A-Za-z]{2,32}$`, which accepts a trailing newline; Ruby
+`ruby/lib/baseh/profanity.rb:14` uses `\A[A-Za-z]{2,32}\z`, which does not.
+Ruby is stricter and correct; JS is slightly lenient.
+
+(The Go and Rust Unicode-whitespace stripping in the old `from_code`
+wrappers was removed in the facade refactor, so the codec now trims ASCII
+whitespace only, matching the spec.)
 
 ### 19. Web package has an undeclared dependency
 
-`web/package.json` lists only `@noble/hashes`, but `web/src/core.ts:5`,
-`web/src/designer.ts:3` and `web/src/calculator.ts:3` all import from
+`web/package.json` lists only `@noble/hashes`, but `web/src/core.ts`,
+`web/src/designer.ts` and `web/src/calculator.ts` all import from
 `@cloudyventures/baseh`. Resolution works only via a Vite alias
-(`web/vite.config.ts:8` -> `../js/src/index.ts`) and tsconfig path mapping.
+(`web/vite.config.ts` -> `../js/src/index.ts`) and tsconfig path mapping.
 `npm ci` in `web/` installs nothing for baseh. Reorganizing `js/src`
 silently breaks the web build with no signal in web's own dependency
 manifest.
@@ -389,11 +381,11 @@ for a `go/` subdirectory and is importable once that repo is public.
   `maxRepetition`, `separatorMinLength`, `minLength`) match byte-for-byte
   across all five ports and the shared `vectors.json`.
 - Expandable capacity is `34^(L-2)` in all five; generation boundaries
-  L=4..8 match the shared `generations` table and spec 17.1.
+  match the shared `generations` table and spec 17.1.
 - The Feistel round message, half-width alternation, low-bits extraction and
   cycle walking are byte-identical in effect across all five (JS
   `@noble/hashes`, Python stdlib, Rust `hmac`+`sha2`, Go stdlib, Ruby
-  OpenSSL) and confirmed by the 76 shared `feistel-vectors.json`. Ruby's
+  OpenSSL) and confirmed by the shared `feistel-vectors.json`. Ruby's
   OpenSSL dependency is the only non-stdlib crypto in the set, worth a note
   in the Ruby README.
 - The checksum rolling polynomial (state=17, mult=37, domain =
@@ -407,23 +399,23 @@ for a `go/` subdirectory and is importable once that repo is public.
   matches spec 21 in every port.
 - All five consume the same shared `vectors/` (no vendored copies) and all
   test suites pass on their current build.
-- No leftover `basehuman` references after the `baseh` rename.
+- A 100,000-id round-trip soak per profile and variant now runs in CI in
+  all five ports, in addition to the shared vector suite.
 
 ## Recommended fix order
 
 1. Untrack `js/node_modules` and `js/dist` (item 1).
 2. Gate the Pages deploy on tests and `tsc`; escape the calculator
    `innerHTML`; add CSP (items 2, 3).
-3. Cap `generationForId` and remove the public-API panics in Rust; fix the
+3. Cap `generationForId` and remove the Rust public-API panics; fix the
    Python `validate()` leak and the int-to-str error path (items 4, 5, 9).
-4. Add a real cross-language conformance job and the 100k checksum sweep to
-   CI; add `func Fuzz` to Go and property tests to the other ports (items
-   11, 12, 13).
+4. Add the 100k-substitution checksum sweep; add `func Fuzz` to Go and
+   property tests to the other ports (items 11, 12).
 5. Standardize separator handling and the `minLength`/`maxCorrections`
    option semantics across ports; add a shared multi-char-separator vector
    (items 6, 7).
-6. Reconcile the README, the test-suite spec and the Feistel-tag byte count
-   with the shipped code; fix the Python version mismatch (item 8).
+6. Reconcile the test-suite spec, the Feistel-tag byte count and the Python
+   version mismatch with the shipped code (item 8).
 7. Add lint configs and complete package metadata across all five (items
    14, 15); raise the Python minimum and declare an MSRV (item 16).
 8. Sweep the minor code smells (item 17) and the web dependency declaration
