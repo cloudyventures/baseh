@@ -94,7 +94,10 @@ button:hover { border-color: var(--accent); }
 }
 .samples code { color: var(--ink); }
 #alternatives { display: grid; grid-template-columns: 1fr 1fr; column-gap: 0.6rem; }
+#convert { display: grid; grid-template-columns: 1fr 1fr; column-gap: 0.6rem; }
+.conv-out { min-height: 2.2rem; margin-top: 0.35rem; font-weight: bold; line-height: 1.4; }
 @media (max-width: 900px) {
   .cols { grid-template-columns: 1fr; }
   #alternatives { grid-template-columns: 1fr; }
+  #convert { grid-template-columns: 1fr; }
 }

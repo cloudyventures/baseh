@@ -188,7 +188,7 @@ function render() {
     try {
       els.convIdOut.innerHTML = "";
       const out = document.createElement("code");
-      out.textContent = h.encode(BigInt(idRaw));
+      out.textContent = `Code: ${h.encode(BigInt(idRaw))}`;
       els.convIdOut.appendChild(out);
     } catch (e) {
       els.convIdOut.textContent = friendlyError(e);
@@ -204,7 +204,7 @@ function render() {
       const result = h.decode(codeRaw);
       els.convCodeOut.textContent = result.corrected
         ? `Identifier: ${result.id} - corrected to ${result.canonicalCode}`
-        : `identifier ${result.id}`;
+        : `Identifier: ${result.id}`;
     } catch (e) {
       els.convCodeOut.textContent = friendlyError(e);
     }
