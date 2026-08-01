@@ -67,6 +67,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -1995,6 +1997,20 @@
       "id": "0",
       "canonicalCode": "000-000",
       "note": "stripped leading zeros, no checksum"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "00000BM",
+      "id": "8",
+      "canonicalCode": "000008M",
+      "note": "look-alike alias: typed B decodes as 8"
+    },
+    {
+      "profileId": "baseh-medium-v1",
+      "input": "00000SH",
+      "id": "5",
+      "canonicalCode": "000005H",
+      "note": "look-alike alias: typed S decodes as 5"
     },
     {
       "profileId": "block32-replace-test",

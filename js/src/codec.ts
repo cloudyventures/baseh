@@ -164,7 +164,19 @@ export class Baseh {
         throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
       }
       const mapName = options.confusionProfile ?? "none";
-      const map = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
+      // Spec 10: replacements that are not body alphabet symbols are
+      // dropped before candidate generation. A suggested symbol the alphabet
+      // cannot contain (say a spoken drop on a stripped-alphabet profile)
+      // could never validate; generating it anyway would throw
+      // INVALID_CHARACTER from the checksum step instead of reporting an
+      // honest INVALID_CHECKSUM.
+      const bodySet = new Set(this.profile.bodyAlphabetNorm);
+      const rawMap = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
+      const map: Record<string, string[]> = {};
+      for (const [source, replacements] of Object.entries(rawMap)) {
+        const kept = replacements.filter((r) => bodySet.has(r));
+        if (kept.length > 0) map[source] = kept;
+      }
       const valid = new Set<string>();
       for (const candidate of generateCandidates(body, map, options.maxCorrections ?? 1)) {
         if (calculateChecksum(this.profile, candidate) === suppliedChecksum) {

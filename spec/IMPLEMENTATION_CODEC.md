@@ -84,6 +84,13 @@ L -> 1
 
 These aliases are safe because the canonical body alphabet does not emit `O`, `I` or `L`.
 
+The same rule extends to every look-alike a visual safety drop removes: a symbol that can never be issued has exactly one possible meaning in a typed code. The frozen Medium tier drops `B` and `S` for looking like `8` and `5`, so it also accepts:
+
+```text
+B -> 8
+S -> 5
+```
+
 An alias must never map two distinct canonical symbols into one value. Aliases expand accepted input but do not change canonical output.
 
 ### 3.3 Confusion candidates
@@ -430,6 +437,7 @@ function decode(input, profile, options):
 ### 10.1 Rules
 
 - Generate only substitutions listed in the selected confusion profile.
+- Drop replacements that are not canonical body symbols before generating: a candidate the alphabet cannot contain could never validate, and checksumming it must not surface as `INVALID_CHARACTER`.
 - Never generate insertions or deletions in version 1.
 - Never alter checksum characters during correction.
 - Default maximum edit count is one.

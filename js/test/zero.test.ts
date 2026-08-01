@@ -46,7 +46,13 @@ test("fromCode accepts lowercase, aliases and any whitespace", () => {
 test("fromCode throws on invalid input, with no correction attempt", () => {
   throwsCode(() => fromCode("0000000"), "INVALID_CHECKSUM");
   throwsCode(() => fromCode("!!!!!!!"), "INVALID_CHARACTER");
-  // B is not canonical in Medium and is not an alias; no correction guesses it.
-  throwsCode(() => fromCode("B00000C"), "INVALID_CHARACTER");
+  // B is an alias at Medium: it decodes as 8 rather than failing.
+  let code8 = "";
+  let id8 = -1n;
+  for (let id = 1n; id < 100000n; id += 1n) {
+    code8 = toCode(id);
+    if (code8.includes("8")) { id8 = id; break; }
+  }
+  assert.equal(fromCode(code8.replace("8", "B")), id8);
   throwsCode(() => fromCode(""), "INVALID_LENGTH");
 });
