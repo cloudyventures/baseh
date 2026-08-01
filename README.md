@@ -105,6 +105,10 @@ The `baseh-expandable-v1` tier is the recommended starting point:
   print bare. The split is a balanced function of the code length —
   `XXX-XXX` at six, `XXXX-XXX` at seven, `XXXX-XXXX` at eight — so there
   is no grouping to configure in expandable mode.
+- **Repetition filter on**: like every frozen tier, the expandable tier
+  ships `maxRepetition: 4`, so codes with a run of four or more identical
+  symbols are never issued (configurable to any floor of 3 or more, or 0
+  to turn it off).
 
 A keyed variant `baseh-expandable-p-v1` takes your own key for a private
 mapping, like the other `-p` tiers.
@@ -112,7 +116,9 @@ mapping, like the other `-p` tiers.
 ### Fixed mode (frozen tiers)
 
 Four frozen tiers ship with the library, all `mode: "fixed"`, all running
-the default profanity blocklist, all six characters of body, all
+the default profanity blocklist, all blocking runs of four or more identical
+symbols (the repetition filter, `maxRepetition: 4` — configurable to any
+floor of 3 or more, or 0 to turn it off), all six characters of body, all
 hyphen-delimited and all permuting with the published frozen key:
 
 | Tier | Symbols | Checksum | Shape | Capacity | Use for |

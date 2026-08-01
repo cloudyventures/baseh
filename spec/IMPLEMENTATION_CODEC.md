@@ -22,6 +22,7 @@ type BasehProfile = {
   separatorMinLength: number; // expandable mode only; default 0
   grouping: number[];
   aliases: Record<string, string>;
+  maxRepetition: number;    // 0 = off (default); otherwise >= 3, section 21
   permutation:
     | { enabled: false }
     | {
@@ -79,6 +80,10 @@ A profile is valid only when all conditions are true:
   empty, `grouping` must be empty.
 - A permutation key is present when permutation is enabled.
 - Feistel rounds are an even integer from 4 through 16.
+- `maxRepetition` is `0` (the repetition filter is off, section 21) or an
+  integer of at least `3`. There is no upper bound: a value above the code
+  length is a legal no-op. Profiles that predate the field are treated as
+  `0`, so pre-existing profiles and vectors are unaffected.
 
 Reject invalid profiles during application startup, not during the first customer request.
 
@@ -450,6 +455,11 @@ function encode(id, profile):
            substring of raw:   # section 18
             error BLOCKED_CODE
 
+    if profile.maxRepetition > 0:
+        if raw contains a run of the same symbol of length
+           >= profile.maxRepetition:   # section 21
+            error BLOCKED_CODE
+
     return format(raw, profile.grouping, profile.separator)
 ```
 
@@ -583,6 +593,7 @@ Errors:
 - `INVALID_PROFILE`
 - `OUT_OF_RANGE`
 - `PERMUTATION_FAILURE`
+- `BLOCKED_CODE` (sections 18 and 21)
 
 ### 12.2 Decode
 
@@ -612,6 +623,7 @@ Errors:
 - `AMBIGUOUS_INPUT`
 - `TOO_MANY_CANDIDATES`
 - `PERMUTATION_FAILURE`
+- `BLOCKED_CODE` (sections 18 and 21)
 
 ### 12.3 Capacity
 
@@ -688,6 +700,8 @@ Each language implementation must:
 
 Four frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all four run the default profanity blocklist (section 18) and keep their typed aliases. `baseh-medium-v1` is the documented default.
 
+Every frozen tier — fixed and expandable, plain and `-p` — ships `maxRepetition: 4` (section 21.4): a run of four or more identical symbols blocks the code at encode time.
+
 Version 2 shapes: all four tiers permute with the frozen published key (section 7.5) and carry a hyphen at the midpoint; Light, Medium and Heavy carry two checksum symbols, Minimum carries none. Capacities are unchanged from version 1 because body length stays 6 everywhere. Codes issued under the version 1 shapes do not decode under these profiles.
 
 | Tier | Symbols | Checksum | Delimiter | Permutation | Capacity | Use for |
@@ -726,7 +740,8 @@ Version 2 shapes: all four tiers permute with the frozen published key (section 
   },
   "profanity": {
     "mode": "blocklist"
-  }
+  },
+  "maxRepetition": 4
 }
 ```
 
@@ -771,7 +786,8 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
   },
   "profanity": {
     "mode": "blocklist"
-  }
+  },
+  "maxRepetition": 4
 }
 ```
 
@@ -851,7 +867,8 @@ CRAP TWAT SHAG DAMN FCK FUC SHT CNT TWT DCK AZZ BCH
 Added to the error taxonomy: the generated or decoded code contains a
 blocked substring. `safeForCustomer` is false: this is an issuance decision,
 not an end-user condition. Applications should advance their sequence by one
-and retry encoding.
+and retry encoding. The repetition filter (section 21) raises the same
+error.
 
 ### 18.4 Known limitation
 
@@ -1111,3 +1128,66 @@ definition must declare `mode` explicitly once implementations support it,
 and a decoder must not guess the mode from the presented input. Profiles
 constructed programmatically without a mode are treated as `"fixed"`
 (section 2.2).
+
+## 21. Repetition filter
+
+Profiles gain an optional `maxRepetition` field: the maximum allowed run of
+the same symbol in a code. Humans mis-count long runs (`00000` read as
+`0000`), and no checksum can catch a mis-counted symbol that was never typed;
+the filter prevents such codes from being issued at all.
+
+```json
+{
+  "maxRepetition": 4
+}
+```
+
+`0` disables the filter and is the default: profiles that predate the field
+are treated as `0`, so existing profiles and vectors are unaffected. When the
+filter is on, the value must be an integer of at least `3` — validation
+rejects `1` and `2` with `INVALID_PROFILE`, because banning pairs would
+destroy roughly 9% of every generation. There is no upper bound to validate
+against: a value above the code length is a legal no-op.
+
+### 21.1 Scope
+
+The filter is an issuance rule only, exactly like the blocklist of section
+18: it never changes the emitted shape of an allowed code, never changes
+identifier capacity accounting, and never changes decode behavior for codes
+that pass it.
+
+### 21.2 Encode-time scan
+
+After the code is fully rendered — permutation applied, checksum appended,
+before separator insertion — the encoder scans the raw code string (body +
+checksum) for a run of the same symbol. If any run has length
+`>= maxRepetition`, the encoder fails with `BLOCKED_CODE` (section 18.3);
+applications advance their sequence by one and retry, exactly as for a
+blocklisted word.
+
+Runs are measured on the raw code **without** separators: `XXX-XXX` counts as
+a run of 6. This is deliberately conservative — spec simplicity beats the
+marginal over-ban of codes whose run happens to straddle a separator.
+
+### 21.3 Decode and correction
+
+Decode mirrors the blocklist semantics of section 18.2: `decode` may raise
+`BLOCKED_CODE` when reconstructing the canonical form, since a code with a
+blocked run could never have been issued. Correction likewise never
+"corrects into" a blocked code: if the sole checksum-valid candidate carries
+a blocked run, decode fails with `BLOCKED_CODE` rather than returning it.
+
+### 21.4 Frozen tiers
+
+Every frozen tier — the four fixed tiers `baseh-minimum-v1` through
+`baseh-heavy-v1`, their `-p` keyed variants, and the expandable tier
+`baseh-expandable-v1` with its `-p` variant — ships `maxRepetition: 4`
+(sections 17 and 17.1). A run of three still passes everywhere; only runs of
+four or more are blocked.
+
+### 21.5 Capacity
+
+`capacity()` is unchanged (the blocklist precedent, section 18): blocked ids
+are reserved, not subtracted. The cost is negligible — at `maxRepetition: 4`
+the blocked share of a generation is well under 0.5% for every frozen tier
+(see `DESIGN_NOTES.md`).

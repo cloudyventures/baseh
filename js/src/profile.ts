@@ -37,6 +37,12 @@ export interface BasehProfile {
   permutation: BasehPermutation;
   /** Spec 18. Defaults to mode "none". */
   profanity?: BasehProfanity;
+  /**
+   * Spec 21. Maximum allowed run of the same symbol in a raw code. 0 (the
+   * default) disables the filter; otherwise it must be an integer of at
+   * least 3. A value above the code length is a legal no-op.
+   */
+  maxRepetition?: number;
 }
 
 /** Case-prepared derived data, computed once at construction. */
@@ -52,6 +58,8 @@ export interface PreparedProfile extends BasehProfile {
   readonly capacity: bigint;
   /** Spec 18. Empty unless the profile uses mode "blocklist". */
   readonly blocklist: string[];
+  /** Spec 21. 0 disables the repetition filter. */
+  readonly maxRepetition: number;
 }
 
 const ASCII_ONLY = /^[\x20-\x7e]*$/;
@@ -191,6 +199,13 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
   }
   const blocklist = profanity.mode === "blocklist" ? effectiveBlocklist(profanity) : [];
 
+  // Spec 21: 0 disables the filter; an active filter needs a floor of 3 —
+  // banning pairs (2) would destroy roughly 9% of every generation.
+  const maxRepetition = profile.maxRepetition ?? 0;
+  if (!Number.isInteger(maxRepetition) || maxRepetition < 0 || (maxRepetition > 0 && maxRepetition < 3)) {
+    fail("maxRepetition must be 0 (off) or an integer of at least 3");
+  }
+
   const separator = profile.separator ?? "";
   for (const ch of separator) {
     if (bodyNorm.includes(ch) || checksumNorm.includes(ch)) {
@@ -271,7 +286,8 @@ export function prepareProfile(profile: BasehProfile): PreparedProfile {
     aliasesNorm,
     checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
     capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength ?? 0),
-    blocklist
+    blocklist,
+    maxRepetition
   };
 }
 

@@ -223,6 +223,12 @@ from the string alone. There is no shuffling step either — the Feistel
 permutation (spec 7) already makes sequential ids look random, so
 `nextval` output can go straight into `encode`.
 
+Some ids are unissuable and must be skipped: codes containing a blocklisted
+word (spec 18) or a run of identical symbols at or beyond the profile's
+`maxRepetition` (spec 21) fail `encode` with `BLOCKED_CODE`. The issuance
+loop catches that error, advances to the next id and retries — blocked ids
+are simply never handed out, exactly like the skipped blocklist ids.
+
 Three warnings, all load-bearing:
 
 - **The counter is critical state.** Back it up with the database it belongs

@@ -34,6 +34,12 @@ export interface BasehProfile {
     permutation: BasehPermutation;
     /** Spec 18. Defaults to mode "none". */
     profanity?: BasehProfanity;
+    /**
+     * Spec 21. Maximum allowed run of the same symbol in a raw code. 0 (the
+     * default) disables the filter; otherwise it must be an integer of at
+     * least 3. A value above the code length is a legal no-op.
+     */
+    maxRepetition?: number;
 }
 /** Case-prepared derived data, computed once at construction. */
 export interface PreparedProfile extends BasehProfile {
@@ -48,6 +54,8 @@ export interface PreparedProfile extends BasehProfile {
     readonly capacity: bigint;
     /** Spec 18. Empty unless the profile uses mode "blocklist". */
     readonly blocklist: string[];
+    /** Spec 21. 0 disables the repetition filter. */
+    readonly maxRepetition: number;
 }
 /**
  * Validates a profile per spec section 2.2 and returns it with derived,

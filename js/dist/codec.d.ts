@@ -46,7 +46,7 @@ export declare class Baseh {
     constructor(profile: BasehProfile);
     capacity(): bigint;
     private permKey;
-    private checkBlocklist;
+    private checkBlocked;
     /** Spec 8 (fixed mode). */
     private encodeFixed;
     /** Spec 19.6. */

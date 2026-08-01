@@ -51,10 +51,12 @@ _ALL_KEYED_HELPERS = (
 
 def _base_profile() -> dict:
     # Permutation-specific tests opt in by supplying a key explicitly. The
-    # blocklist is switched off so generic round-trip tests can encode
-    # sequentially; TestProfanity arms it case by case.
+    # blocklist and the repetition filter are switched off so generic
+    # round-trip tests can encode sequentially; TestProfanity and
+    # test_repetition arm them case by case.
     profile = baseh_medium_p_v1(_TEST_KEY, key_id="test-01")
     profile["profanity"] = {"mode": "none"}
+    profile["maxRepetition"] = 0
     return profile
 
 

@@ -24,6 +24,7 @@ const els = {
   bodyLen: $<HTMLInputElement>("body-length"),
   bodyLenOut: $("body-length-out"),
   checksumLen: $<HTMLSelectElement>("checksum-length"),
+  maxRep: $<HTMLSelectElement>("max-repetition"),
   permutation: $<HTMLInputElement>("permutation"),
   separator: $<HTMLInputElement>("separator"),
   records: $<HTMLInputElement>("records"),
@@ -86,6 +87,7 @@ function readInput(): CalculatorInput {
     minLength: Number(els.minLen.value),
     separatorMinLength: Number(els.sepMinLen.value),
     checksumLength: Number(els.checksumLen.value),
+    maxRepetition: Number(els.maxRep.value),
     permutation: els.permutation.checked,
     separator: els.separator.value,
     prefix: "",
@@ -108,6 +110,8 @@ function applyPreset(name: string) {
   els.bodyLen.value = String(p.bodyLength);
   els.checksumLen.value = String(p.checksumLength);
   els.separator.value = p.separator;
+  // Every frozen tier ships maxRepetition 4 (spec 21.4).
+  els.maxRep.value = "4";
   // Every frozen tier permutes with the published key, so its preset starts
   // with the preview on to match.
   els.permutation.checked = true;
@@ -131,6 +135,11 @@ function render() {
 
   els.alphaSize.textContent = String(r.alphabet.length);
   els.alphaView.textContent = r.alphabet;
+  // Spec 21.5: capacity() is unchanged by the filter, so the note states
+  // its existence rather than subtracting the (negligible) blocked share.
+  const repNote = input.maxRepetition > 0
+    ? `<div class="muted">Repetition filter on: codes with a run of ${input.maxRepetition}+ identical symbols are never issued; the capacity above still counts them (well under 0.5% of ids).</div>`
+    : "";
   if (r.generations) {
     const rows = r.generations.map((g) =>
       `<tr><td>${g.length}</td><td>${fmt(g.capacity)}</td><td>${fmt(g.cumulative)}</td></tr>`).join("");
@@ -141,7 +150,7 @@ function render() {
       <table class="gen-table">
         <thead><tr><th>Length</th><th>New IDs</th><th>Cumulative</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
+      </table>${repNote}`;
   } else {
     els.summary.innerHTML = `
       <div class="big">${fmt(r.capacity)} <span class="unit">valid references</span></div>
@@ -152,12 +161,12 @@ function render() {
               r.checksumStates <= BigInt(r.alphabet.length - 1) ? "structured gaps, see spec 6.3" : "total single-substitution detection"
             }</span>`
           : ""
-      }</div>`;
+      }</div>${repNote}`;
   }
 
   els.examplesBody.innerHTML = r.examples
     .map((e) => `<tr><td>${e.id}</td><td>${e.blocked
-        ? `<span class="muted">blocked: spells a profanity, never issued</span>`
+        ? `<span class="muted">blocked: never issued (profanity or a repetition run)</span>`
         : `<code>${e.code}</code>`}</td></tr>`)
     .join("");
 
@@ -262,6 +271,7 @@ els.copyJson.addEventListener("click", async () => {
     checksumLength: input.checksumLength,
     caseSensitive: false,
     separator: input.separator,
+    maxRepetition: input.maxRepetition,
     profanity: input.profanity === "none" ? undefined : { mode: input.profanity },
     permutation: input.permutation
       ? { enabled: true, algorithm: "feistel-v1", keyId: "<your-key-id>", keyBytes: "<your-key-bytes>", rounds: 8 }
@@ -308,7 +318,7 @@ els.copyUrl.addEventListener("click", async () => {
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "expandable"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.codecMode, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.minLen, els.sepMinLen, els.checksumLen, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
+  els.minLen, els.sepMinLen, els.checksumLen, els.maxRep, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
   els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
@@ -329,6 +339,7 @@ interface SavedState {
   minLength: string;
   separatorMinLength: string;
   checksumLength: string;
+  maxRepetition: string;
   permutation: boolean;
   separator: string;
   records: string;
@@ -352,6 +363,7 @@ function readState(): SavedState {
     minLength: els.minLen.value,
     separatorMinLength: els.sepMinLen.value,
     checksumLength: els.checksumLen.value,
+    maxRepetition: els.maxRep.value,
     permutation: els.permutation.checked,
     separator: els.separator.value,
     records: els.records.value,
@@ -377,6 +389,8 @@ function applyState(s: SavedState) {
   els.minLen.value = s.minLength ?? els.minLen.value;
   els.sepMinLen.value = s.separatorMinLength ?? els.sepMinLen.value;
   els.checksumLen.value = s.checksumLength;
+  // Older stored states predate the repetition filter; keep the control default.
+  els.maxRep.value = s.maxRepetition ?? els.maxRep.value;
   els.permutation.checked = s.permutation;
   els.separator.value = s.separator;
   els.records.value = s.records;

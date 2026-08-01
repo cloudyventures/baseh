@@ -11,6 +11,7 @@ module Baseh
   #                  key_bytes:, rounds: } or { enabled: false },
   #   profanity: { mode: "none" | "no-vowels" | "blocklist",
   #                words: [...], extra_words: [...] } (optional, spec 18)
+  #   max_repetition: 0 (off) or an integer >= 3 (optional, spec 21)
   module Profile
     ASCII_ONLY = /\A[\x20-\x7e]*\z/.freeze
 
@@ -20,7 +21,8 @@ module Baseh
                   :min_length, :checksum_alphabet, :checksum_length,
                   :case_sensitive, :separator, :separator_min_length,
                   :grouping, :aliases, :permutation,
-                  :capacity, :checksum_modulus, :profanity_mode, :blocklist
+                  :capacity, :checksum_modulus, :profanity_mode, :blocklist,
+                  :max_repetition
 
       def initialize(profile)
         validate_type!(profile)
@@ -104,6 +106,14 @@ module Baseh
           else
             [].freeze
           end
+
+        # Spec 21: 0 disables the filter; an active filter needs a floor of
+        # 3 — banning pairs (2) would destroy roughly 9% of every generation.
+        @max_repetition = profile[:max_repetition] || 0
+        unless @max_repetition.is_a?(Integer) && @max_repetition >= 0 &&
+               (@max_repetition.zero? || @max_repetition >= 3)
+          self.class.fail_profile!("maxRepetition must be 0 (off) or an integer of at least 3")
+        end
 
         @separator = validate_separator!(
           profile[:separator].to_s, @body_alphabet, @checksum_alphabet

@@ -17,6 +17,7 @@ function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
     checksumLength: 1,
     permutation: false,
     separator: "-",
+    maxRepetition: 0,
     prefix: "",
     suffix: "",
     peakMultiplier: 1.25,
@@ -41,6 +42,7 @@ function designInput(overrides: Partial<DesignerInput> = {}): DesignerInput {
     spokenSafety: "none",
     profanity: "none",
     permutation: false,
+    maxRepetition: 0,
     ...overrides
   };
 }
@@ -204,7 +206,7 @@ describe("separator in the designer", () => {
   });
   it("sample codes carry the delimiter", async () => {
     const { sampleCodes } = await import("../src/core.js");
-    const s = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 1073741824n, "none", "-");
+    const s = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 1073741824n, "none", "-", "none", false, 0);
     assert.ok(s.length > 0 && s.every((e) => e.code.includes("-")));
   });
   it("empty delimiter means none", async () => {
@@ -626,5 +628,111 @@ describe("expandable designer outcome", async () => {
   });
   it("returns null when the delimiter collides with every alphabet", () => {
     assert.equal(expandableDesign(designInput({ separator: "A", allowDigits: false })), null);
+  });
+});
+
+describe("repetition filter (spec 21)", async () => {
+  const { calculate, calculatorProfile, candidateProfile, expandableDesign, expandableProfile } = await import("../src/core.js");
+  const { Baseh, BasehError } = await import("@cloudyventures/baseh");
+
+  const maxRun = (code: string): number => {
+    let best = 1;
+    let run = 1;
+    for (let i = 1; i < code.length; i += 1) {
+      run = code[i] === code[i - 1] ? run + 1 : 1;
+      if (run > best) best = run;
+    }
+    return best;
+  };
+
+  // Probe the filter-off twin of a profile for ids whose raw codes carry a
+  // run of exactly `run` (or at least `run`) identical symbols.
+  const probe = (input: CalculatorInput, run: number, exact: boolean) => {
+    const off = new Baseh(calculatorProfile({ ...input, maxRepetition: 0 })!);
+    for (let id = 0n; id < 200000n; id += 1n) {
+      let code: string;
+      try {
+        code = off.encode(id);
+      } catch {
+        continue;
+      }
+      const raw = code.replaceAll("-", "");
+      const r = maxRun(raw);
+      if (exact ? r === run : r >= run) return { id, code };
+    }
+    throw new Error(`no probe id found for run ${run}`);
+  };
+
+  it("derivation passes the field through to both preview modes", () => {
+    assert.equal(calculatorProfile(calcInput({ maxRepetition: 4 }))!.maxRepetition, 4);
+    assert.equal(calculatorProfile(calcInput({ codecMode: "expandable", maxRepetition: 3 }))!.maxRepetition, 3);
+    assert.equal(calculatorProfile(calcInput({ maxRepetition: 0 }))!.maxRepetition, 0);
+  });
+
+  it("designer candidates and the expandable design carry the filter into their previews", () => {
+    const input = designInput({ maxRepetition: 4 });
+    const r = design(input);
+    assert.ok(r.recommended);
+    assert.equal(r.recommended!.maxRepetition, 4);
+    assert.equal(candidateProfile(r.recommended!, false).maxRepetition, 4);
+    const d = expandableDesign(input)!;
+    assert.equal(d.maxRepetition, 4);
+    assert.equal(expandableProfile(d, input, false).maxRepetition, 4);
+  });
+
+  it("run-4 codes are rejected in preview round trips; run-3 still passes", () => {
+    const input = calcInput({ maxRepetition: 4, permutation: false });
+    const h = new Baseh(calculatorProfile(input)!);
+    const four = probe(input, 4, false);
+    assert.throws(() => h.encode(four.id), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+    // Decode reports the same blocked status, since the canonical re-encode
+    // passes through the scan (spec 21.3).
+    assert.throws(() => h.decode(four.code), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+    const three = probe(input, 3, true);
+    assert.equal(h.decode(h.encode(three.id)).id, three.id);
+  });
+
+  it("a run straddling the separator still blocks", () => {
+    const input = calcInput({ maxRepetition: 4, permutation: false });
+    const h = new Baseh(calculatorProfile(input)!);
+    const off = new Baseh(calculatorProfile({ ...input, maxRepetition: 0 })!);
+    // id 0 is all zero symbols in fixed mode; its separator splits the run.
+    const code = off.encode(0n);
+    assert.ok(code.includes("-"), code);
+    assert.ok(maxRun(code.replaceAll("-", "")) >= 4, code);
+    assert.throws(() => h.encode(0n), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+  });
+
+  it("custom value 3 blocks triples", () => {
+    const input = calcInput({ maxRepetition: 3, permutation: false });
+    const h = new Baseh(calculatorProfile(input)!);
+    const three = probe(input, 3, false);
+    assert.throws(() => h.encode(three.id), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+  });
+
+  it("capacity is unchanged and blocked examples are marked, not dropped", () => {
+    const off = calculate(calcInput({ permutation: false }));
+    const on = calculate(calcInput({ maxRepetition: 4, permutation: false }));
+    assert.equal(on.capacity, off.capacity);
+    assert.ok(on.examples.some((e) => e.blocked), "id 0 is a zero run and must show as blocked");
+  });
+
+  it("correction never corrects into a blocked code", () => {
+    const input = calcInput({ maxRepetition: 4, permutation: false, checksumLength: 2 });
+    const h = new Baseh(calculatorProfile(input)!);
+    const four = probe(input, 4, false);
+    // Mutating one symbol of a blocked code either fails the checksum or
+    // lands on a candidate that is itself blocked; it must never decode.
+    const raw = four.code;
+    for (let i = 0; i < raw.length; i += 1) {
+      if (raw[i] === "-") continue;
+      const mutated = raw.slice(0, i) + (raw[i] === "0" ? "1" : "0") + raw.slice(i + 1);
+      try {
+        const decoded = h.decode(mutated, { tryCorrection: true, confusionProfile: "heavy" });
+        assert.notEqual(maxRun(decoded.canonicalCode.replaceAll("-", "")) >= 4, true, mutated);
+      } catch (e) {
+        assert.ok(e instanceof BasehError, String(e));
+      }
+    }
   });
 });

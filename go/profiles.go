@@ -157,6 +157,7 @@ func buildTier(shape tierShape, permutation Permutation, pSuffix bool) Profile {
 		Aliases:          shape.aliases,
 		Permutation:      permutation,
 		Profanity:        Profanity{Mode: ProfanityBlocklist},
+		MaxRepetition:    4,
 	}
 }
 
@@ -243,6 +244,7 @@ func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
 		Aliases:            tierAliases("T", "P", "N", "M", "W", "V"),
 		Permutation:        permutation,
 		Profanity:          Profanity{Mode: ProfanityBlocklist},
+		MaxRepetition:      4,
 	}
 }
 

@@ -89,6 +89,10 @@ pub struct Profile {
     pub aliases: Vec<(char, char)>,
     pub permutation: Permutation,
     pub profanity: Option<Profanity>,
+    /// Spec 21. Maximum allowed run of the same symbol in a raw code. `0`
+    /// (the default) disables the filter; otherwise it must be at least 3. A
+    /// value above the code length is a legal no-op.
+    pub max_repetition: usize,
 }
 
 /// A profile after validation, with derived values computed once.
@@ -290,6 +294,12 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         Some(p) if p.mode == ProfanityMode::Blocklist => effective_blocklist(p)?,
         _ => Vec::new(),
     };
+
+    // Spec 21: 0 disables the filter; an active filter needs a floor of 3 —
+    // banning pairs (2) would destroy roughly 9% of every generation.
+    if profile.max_repetition == 1 || profile.max_repetition == 2 {
+        return Err(fail("maxRepetition must be 0 (off) or an integer of at least 3"));
+    }
 
     for ch in profile.separator.chars() {
         if body_norm.contains(&ch) || checksum_norm.contains(&ch) {

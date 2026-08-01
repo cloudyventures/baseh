@@ -94,6 +94,7 @@ def _tier(name: str, permutation: dict, p_suffix: bool) -> dict:
         "aliases": dict(shape["aliases"]),
         "permutation": permutation,
         "profanity": {"mode": "blocklist"},
+        "maxRepetition": 4,
     }
 
 
@@ -173,6 +174,7 @@ def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
         "aliases": {**_OIL_ALIASES, "T": "P", "N": "M", "W": "V"},
         "permutation": permutation,
         "profanity": {"mode": "blocklist"},
+        "maxRepetition": 4,
     }
 
 
