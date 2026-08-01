@@ -1,7 +1,7 @@
 # base-human
 
 Ruby port of the BaseH (Human Reference Code) codec. Encodes integer IDs as
-fixed-length, checksummed, human-friendly reference codes with an optional
+fixed-length, checksummed, human-friendly reference codes with an opt-in
 reversible feistel-v1 permutation and profanity safety. The normative spec
 is `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
 
@@ -27,14 +27,7 @@ library are used.
 ```ruby
 require "base_human"
 
-# Supply your own permutation key material. Keep it in a secret manager and
-# never change it for a live profile.
-profile = BaseHuman.baseh32_v1(
-  key_bytes: File.binread("path/to/key.bin"),
-  key_id: "prod-01"
-)
-
-codec = BaseHuman::Baseh.new(profile)
+codec = BaseHuman::Baseh.new(BaseHuman.baseh32_v1)   # permutation disabled
 
 code = codec.encode(id: 123_456)           # => raw fixed-width code, no separator
 
@@ -53,9 +46,24 @@ check.reason                               # => "INVALID_CHECKSUM"
 result = codec.decode("TB14QDF", try_correction: true, confusion_profile: :light)
 ```
 
-`BaseHuman.baseh32s_v1(...)` gives the two-checksum-digit self-service
-profile. Both helpers take `rounds:` (default 8) after `key_bytes:` and
-`key_id:`.
+`BaseHuman.baseh32s_v1` gives the two-checksum-digit self-service profile.
+
+## Permutation (opt-in)
+
+Supplying key bytes opts the profile into the reversible feistel-v1
+permutation. Keep the key in a secret manager and never change it for a live
+profile:
+
+```ruby
+profile = BaseHuman.baseh32_v1(
+  key_bytes: File.binread("path/to/key.bin"),
+  key_id: "prod-01"                        # optional, defaults to "default"
+)
+codec = BaseHuman::Baseh.new(profile)
+```
+
+`rounds:` is also accepted (default 8). Calling the helpers with no
+`key_bytes:` returns a profile with permutation disabled.
 
 ## Profanity safety (spec 18)
 

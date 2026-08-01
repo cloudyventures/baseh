@@ -117,16 +117,48 @@ func TestProfileValidationRejections(t *testing.T) {
 }
 
 func TestShippedProfilesAccepted(t *testing.T) {
-	if _, err := NewBaseh(Baseh32V1Profile(testKey, "test-01")); err != nil {
+	if _, err := NewBaseh(Baseh32V1Profile(nil, "")); err != nil {
 		t.Errorf("baseh32-v1: %v", err)
 	}
-	if _, err := NewBaseh(Baseh32SV1Profile(testKey, "test-01")); err != nil {
+	if _, err := NewBaseh(Baseh32SV1Profile(nil, "")); err != nil {
 		t.Errorf("baseh32s-v1: %v", err)
 	}
-	p := Baseh32V1Profile(testKey, "test-01")
-	p.Permutation = Permutation{Enabled: false}
-	if _, err := NewBaseh(p); err != nil {
-		t.Errorf("no-permutation variant: %v", err)
+	if _, err := NewBaseh(Baseh32V1Profile(testKey, "test-01")); err != nil {
+		t.Errorf("baseh32-v1 keyed: %v", err)
+	}
+	if _, err := NewBaseh(Baseh32SV1Profile(testKey, "test-01")); err != nil {
+		t.Errorf("baseh32s-v1 keyed: %v", err)
+	}
+}
+
+func TestPermutationOptIn(t *testing.T) {
+	// No key: permutation disabled and deterministic across implementations.
+	noKey := Baseh32V1Profile(nil, "ignored-key-id")
+	if noKey.Permutation.Enabled {
+		t.Fatalf("no-key profile has permutation enabled: %+v", noKey.Permutation)
+	}
+	// Keyed: feistel-v1 enabled with the given key id and 8 rounds.
+	keyed := Baseh32V1Profile(testKey, "test-01")
+	perm := keyed.Permutation
+	if !perm.Enabled || perm.Algorithm != "feistel-v1" || perm.KeyID != "test-01" || perm.Rounds != 8 {
+		t.Errorf("keyed permutation = %+v", perm)
+	}
+	// Empty key id with key material defaults to "default".
+	if got := Baseh32V1Profile(testKey, "").Permutation.KeyID; got != "default" {
+		t.Errorf("default key id = %q", got)
+	}
+	for name, p := range map[string]Profile{"no-key": noKey, "keyed": keyed} {
+		h := mustNew(t, p)
+		for _, id := range []*big.Int{big.NewInt(0), big.NewInt(1), big.NewInt(123456789), new(big.Int).Sub(h.Capacity(), big.NewInt(1))} {
+			code, err := h.Encode(id)
+			if err != nil {
+				t.Fatalf("%s encode %s: %v", name, id, err)
+			}
+			res, err := h.Decode(code, nil)
+			if err != nil || res.ID.Cmp(id) != 0 {
+				t.Errorf("%s round trip %s -> %q -> %+v, %v", name, id, code, res, err)
+			}
+		}
 	}
 }
 
@@ -222,8 +254,7 @@ func TestAliasesAndNormalization(t *testing.T) {
 	}
 
 	// Aliases decode to the canonical id on a no-permutation profile.
-	p := Baseh32V1Profile(testKey, "test-01")
-	p.Permutation = Permutation{Enabled: false}
+	p := Baseh32V1Profile(nil, "")
 	np := mustNew(t, p)
 	c, err := np.Encode(big.NewInt(1))
 	if err != nil {
@@ -240,8 +271,7 @@ func TestAliasesAndNormalization(t *testing.T) {
 }
 
 func TestCorrectionModes(t *testing.T) {
-	p := Baseh32V1Profile(testKey, "test-01")
-	p.Permutation = Permutation{Enabled: false}
+	p := Baseh32V1Profile(nil, "")
 	p.ProfileID = "baseh32-noperm-test"
 	h := mustNew(t, p)
 
@@ -273,8 +303,7 @@ func TestCorrectionModes(t *testing.T) {
 
 func TestProfanityBlocklist(t *testing.T) {
 	base := func() Profile {
-		p := Baseh32V1Profile(testKey, "test-01")
-		p.Permutation = Permutation{Enabled: false}
+		p := Baseh32V1Profile(nil, "")
 		p.ProfileID = "block32-test"
 		p.Profanity = Profanity{Mode: ProfanityBlocklist}
 		return p
@@ -344,8 +373,7 @@ func TestProfanityBlocklist(t *testing.T) {
 }
 
 func TestProfanityNoVowels(t *testing.T) {
-	p := Baseh32V1Profile(testKey, "test-01")
-	p.Permutation = Permutation{Enabled: false}
+	p := Baseh32V1Profile(nil, "")
 	p.ProfileID = "novowel32-test"
 	p.Profanity = Profanity{Mode: ProfanityNoVowels}
 	h, err := NewBaseh(p)
