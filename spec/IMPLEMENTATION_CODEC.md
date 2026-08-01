@@ -1,4 +1,4 @@
-# HRC Codec Implementation
+# BaseH Codec Implementation
 
 ## 1. Scope
 
@@ -9,7 +9,7 @@ This document is normative. It defines profile validation, integer encoding, dec
 ### 2.1 Profile
 
 ```typescript
-type HrcProfile = {
+type BasehProfile = {
   profileId: string;
   bodyAlphabet: string;
   bodyLength: number;
@@ -48,7 +48,7 @@ A profile is valid only when all conditions are true:
 - Every alias target is a canonical body or checksum symbol.
 - Alias application is idempotent.
 - Alias chains are forbidden.
-- Group sizes sum to `bodyLength + checksumLength`.
+- Group sizes sum to `bodyLength + checksumLength`. When the separator is empty, `grouping` must be empty.
 - A permutation key is present when permutation is enabled.
 - Feistel rounds are an even integer from 4 through 16.
 
@@ -182,7 +182,7 @@ The checksum must:
 - Be simple enough to implement consistently.
 - Use only the configured safe checksum alphabet.
 
-Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. `hrc32-v1` (`M = 26`) is in the second category; `hrc32s-v1` (`M = 676`) is in the first.
+Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. `baseh32-v1` (`M = 26`) is in the second category; `baseh32s-v1` (`M = 676`) is in the first.
 
 ### 6.2 Version 1 checksum
 
@@ -229,8 +229,8 @@ A checksum is error detection, not guaranteed correction. With modulus `M`, a ra
 
 For the version 1 checksum, a single substitution at body position `p` changes the checksum value by `delta * 37^k mod M`, where `k` is the number of body positions after `p` and `delta` is the symbol-value change. Since `gcd(37, M) = 1` for both frozen profiles, the substitution evades detection exactly when `delta` is a multiple of `M`.
 
-- `hrc32-v1` (`M = 26`): deltas of `26` modulo 26 evade detection. That is 12 undetected cases out of `32 * 31 = 992` possible single-substitution errors per position, a structured miss rate of about 1.2 percent, plus the random `1/26` rate for other errors. Adjacent transpositions evade detection when the swapped values differ by a multiple of 13. Suitable for assisted support where a human can request the code again.
-- `hrc32s-v1` (`M = 676`): the maximum possible `|delta|` is 31, which is below 676, so detection of single substitutions is total. Adjacent transpositions change the checksum by `36 * (a - b) * 37^k mod 676`; since that is zero only when `a = b` for values below 32, adjacent transpositions are likewise always detected. Random false acceptance is about 0.15 percent. Suitable for unattended self-service lookup.
+- `baseh32-v1` (`M = 26`): deltas of `26` modulo 26 evade detection. That is 12 undetected cases out of `32 * 31 = 992` possible single-substitution errors per position, a structured miss rate of about 1.2 percent, plus the random `1/26` rate for other errors. Adjacent transpositions evade detection when the swapped values differ by a multiple of 13. Suitable for assisted support where a human can request the code again.
+- `baseh32s-v1` (`M = 676`): the maximum possible `|delta|` is 31, which is below 676, so detection of single substitutions is total. Adjacent transpositions change the checksum by `36 * (a - b) * 37^k mod 676`; since that is zero only when `a = b` for values below 32, adjacent transpositions are likewise always detected. Random false acceptance is about 0.15 percent. Suitable for unattended self-service lookup.
 
 ### 6.4 Recommended production choice
 
@@ -272,7 +272,7 @@ Normative algorithm. All integer-to-byte conversions are unsigned big-endian unl
    where `message_i` is exactly this byte sequence:
 
    ```text
-   "HRC-FEISTEL-V1" (14 ASCII bytes)
+   "BASEH-FEISTEL-V1" (14 ASCII bytes)
    0x00
    ASCII(profileId)
    0x00
@@ -338,6 +338,11 @@ function encode(id, profile):
 
     checksum = calculateChecksum(profile, body)
     raw = body + checksum
+
+    if profile.profanity.mode == "blocklist":
+        if any effective blocklist word is a case-insensitive
+           substring of raw:   # section 18
+            error BLOCKED_CODE
 
     return format(raw, profile.grouping, profile.separator)
 ```
@@ -458,7 +463,7 @@ The decoder accepts the configured separator at expected positions. A lenient UI
 ```typescript
 encode(
   id: bigint,
-  profile: HrcProfile
+  profile: BasehProfile
 ): string
 ```
 
@@ -473,7 +478,7 @@ Errors:
 ```typescript
 decode(
   input: string,
-  profile: HrcProfile,
+  profile: BasehProfile,
   options?: {
     acceptSpaces?: boolean;
     tryCorrection?: boolean;
@@ -500,7 +505,7 @@ Errors:
 ### 12.3 Capacity
 
 ```typescript
-capacity(profile: HrcProfile): bigint
+capacity(profile: BasehProfile): bigint
 ```
 
 ### 12.4 Validate
@@ -508,11 +513,11 @@ capacity(profile: HrcProfile): bigint
 ```typescript
 validate(
   input: string,
-  profile: HrcProfile
+  profile: BasehProfile
 ): {
   valid: boolean;
   canonicalCode?: string;
-  reason?: HrcErrorCode;
+  reason?: BasehErrorCode;
 }
 ```
 
@@ -524,7 +529,7 @@ validate(
   "message": "The reference code did not pass validation.",
   "safeForCustomer": true,
   "details": {
-    "profileId": "hrc32-v1"
+    "profileId": "baseh32-v1"
   }
 }
 ```
@@ -537,8 +542,8 @@ Recommended record fields:
 
 ```sql
 internal_id BIGINT PRIMARY KEY,
-hrc_profile_id VARCHAR(64) NOT NULL,
-hrc_code VARCHAR(64) GENERATED OR STORED,
+baseh_profile_id VARCHAR(64) NOT NULL,
+baseh_code VARCHAR(64) GENERATED OR STORED,
 created_at TIMESTAMP NOT NULL
 ```
 
@@ -548,7 +553,7 @@ The canonical code may be generated on demand. Store it when:
 - The profile uses an external or expensive permutation.
 - Audit requirements need the original rendered value.
 
-Add a unique index on `(hrc_profile_id, hrc_code)` when stored.
+Add a unique index on `(baseh_profile_id, baseh_code)` when stored.
 
 ## 15. Concurrency
 
@@ -567,18 +572,18 @@ Each language implementation must:
 
 ## 17. Reference defaults
 
-Frozen profile for assisted-support references, `hrc32-v1`:
+Frozen profile for assisted-support references, `baseh32-v1`:
 
 ```json
 {
-  "profileId": "hrc32-v1",
+  "profileId": "baseh32-v1",
   "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
   "bodyLength": 6,
   "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
   "checksumLength": 1,
   "caseSensitive": false,
-  "separator": "-",
-  "grouping": [3, 4],
+  "separator": "",
+  "grouping": [],
   "aliases": {
     "O": "0",
     "I": "1",
@@ -593,6 +598,76 @@ Frozen profile for assisted-support references, `hrc32-v1`:
 }
 ```
 
-Frozen profile for unattended self-service lookup, `hrc32s-v1`. Identical to `hrc32-v1` except `checksumLength` is 2, `grouping` is `[3, 5]` and the checksum modulus is 676, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
+Frozen profile for unattended self-service lookup, `baseh32s-v1`. Identical to `baseh32-v1` except `checksumLength` is 2 and the checksum modulus is 676, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
 
 Application-specific permutation keys are never part of the frozen profile; each application assigns its own `keyId` and key material. Freeze both profiles' checksum and Feistel test vectors before production use.
+
+## 18. Profanity safety
+
+Profiles gain an optional `profanity` object. It never changes decode
+behavior for issued codes and never changes identifier capacity accounting:
+blocked codes are simply never issued by the encoder.
+
+```json
+{
+  "profanity": {
+    "mode": "none | no-vowels | blocklist",
+    "words": ["..."],
+    "extraWords": ["..."]
+  }
+}
+```
+
+### 18.1 Modes
+
+- `none` (default): no filtering. The frozen profiles `baseh32-v1` and
+  `baseh32s-v1` use this mode.
+- `no-vowels`: before any other profile-derived computation, the vowels
+  `A`, `E`, `I`, `O` and `U` (after case normalization) are removed from the
+  body alphabet and the checksum alphabet. All downstream rules apply to the
+  stripped alphabets: capacity, base-N conversion, the checksum modulus,
+  separator collision checks and alias target validation. If stripping
+  leaves the body alphabet (or the checksum alphabet when `checksumLength`
+  is positive) with fewer than two symbols, the profile is invalid
+  (`INVALID_PROFILE`). An alias whose source is a stripped vowel remains
+  valid and lets users type vowels without failure.
+- `blocklist`: the encoder rejects any code whose raw unformatted string
+  contains a blocked substring (section 18.2).
+
+### 18.2 Effective blocklist
+
+The effective list is:
+
+```text
+words if present (replacing the default list)
+otherwise the default list
+plus extraWords in either case
+```
+
+Entries are ASCII letters, normalized to uppercase when the profile is
+case-insensitive, deduplicated. Matching is a case-insensitive substring
+scan over the raw code (body + checksum, before formatting). On a match the
+encoder fails with `BLOCKED_CODE`. `decode` may also raise `BLOCKED_CODE`
+when reconstructing the canonical form, since a blocked string could never
+have been issued.
+
+The default list is deliberately small and targets the worst outcomes;
+
+applications needing real coverage supply `words` or `extraWords`:
+
+```text
+CRAP TWAT SHAG DAMN FCK FUC SHT CNT TWT DCK AZZ BCH
+```
+
+### 18.3 BLOCKED_CODE error
+
+Added to the error taxonomy: the generated or decoded code contains a
+blocked substring. `safeForCustomer` is false: this is an issuance decision,
+not an end-user condition. Applications should advance their sequence by one
+and retry encoding.
+
+### 18.4 Known limitation
+
+Substring matching false-positives on innocent strings containing the
+substring (the Scunthorpe problem). Keep lists short and curated; prefer
+`no-vowels` for broad prevention and `blocklist` for specific terms.

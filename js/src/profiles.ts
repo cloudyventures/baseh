@@ -1,4 +1,4 @@
-import type { HrcProfile } from "./profile.js";
+import type { BasehProfile } from "./profile.js";
 
 const BODY_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const CHECKSUM_ALPHABET = "234679ACDEFGHJKMNPQRTUVWXY";
@@ -11,20 +11,20 @@ interface FrozenOptions {
 }
 
 /**
- * Frozen profile hrc32-v1: 6 body + 1 checksum, feistel-v1 permutation.
+ * Frozen profile baseh32-v1: 6 body + 1 checksum, feistel-v1 permutation.
  * Assisted-support use. Structured single-substitution miss rate about 1.2%
  * per position; see spec 6.3.
  */
-export function hrc32V1(options: FrozenOptions): HrcProfile {
+export function baseh32V1(options: FrozenOptions): BasehProfile {
   return {
-    profileId: "hrc32-v1",
+    profileId: "baseh32-v1",
     bodyAlphabet: BODY_ALPHABET,
     bodyLength: 6,
     checksumAlphabet: CHECKSUM_ALPHABET,
     checksumLength: 1,
     caseSensitive: false,
-    separator: "-",
-    grouping: [3, 4],
+    separator: "",
+    grouping: [],
     aliases: { ...ALIASES },
     permutation: {
       enabled: true,
@@ -37,17 +37,16 @@ export function hrc32V1(options: FrozenOptions): HrcProfile {
 }
 
 /**
- * Frozen profile hrc32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
+ * Frozen profile baseh32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
  * Self-service use. Provably detects all single-symbol substitutions and
  * all adjacent transpositions; see spec 6.3.
  */
-export function hrc32sV1(options: FrozenOptions): HrcProfile {
-  const base = hrc32V1(options);
+export function baseh32sV1(options: FrozenOptions): BasehProfile {
+  const base = baseh32V1(options);
   return {
     ...base,
-    profileId: "hrc32s-v1",
-    checksumLength: 2,
-    grouping: [3, 5]
+    profileId: "baseh32s-v1",
+    checksumLength: 2
   };
 }
 

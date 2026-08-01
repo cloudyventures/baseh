@@ -21,7 +21,26 @@ const els = {
   exportBtn: $<HTMLButtonElement>("d-export")
 };
 
+const UNITS: Array<[bigint, string]> = [
+  [1_000_000_000_000n, "T"],
+  [1_000_000_000n, "B"],
+  [1_000_000n, "M"]
+];
+
 function fmt(n: bigint): string {
+  if (n <= 999_999n) return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  for (const [scale, suffix] of UNITS) {
+    if (n >= scale) {
+      const tenths = (n * 10n + scale / 2n) / scale;
+      const frac = tenths % 10n;
+      const body = frac === 0n ? `${tenths / 10n}` : `${tenths / 10n}.${frac}`;
+      return `${body}${suffix}`;
+    }
+  }
+  return n.toString();
+}
+
+function fmtFull(n: bigint): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
@@ -54,7 +73,7 @@ function card(c: Candidate, label?: string): string {
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
-    <div>Capacity: <strong>${fmt(c.capacity)}</strong></div>
+    <div>Capacity: <strong title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</strong></div>
     <div>Utilization: ${(c.utilization * 100).toFixed(1)}% &middot; Displayed: ${c.displayedLength} chars</div>
     <div>Alphabet: ${c.alphabetId} (${c.alphabetSize} symbols)</div>
     ${samples ? `<div class="samples">${samples}</div>` : ""}
@@ -81,7 +100,7 @@ function render() {
     <tr>
       <td>${c === result.recommended ? `<span class="badge green">recommended</span>` : ""}</td>
       <td>${c.bodyLength}+${c.checksumLength}</td>
-      <td>${fmt(c.capacity)}</td>
+      <td title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</td>
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
       <td>${c.reason}</td>

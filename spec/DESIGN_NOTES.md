@@ -1,10 +1,10 @@
-# HRC Design Notes
+# BaseH Design Notes
 
 ## 1. Key decisions
 
 ### 1.1 Codes are aliases
 
-The database ID remains authoritative. HRC is a customer-facing representation.
+The database ID remains authoritative. BaseH is a customer-facing representation.
 
 ### 1.2 Capacity comes only from the body
 
@@ -169,7 +169,7 @@ A fixed prefix does not add capacity.
 Examples:
 
 ```text
-T-7KM-4Q2H
+T-7KM4Q2H
 O-1DP-8R7-C
 ```
 
@@ -219,7 +219,7 @@ Separators improve chunking but add length.
 
 Recommended grouping:
 
-- Six body plus one check: `3-3-1`.
+- The frozen profiles use no separators. Custom profiles that add their own should keep groups of 3 or 4.
 - Five body plus one check: `3-3`.
 - Six body plus two check: `4-4` or `3-3-2`.
 
@@ -360,7 +360,7 @@ Each extension requires a new profile or new outer protocol.
 ## 23. Recommended first release
 
 ```yaml
-profile_id: hrc32-v1
+profile_id: baseh32-v1
 alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 body_length: 6
 checksum_length: 1
@@ -374,8 +374,8 @@ correction:
 permutation:
   enabled: true
 format:
-  grouping: [3, 4]
-  separator: "-"
+  grouping: []
+  separator: ""
 ```
 
 Enable correction only after checksum testing and customer confusion data are available.

@@ -1,10 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Hrc, HrcError, inversePermute, permute } from "../src/index.js";
-import type { HrcProfile } from "../src/index.js";
+import { Baseh, BasehError, inversePermute, permute } from "../src/index.js";
+import type { BasehProfile } from "../src/index.js";
 
-interface ProfileDef extends Omit<HrcProfile, "permutation"> {
+interface ProfileDef extends Omit<BasehProfile, "permutation"> {
   permutation:
     | { enabled: false }
     | { enabled: true; algorithm: "feistel-v1"; keyId: string; keyBytesHex: string; rounds: number };
@@ -19,10 +19,10 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-const codecs = new Map<string, Hrc>();
+const codecs = new Map<string, Baseh>();
 for (const p of vectors.profiles) {
   const def = p.definition as ProfileDef;
-  const profile: HrcProfile = {
+  const profile: BasehProfile = {
     ...def,
     permutation: def.permutation.enabled
       ? {
@@ -34,13 +34,13 @@ for (const p of vectors.profiles) {
         }
       : { enabled: false }
   };
-  codecs.set(p.profileId, new Hrc(profile));
+  codecs.set(p.profileId, new Baseh(profile));
 }
 
 describe("frozen encode/decode vectors", () => {
   for (const v of vectors.vectors) {
     it(`${v.profileId} id ${v.id}`, () => {
-      const h = codecs.get(v.profileId) as Hrc;
+      const h = codecs.get(v.profileId) as Baseh;
       assert.equal(h.encode(BigInt(v.id)), v.canonicalCode);
       const d = h.decode(v.input ?? v.canonicalCode);
       assert.equal(d.id, BigInt(v.id));
@@ -52,9 +52,19 @@ describe("frozen encode/decode vectors", () => {
 describe("frozen error vectors", () => {
   for (const v of vectors.errors) {
     it(`${v.profileId} ${JSON.stringify(v.input)} -> ${v.error}`, () => {
-      const h = codecs.get(v.profileId) as Hrc;
+      const h = codecs.get(v.profileId) as Baseh;
       assert.throws(() => h.decode(v.input), (e: unknown) =>
-        e instanceof HrcError && e.code === v.error);
+        e instanceof BasehError && e.code === v.error);
+    });
+  }
+});
+
+describe("frozen encode-error vectors", () => {
+  for (const v of vectors.encodeErrors) {
+    it(`${v.profileId} id ${v.id} -> ${v.error}`, () => {
+      const h = codecs.get(v.profileId) as Baseh;
+      assert.throws(() => h.encode(BigInt(v.id)), (e: unknown) =>
+        e instanceof BasehError && e.code === v.error);
     });
   }
 });
@@ -62,11 +72,11 @@ describe("frozen error vectors", () => {
 describe("frozen correction vectors", () => {
   for (const v of vectors.correction) {
     it(`${v.profileId} ${v.input}`, () => {
-      const h = codecs.get(v.profileId) as Hrc;
+      const h = codecs.get(v.profileId) as Baseh;
       const options = { tryCorrection: true, confusionProfile: v.confusionProfile ?? "light" } as const;
       if (v.error) {
         assert.throws(() => h.decode(v.input, options), (e: unknown) =>
-          e instanceof HrcError && e.code === v.error);
+          e instanceof BasehError && e.code === v.error);
       } else {
         const d = h.decode(v.input, options);
         assert.equal(d.corrected, v.corrected);

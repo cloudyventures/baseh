@@ -1,4 +1,4 @@
-# HRC Capacity Calculator
+# BaseH Capacity Calculator
 
 ## 1. Purpose
 
@@ -362,7 +362,7 @@ Do not calculate capacity with floating point then round.
 
 ```typescript
 type CapacityCalculatorState = {
-  profileDraft: HrcProfileDraft;
+  profileDraft: BasehProfileDraft;
   demand: {
     recordsPerDay?: bigint;
     retentionDays?: bigint;

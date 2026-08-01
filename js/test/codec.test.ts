@@ -2,16 +2,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fc from "fast-check";
 import {
-  Hrc, HrcError, encodeBaseN, generateCandidates, calculateChecksum, prepareProfile,
-  hrc32V1, hrc32sV1, inversePermute, permute
+  Baseh, BasehError, encodeBaseN, generateCandidates, calculateChecksum, prepareProfile,
+  baseh32V1, baseh32sV1, inversePermute, permute
 } from "../src/index.js";
-import type { HrcProfile } from "../src/index.js";
+import type { BasehProfile } from "../src/index.js";
 
 const TEST_KEY = new TextEncoder().encode("test-only-key-material-0001");
 const TEST_KEY2 = new TextEncoder().encode("test-only-key-material-0002");
 const ALPHA32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-function profile(overrides: Partial<HrcProfile> = {}): HrcProfile {
+function profile(overrides: Partial<BasehProfile> = {}): BasehProfile {
   return {
     profileId: "test-prof",
     bodyAlphabet: "0123456789ABCDEF",
@@ -27,13 +27,13 @@ function profile(overrides: Partial<HrcProfile> = {}): HrcProfile {
   };
 }
 
-function frozenNoPerm(): HrcProfile {
-  const p = hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
+function frozenNoPerm(): BasehProfile {
+  const p = baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" });
   return { ...p, permutation: { enabled: false } };
 }
 
 describe("profile validation", () => {
-  const bad: Array<[string, Partial<HrcProfile>]> = [
+  const bad: Array<[string, Partial<BasehProfile>]> = [
     ["empty id", { profileId: "" }],
     ["one symbol alphabet", { bodyAlphabet: "A" }],
     ["duplicate body symbols", { bodyAlphabet: "00123456789ABCDEF" }],
@@ -55,13 +55,13 @@ describe("profile validation", () => {
   ];
   for (const [name, over] of bad) {
     it(`rejects ${name}`, () => {
-      assert.throws(() => new Hrc(profile(over)), (e: unknown) =>
-        e instanceof HrcError && e.code === "INVALID_PROFILE");
+      assert.throws(() => new Baseh(profile(over)), (e: unknown) =>
+        e instanceof BasehError && e.code === "INVALID_PROFILE");
     });
   }
   it("accepts frozen profiles", () => {
-    assert.doesNotThrow(() => new Hrc(hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" })));
-    assert.doesNotThrow(() => new Hrc(hrc32sV1({ keyBytes: TEST_KEY, keyId: "test-01" })));
+    assert.doesNotThrow(() => new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" })));
+    assert.doesNotThrow(() => new Baseh(baseh32sV1({ keyBytes: TEST_KEY, keyId: "test-01" })));
   });
 });
 
@@ -76,42 +76,49 @@ describe("base-N", () => {
 });
 
 describe("round-trip boundaries", () => {
-  const h = new Hrc(profile());
+  const h = new Baseh(profile());
   for (const id of [0n, 1n, 65534n, 65535n]) {
     it(`round-trips ${id}`, () => assert.equal(h.decode(h.encode(id)).id, id));
   }
   it("rejects id == capacity", () => {
     assert.throws(() => h.encode(65536), (e: unknown) =>
-      e instanceof HrcError && e.code === "OUT_OF_RANGE");
+      e instanceof BasehError && e.code === "OUT_OF_RANGE");
   });
 });
 
 describe("checksum", () => {
   it("is deterministic and profile sensitive", () => {
-    const h1 = new Hrc(profile());
+    const h1 = new Baseh(profile());
     assert.equal(h1.encode(0x1234), h1.encode(0x1234));
-    const h2 = new Hrc(profile({ profileId: "test-other" }));
+    const h2 = new Baseh(profile({ profileId: "test-other" }));
     assert.notEqual(h1.encode(1), h2.encode(1));
   });
-  it("delta-26 substitution passes hrc32-v1 checksum (documented limit)", () => {
-    const h = new Hrc(hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
-    const raw = h.encode(123456789n).replaceAll("-", "");
-    const body = raw.slice(0, 6);
+  it("delta-26 substitution passes baseh32-v1 checksum (documented limit)", () => {
+    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
+    // Find a body containing a low-value symbol (value <= 5) so +26 stays in range.
     let mutated: string | null = null;
-    for (let p = 0; p < 6; p += 1) {
-      const v = ALPHA32.indexOf(body[p] as string);
-      if (v >= 0 && v <= 5) {
-        mutated = body.slice(0, p) + ALPHA32[v + 26] + body.slice(p + 1);
-        break;
+    let suffix = "";
+    let baseId = 0n;
+    for (let id = 0n; id < 1_000_000n && mutated === null; id += 12_345n) {
+      const raw = h.encode(id).replaceAll("-", "");
+      const body = raw.slice(0, 6);
+      for (let p = 0; p < 6; p += 1) {
+        const v = ALPHA32.indexOf(body[p] as string);
+        if (v >= 0 && v <= 5) {
+          mutated = body.slice(0, p) + ALPHA32[v + 26] + body.slice(p + 1);
+          suffix = raw.slice(6);
+          baseId = id;
+          break;
+        }
       }
     }
-    assert.ok(mutated, "expected a low-value symbol in the sample body");
+    assert.ok(mutated, "expected a low-value symbol in a sampled body");
     // Validation succeeds silently but resolves to a different record.
-    assert.notEqual(h.decode(mutated + raw.slice(6)).id, 123456789n);
+    assert.notEqual(h.decode(mutated + suffix).id, baseId);
   });
-  it("hrc32s-v1 detects every single-symbol substitution (sampled exhaustive)", () => {
+  it("baseh32s-v1 detects every single-symbol substitution (sampled exhaustive)", () => {
     const prepared = prepareProfile(frozenNoPerm());
-    const h = new Hrc({ ...frozenNoPerm(), profileId: "hrc32s-v1", checksumLength: 2, grouping: [3, 3, 2] });
+    const h = new Baseh({ ...frozenNoPerm(), profileId: "baseh32s-v1", checksumLength: 2 });
     void prepared;
     // Sample bodies, then substitute every position with every wrong symbol.
     const sample = ["000000", "0000PB", "ABCDEF", "ZZZZZZ", "123ABC", "MNPQRS"];
@@ -130,7 +137,7 @@ describe("checksum", () => {
 });
 
 describe("aliases and normalization", () => {
-  const h = new Hrc(profile());
+  const h = new Baseh(profile());
   it("O decodes as 0, I and L decode as 1", () => {
     const canonical = h.encode(257n);
     const aliased = h.decode(canonical.replaceAll("0", "O").replaceAll("1", "I"));
@@ -148,11 +155,11 @@ describe("aliases and normalization", () => {
   });
   it("rejects unknown symbol", () => {
     assert.throws(() => h.decode("00-0@-A"), (e: unknown) =>
-      e instanceof HrcError && e.code === "INVALID_CHARACTER");
+      e instanceof BasehError && e.code === "INVALID_CHARACTER");
   });
   it("rejects wrong length", () => {
     assert.throws(() => h.decode("00-0-A"), (e: unknown) =>
-      e instanceof HrcError && e.code === "INVALID_LENGTH");
+      e instanceof BasehError && e.code === "INVALID_LENGTH");
   });
   it("trims whitespace; inner spaces only when enabled", () => {
     const code = h.encode(1n);
@@ -164,7 +171,7 @@ describe("aliases and normalization", () => {
 describe("correction", () => {
   const conf = frozenNoPerm();
   const prepared = prepareProfile(conf);
-  const h = new Hrc(conf);
+  const h = new Baseh(conf);
 
   it("corrects a unique light-pair substitution", () => {
     const body = "0000PB";
@@ -179,22 +186,22 @@ describe("correction", () => {
     // checksum delta 4*37^0 + 2*37^1 = 78 == 0 mod 26, so both pass.
     const check = calculateChecksum(prepared, "0000BP");
     assert.throws(() => h.decode("0000BT" + check, { tryCorrection: true, confusionProfile: "light" }), (e: unknown) =>
-      e instanceof HrcError && e.code === "AMBIGUOUS_INPUT" && !("id" in (e as object)));
+      e instanceof BasehError && e.code === "AMBIGUOUS_INPUT" && !("id" in (e as object)));
   });
   it("INVALID_CHECKSUM when correction cannot help", () => {
     assert.throws(() => h.decode("ZZZZZZ" + calculateChecksum(prepared, "QQQQQQ"), { tryCorrection: true }),
-      (e: unknown) => e instanceof HrcError && e.code === "INVALID_CHECKSUM");
+      (e: unknown) => e instanceof BasehError && e.code === "INVALID_CHECKSUM");
   });
   it("respects maxCorrections 0", () => {
     const check = calculateChecksum(prepared, "0000PB");
     assert.throws(() => h.decode("0000TB" + check, { tryCorrection: true, maxCorrections: 0 }),
-      (e: unknown) => e instanceof HrcError && e.code === "INVALID_CHECKSUM");
+      (e: unknown) => e instanceof BasehError && e.code === "INVALID_CHECKSUM");
   });
   it("candidate cap", () => {
     const wide: Record<string, string[]> = {};
     for (const ch of ALPHA32) wide[ch] = ["A", "B", "C"];
     assert.throws(() => generateCandidates("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", wide, 1),
-      (e: unknown) => e instanceof HrcError && e.code === "TOO_MANY_CANDIDATES");
+      (e: unknown) => e instanceof BasehError && e.code === "TOO_MANY_CANDIDATES");
   });
 });
 
@@ -224,7 +231,7 @@ describe("permutation", () => {
     assert.notEqual(a, c);
   });
   it("frozen profile round-trips with permutation on", () => {
-    const h = new Hrc(hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
+    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
     for (const id of [0n, 1n, 999n, 1_073_741_823n]) {
       assert.equal(h.decode(h.encode(id)).id, id);
     }
@@ -233,13 +240,13 @@ describe("permutation", () => {
 
 describe("property tests", () => {
   it("round-trip for random ids on frozen profile", () => {
-    const h = new Hrc(hrc32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
+    const h = new Baseh(baseh32V1({ keyBytes: TEST_KEY, keyId: "test-01" }));
     fc.assert(fc.property(fc.bigInt({ min: 0n, max: 1_073_741_823n }), (id) => {
       assert.equal(h.decode(h.encode(id)).id, id);
     }), { numRuns: 200 });
   });
   it("canonical stability", () => {
-    const h = new Hrc(profile());
+    const h = new Baseh(profile());
     fc.assert(fc.property(fc.bigInt({ min: 0n, max: 65535n }), (id) => {
       const first = h.decode(h.encode(id));
       assert.equal(h.encode(first.id), first.canonicalCode);
@@ -248,13 +255,13 @@ describe("property tests", () => {
 });
 
 describe("fuzz smoke", () => {
-  it("arbitrary strings never crash and only ever throw HrcError", () => {
-    const h = new Hrc(profile());
+  it("arbitrary strings never crash and only ever throw BasehError", () => {
+    const h = new Baseh(profile());
     fc.assert(fc.property(fc.string({ maxLength: 64 }), (s) => {
       try {
         h.decode(s);
       } catch (e) {
-        assert.ok(e instanceof HrcError);
+        assert.ok(e instanceof BasehError);
         return;
       }
     }), { numRuns: 1000 });

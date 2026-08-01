@@ -11,7 +11,7 @@
     <h1>base-human code designer</h1>
     <p class="sub">Required capacity in, shortest valid configuration out. <a href="./index.html">Go to the capacity calculator</a>.</p>
   </header>
-  <main class="cols">
+  <main class="cols designer">
     <section aria-labelledby="req">
       <h2 id="req">Requirements</h2>
       <div class="field">
@@ -34,7 +34,7 @@
         <input id="max-len" type="number" min="3" max="20" value="9" />
       </div>
       <div class="field">
-        <label for="min-check">Minimum checksum length<span class="tip" tabindex="0" aria-label="Minimum checksum length details"><span class="i">i</span><span class="tip-body">Rejects every candidate with fewer checksum symbols than this. 0 allows unvalidated codes, where a typo silently matches the wrong record or fails with no explanation. 1 matches assisted-support workflows: about 98.8% of single-symbol substitutions are caught and a human handles the rest (the hrc32-v1 posture). 2 forces self-service strength: provable detection of every single substitution and every adjacent transposition (the hrc32s-v1 posture). 3 exists for very noisy channels.</span></span></label>
+        <label for="min-check">Minimum checksum length<span class="tip" tabindex="0" aria-label="Minimum checksum length details"><span class="i">i</span><span class="tip-body">Rejects every candidate with fewer checksum symbols than this. 0 allows unvalidated codes, where a typo silently matches the wrong record or fails with no explanation. 1 matches assisted-support workflows: about 98.8% of single-symbol substitutions are caught and a human handles the rest (the baseh32-v1 posture). 2 forces self-service strength: provable detection of every single substitution and every adjacent transposition (the baseh32s-v1 posture). 3 exists for very noisy channels.</span></span></label>
         <select id="min-check">
           <option value="0">0</option>
           <option value="1" selected>1</option>

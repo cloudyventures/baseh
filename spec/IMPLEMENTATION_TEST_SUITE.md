@@ -1,4 +1,4 @@
-# HRC Test Suite
+# BaseH Test Suite
 
 ## 1. Purpose
 
@@ -131,7 +131,7 @@ Required test categories:
 - Checksum characters outside alphabet fail.
 - Zero checksum length skips checksum work.
 
-Sampled single-substitution detection test for `hrc32s-v1` (must be total):
+Sampled single-substitution detection test for `baseh32s-v1` (must be total):
 
 ```text
 For at least 100,000 sampled bodies:
@@ -141,7 +141,7 @@ For at least 100,000 sampled bodies:
             Assert checksum failure.
 ```
 
-For `hrc32-v1`, run the same sweep but measure and publish the detection rate instead of asserting totality. The structured misses (symbol-value deltas that are multiples of 26) must match the spec section 6.3 analysis exactly: 12 undetected cases per 992 per position.
+For `baseh32-v1`, run the same sweep but measure and publish the detection rate instead of asserting totality. The structured misses (symbol-value deltas that are multiples of 26) must match the spec section 6.3 analysis exactly: 12 undetected cases per 992 per position.
 
 ## 7. Alias tests
 
@@ -313,7 +313,7 @@ Use a shared JSON file:
   "profiles": [],
   "vectors": [
     {
-      "profileId": "hrc32-v1",
+      "profileId": "baseh32-v1",
       "id": "0",
       "canonicalCode": "..."
     }

@@ -1,11 +1,13 @@
-# base-human
+# BaseH
 
-Human Reference Codes (HRC): reversible, checksummed, human-safe short
-references for non-negative integers. For order numbers, support tickets,
-returns, bookings and similar records that people read, type and dictate.
+BaseH is base36 reworked for humans: a reversible, checksummed encoding of
+non-negative integers into short references that people can read, type and
+dictate over the phone. The alphabet drops the symbols that cause transcription
+errors and a checksum catches the rest. For order numbers, support tickets,
+returns, bookings and similar records.
 
 ```text
-7KM-4Q2-H
+7KM4Q2H
 ```
 
 - **Reversible**: an internal integer ID converts to a code and back, exactly.
@@ -30,12 +32,12 @@ returns, bookings and similar records that people read, type and dictate.
 ## Quick start
 
 ```typescript
-import { Hrc, hrc32V1 } from "base-human";
+import { Baseh, baseh32V1 } from "base-human";
 
-const hrc = new Hrc(hrc32V1({ keyBytes: myKey, keyId: "prod-01" }));
+const h = new Baseh(baseh32V1({ keyBytes: myKey, keyId: "prod-01" }));
 
-const code = hrc.encode(123456789n);   // e.g. "7KM-4Q2-H"
-const { id } = hrc.decode("7km 4q2 h", { acceptSpaces: true });
+const code = h.encode(123456789n);   // e.g. "7KM4Q2H"
+const { id } = h.decode("7km 4q2 h", { acceptSpaces: true });
 console.log(id === 123456789n);        // true
 ```
 
@@ -48,11 +50,11 @@ fails if any implementation disagrees with them.
 Two frozen profiles ship with the library. Keys are supplied by your
 application and never shipped in profiles or exports.
 
-- **`hrc32-v1`** (6 body + 1 check, `3-3-1` grouping): ~1.07 billion references.
+- **`baseh32-v1`** (6 body + 1 check, no separators): ~1.07 billion references.
   For assisted support where a human agent can ask for the code again. The
   checksum detects ~99% of errors; a structured gap exists for symbol pairs
   26 values apart (see spec 6.3).
-- **`hrc32s-v1`** (6 body + 2 check, `3-3-2` grouping): same capacity,
+- **`baseh32s-v1`** (6 body + 2 check, no separators): same capacity,
   provably detects all single-symbol substitutions and all adjacent
   transpositions. For unattended self-service lookup.
 
@@ -84,7 +86,7 @@ docs/       application cookbook (lookup endpoint, observability)
 
 ## Security
 
-An HRC is a reference alias, never an authorization token. Enforce
+An BaseH is a reference alias, never an authorization token. Enforce
 authorization after decode, rate-limit public lookups and do not treat the
 permutation as secrecy. See [`spec/README.md`](spec/README.md) and
 [`docs/cookbook.md`](docs/cookbook.md).

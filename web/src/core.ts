@@ -2,7 +2,7 @@
  * Shared math for the calculator and designer. No DOM access.
  * Capacity math is exact bigint; ratios are display-only Numbers.
  */
-import { Hrc, type HrcProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-human";
+import { Baseh, type BasehProfile, DEMO_KEY_BYTES, DEMO_KEY_ID } from "base-human";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
@@ -143,7 +143,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   const examples: Array<{ id: string; code: string }> = [];
   if (problems.length === 0) {
     try {
-      const profile: HrcProfile = {
+      const profile: BasehProfile = {
         profileId: "ui-preview",
         bodyAlphabet: alphabet,
         bodyLength: input.bodyLength,
@@ -151,13 +151,13 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         checksumLength: input.checksumLength,
         caseSensitive: false,
         separator: input.separator,
-        grouping: groupingFor(totalLen),
+        grouping: input.separator ? groupingFor(totalLen) : [],
         aliases: { O: "0", I: "1", L: "1" },
         permutation: input.permutation
           ? { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
           : { enabled: false }
       };
-      const h = new Hrc(profile);
+      const h = new Baseh(profile);
       const ids = [0n, 1n, BigInt(alphabet.length) - 1n, BigInt(alphabet.length), capacity - 1n];
       for (const id of new Set(ids)) {
         if (id >= 0n && id < capacity) examples.push({ id: id.toString(), code: h.encode(id) });
@@ -295,7 +295,7 @@ export function design(input: DesignerInput): DesignerResult {
       if (capacity < required) continue;
       for (let checksumLength = Math.max(input.minimumChecksumLength, 0); checksumLength <= 3; checksumLength += 1) {
         const totalLen = bodyLength + checksumLength;
-        const displayed = totalLen + Math.ceil(totalLen / 4) - 1;
+        const displayed = totalLen;
         if (displayed > input.maxDisplayedLength) continue;
         const utilPerMyriad = Number((required * 10_000n) / capacity) / 10_000;
         if (utilPerMyriad > input.maxUtilization && required > 0n) continue;
@@ -349,7 +349,7 @@ export function design(input: DesignerInput): DesignerResult {
     for (const alpha of alphas) {
       const minL = minimumLength(alpha.size, required);
       const total = minL + Math.max(input.minimumChecksumLength, 0);
-      const displayed = total + Math.ceil(total / 4) - 1;
+      const displayed = total;
       if (best === null) {
         best = `No candidate fits. The smallest option with alphabet ${alpha.id} (${alpha.size} symbols) needs a ${displayed}-character displayed code (body ${minL}${input.minimumChecksumLength > 0 ? ` + ${input.minimumChecksumLength} check` : ""}). Raise the maximum displayed length to at least ${displayed} or permit a larger alphabet.`;
       }
@@ -370,19 +370,19 @@ export function sampleCodes(
   const out: Array<{ id: string; code: string }> = [];
   try {
     const totalLen = bodyLength + checksumLength;
-    const profile: HrcProfile = {
+    const profile: BasehProfile = {
       profileId: "ui-preview",
       bodyAlphabet: alphabet,
       bodyLength,
       checksumAlphabet: SAFE_CHECKSUM,
       checksumLength,
       caseSensitive: false,
-      separator: "-",
-      grouping: groupingFor(totalLen),
+      separator: "",
+      grouping: [],
       aliases: { O: "0", I: "1", L: "1" },
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
     };
-    const h = new Hrc(profile);
+    const h = new Baseh(profile);
     for (const id of new Set([0n, 1n, capacity - 1n])) {
       if (id >= 0n && id < capacity) out.push({ id: id.toString(), code: h.encode(id) });
     }

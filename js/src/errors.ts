@@ -1,5 +1,5 @@
-/** Error codes defined by the HRC codec specification. */
-export type HrcErrorCode =
+/** Error codes defined by the BaseH codec specification. */
+export type BasehErrorCode =
   | "INVALID_PROFILE"
   | "OUT_OF_RANGE"
   | "PERMUTATION_FAILURE"
@@ -7,16 +7,17 @@ export type HrcErrorCode =
   | "INVALID_CHARACTER"
   | "INVALID_CHECKSUM"
   | "AMBIGUOUS_INPUT"
-  | "TOO_MANY_CANDIDATES";
+  | "TOO_MANY_CANDIDATES"
+  | "BLOCKED_CODE";
 
-export class HrcError extends Error {
-  readonly code: HrcErrorCode;
+export class BasehError extends Error {
+  readonly code: BasehErrorCode;
   /** True when the message may be shown to an end user unchanged. */
   readonly safeForCustomer: boolean;
 
-  constructor(code: HrcErrorCode, message: string, safeForCustomer = true) {
+  constructor(code: BasehErrorCode, message: string, safeForCustomer = true) {
     super(message);
-    this.name = "HrcError";
+    this.name = "BasehError";
     this.code = code;
     this.safeForCustomer = safeForCustomer;
   }
