@@ -87,6 +87,11 @@ button:hover { border-color: var(--accent); }
   font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem;
 }
 .field-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+.try-list { line-height: 2; }
+button.try {
+  font-family: monospace; font-size: 0.75rem; padding: 0.15rem 0.4rem;
+  margin: 0.1rem 0; vertical-align: baseline;
+}
 .sample {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border: 1px solid var(--line); border-radius: 4px; background: var(--bg);

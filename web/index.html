@@ -49,15 +49,17 @@
           <option value="medium">Medium (also drop B, S)</option>
           <option value="heavy">Heavy (safe 32 alphabet)</option>
         </select>
+        <div id="visual-drops" class="field-note" aria-live="polite"></div>
       </div>
       <div class="field">
         <label for="spoken-safety">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">For codes read out over the phone. For each sound-alike pair, one letter is removed from the alphabet so it can never appear in a new code, and a code that contains it anyway decodes automatically as the kept letter: no ambiguity, no guessing. Light removes D (decodes as B) and T (decodes as P). Medium also removes N (decodes as M) and W (decodes as V). Heavy also removes S (decodes as F) and G (decodes as C). Pairs run from the most common confusions at Light to the least at Heavy. Each removed letter shrinks the alphabet by one, so capacity falls slightly at higher levels.</span></span></label>
         <select id="spoken-safety">
           <option value="none">None</option>
-          <option value="light" selected>Light</option>
-          <option value="medium">Medium</option>
-          <option value="heavy">Heavy</option>
+          <option value="light" selected>Light (drop D, T)</option>
+          <option value="medium">Medium (also drop N, W)</option>
+          <option value="heavy">Heavy (also drop S, G)</option>
         </select>
+        <div id="spoken-drops" class="field-note" aria-live="polite"></div>
       </div>
       <div class="field">
         <label for="profanity-mode">Profanity<span class="tip" tabindex="0" aria-label="Profanity controls details"><span class="i">i</span><span class="tip-body">Profanity controls keep codes customer-safe. Strip vowels removes A, E, I, O and U from the alphabets so no English word can ever be spelled; capacity falls accordingly. Blocklist keeps the full alphabet but refuses to issue any code containing a common English profanity; those identifiers are reserved and marked as blocked in the examples. None applies no check.</span></span></label>
@@ -109,8 +111,9 @@
       </div>
       <div class="field">
         <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Convert code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
-        <input id="conv-code" type="text" placeholder="74UYC19" />
+        <input id="conv-code" type="text" placeholder="C8XP-8J49" />
         <div id="conv-code-out" class="field-note" aria-live="polite"></div>
+        <div id="conv-try" class="field-note try-list"></div>
       </div>
     </section>
 
