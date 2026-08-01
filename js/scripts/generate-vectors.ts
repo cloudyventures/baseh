@@ -170,6 +170,33 @@ for (const { profile, keyHex } of profiles()) {
   } as never);
 }
 
+// Decode-side vectors: look-alike aliases on the frozen Medium tier. B and S
+// are never issued, so typed B decodes as 8 and typed S as 5.
+{
+  const base = basehMediumV1();
+  const h = new Baseh(base);
+  for (const [src, tgt] of [["B", "8"], ["S", "5"]] as const) {
+    for (let id = 1n; id < 100000n; id += 1n) {
+      let canonical: string;
+      try {
+        canonical = h.encode(id);
+      } catch {
+        continue; // blocklisted ids are reserved, skip them
+      }
+      if (canonical.includes(tgt)) {
+        codecVectors.push({
+          profileId: base.profileId,
+          input: canonical.replace(tgt, src),
+          id: id.toString(10),
+          canonicalCode: canonical,
+          note: `look-alike alias: typed ${src} decodes as ${tgt}`
+        } as never);
+        break;
+      }
+    }
+  }
+}
+
 // Error vectors.
 const errorVectors: unknown[] = [
   { profileId: "baseh-medium-v1", input: "0000000", error: "INVALID_CHECKSUM" },

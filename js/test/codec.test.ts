@@ -236,6 +236,46 @@ describe("stripped leading zeros (spec 3.4)", () => {
   });
 });
 
+describe("look-alike aliases on frozen tiers", () => {
+  const medium = new Baseh(basehMediumV1());
+  function firstCodeWith(sym: string): { id: bigint; code: string } {
+    for (let id = 1n; id < 5000000n; id += 1n) {
+      const code = medium.encode(id);
+      if (code.includes(sym)) return { id, code };
+    }
+    throw new Error(`no medium code contains ${sym} in range`);
+  }
+  it("typed B decodes as 8", () => {
+    const { id, code } = firstCodeWith("8");
+    assert.equal(medium.decode(code.replace("8", "B")).id, id);
+  });
+  it("typed S decodes as 5 and lowercase works", () => {
+    const { id, code } = firstCodeWith("5");
+    assert.equal(medium.decode(code.replace("5", "S")).id, id);
+    assert.equal(medium.decode(code.replace("5", "s")).id, id);
+  });
+  it("aliasing is not reported as a correction", () => {
+    const { code } = firstCodeWith("8");
+    assert.equal(medium.decode(code.replace("8", "B")).corrected, false);
+  });
+  it("encode never emits B or S", () => {
+    for (let id = 0n; id < 2000n; id += 1n) {
+      try {
+        assert.doesNotMatch(medium.encode(id), /[BS]/);
+      } catch (e) {
+        // Blocklisted identifiers are reserved and never issued; skip them.
+        assert.ok(e instanceof BasehError && e.code === "BLOCKED_CODE");
+      }
+    }
+  });
+  it("a genuinely wrong symbol still fails the checksum", () => {
+    const { code } = firstCodeWith("8");
+    const wrong = code.replace("8", "7");
+    assert.throws(() => medium.decode(wrong), (e: unknown) =>
+      e instanceof BasehError && e.code === "INVALID_CHECKSUM");
+  });
+});
+
 describe("correction", () => {
   const conf = alpha32Profile();
   const prepared = prepareProfile(conf);
@@ -263,6 +303,21 @@ describe("correction", () => {
   it("respects maxCorrections 0", () => {
     const check = calculateChecksum(prepared, "0000PB");
     assert.throws(() => h.decode("0000TB" + check, { tryCorrection: true, maxCorrections: 0 }),
+      (e: unknown) => e instanceof BasehError && e.code === "INVALID_CHECKSUM");
+  });
+  it("ignores map replacements the profile alphabet cannot contain", () => {
+    // baseh-medium drops B, S and T. A P in the body under confusion light
+    // would suggest a T that can never validate; that candidate must be
+    // skipped and the failure reported as INVALID_CHECKSUM, never thrown as
+    // INVALID_CHARACTER from the checksum step.
+    const medium = new Baseh(basehMediumV1());
+    let code = "";
+    for (let id = 100000n; id < 1000000n; id += 1n) {
+      code = medium.encode(id);
+      if (code.includes("P")) break;
+    }
+    const bad = code.slice(0, -1) + (code.endsWith("2") ? "3" : "2");
+    assert.throws(() => medium.decode(bad, { tryCorrection: true, confusionProfile: "light" }),
       (e: unknown) => e instanceof BasehError && e.code === "INVALID_CHECKSUM");
   });
   it("candidate cap", () => {
