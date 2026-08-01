@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Fixed-length base-N encoding, spec section 5. Most significant digit first.
   module BaseN
     module_function

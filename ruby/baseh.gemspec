@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "lib/base_human/version"
+require_relative "lib/baseh/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "base-human"
-  spec.version       = BaseHuman::VERSION
-  spec.authors       = ["BaseHuman"]
-  spec.summary       = "BaseH (Human Reference Code) codec, Ruby port of the frozen spec"
-  spec.description   = "Encodes and decodes human reference codes per the BaseH codec " \
+  spec.name          = "baseh"
+  spec.version       = Baseh::VERSION
+  spec.authors       = ["cloudyventures"]
+  spec.summary       = "baseH (Human Reference Code) codec, Ruby port of the frozen spec"
+  spec.description   = "Encodes and decodes human reference codes per the baseH codec " \
                        "specification: fixed-length base-N bodies, rolling polynomial " \
                        "checksums, optional feistel-v1 permutation, spoken-confusion " \
                        "correction and profanity safety."

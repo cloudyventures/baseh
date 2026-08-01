@@ -1,4 +1,4 @@
-# base-human
+# baseh
 
 Python implementation of the baseH codec. Encodes an internal integer ID as
 a checksummed, optionally permuted human-readable reference code. Implements
@@ -16,13 +16,13 @@ pip install ./python
 Or run in place without installing:
 
 ```bash
-PYTHONPATH=python/src python3 -c "import base_human"
+PYTHONPATH=python/src python3 -c "import baseh"
 ```
 
 ## Usage
 
 ```python
-from base_human import Baseh, BasehError, baseh_medium_v1
+from baseh import Baseh, BasehError, baseh_medium_v1
 
 codec = Baseh(baseh_medium_v1())
 
@@ -84,7 +84,7 @@ The `_p` variants are identical to their tier but enable feistel-v1
 permutation and require caller-supplied key material:
 
 ```python
-from base_human import Baseh, baseh_medium_p_v1
+from baseh import Baseh, baseh_medium_p_v1
 
 key = bytes.fromhex("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
 codec = Baseh(baseh_medium_p_v1(key, key_id="my-app-01"))  # rounds defaults to 8

@@ -1,4 +1,4 @@
-# base-human
+# baseh
 
 Ruby port of the baseH (Human Reference Code) codec. Encodes integer IDs as
 fixed-length, checksummed, human-friendly reference codes with an opt-in
@@ -9,14 +9,14 @@ is `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
 
 ```ruby
 # Gemfile
-gem "base-human", path: "ruby"
+gem "baseh", path: "ruby"
 ```
 
 or
 
 ```sh
-gem build base-human.gemspec
-gem install ./base-human-1.0.0.gem
+gem build baseh.gemspec
+gem install ./baseh-1.0.0.gem
 ```
 
 Zero runtime dependencies. Only `openssl` and `json` from the standard
@@ -30,10 +30,10 @@ are case-insensitive and run the default profanity blocklist.
 
 | Tier | Helper | Body symbols | Checksum | Format | Capacity |
 | ---- | ------ | ------------ | -------- | ------ | -------- |
-| Minimum | `BaseHuman.baseh_minimum_v1` | 36 | none | `XXX-XXX` | 2,176,782,336 |
-| Light | `BaseHuman.baseh_light_v1` | 31 | 1 | plain | 887,503,681 |
-| Medium | `BaseHuman.baseh_medium_v1` | 28 | 1 | plain | 481,890,304 |
-| Heavy | `BaseHuman.baseh_heavy_v1` | 26 | 1 | plain | 308,915,776 |
+| Minimum | `Baseh.baseh_minimum_v1` | 36 | none | `XXX-XXX` | 2,176,782,336 |
+| Light | `Baseh.baseh_light_v1` | 31 | 1 | plain | 887,503,681 |
+| Medium | `Baseh.baseh_medium_v1` | 28 | 1 | plain | 481,890,304 |
+| Heavy | `Baseh.baseh_heavy_v1` | 26 | 1 | plain | 308,915,776 |
 
 Medium is the default. Minimum keeps the full alphabet and uses a hyphen
 delimiter; the rest have no separator. Each tier keeps the typed O/I/L
@@ -46,9 +46,9 @@ callers can load a default and modify it before constructing a codec.
 ## Usage
 
 ```ruby
-require "base_human"
+require "baseh"
 
-codec = BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1)
+codec = Baseh::Baseh.new(Baseh.baseh_medium_v1)
 
 code = codec.encode(id: 123_456)           # => raw fixed-width code
 
@@ -74,11 +74,11 @@ The `-p` variants opt a tier into the reversible feistel-v1 permutation.
 it for a live profile:
 
 ```ruby
-profile = BaseHuman.baseh_medium_p_v1(
+profile = Baseh.baseh_medium_p_v1(
   key_bytes: File.binread("path/to/key.bin"),
   key_id: "prod-01"                        # optional, defaults to "default"
 )
-codec = BaseHuman::Baseh.new(profile)
+codec = Baseh::Baseh.new(profile)
 ```
 
 `rounds:` is also accepted (default 8). The `-p` profile is identical to
@@ -101,7 +101,7 @@ profanity: { mode: "blocklist", words: ["ZZZZ"], extra_words: ["QQQQ"] }
 
 The frozen tiers run the default blocklist out of the box.
 
-All failures raise `BaseHuman::BasehError` with a `#code` from the spec:
+All failures raise `Baseh::BasehError` with a `#code` from the spec:
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,
 `INVALID_CHARACTER`, `INVALID_CHECKSUM`, `AMBIGUOUS_INPUT`,
 `TOO_MANY_CANDIDATES` and `BLOCKED_CODE`. `validate` never raises on user

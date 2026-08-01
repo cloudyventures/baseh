@@ -8,7 +8,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "base-human": ["../js/src/index.ts"]
+      "@cloudyventures/baseh": ["../js/src/index.ts"]
     }
   },
   "include": ["src", "test"]

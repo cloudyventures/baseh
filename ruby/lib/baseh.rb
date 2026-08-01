@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
 require "set"
-require_relative "base_human/version"
-require_relative "base_human/errors"
-require_relative "base_human/profanity"
-require_relative "base_human/profile"
-require_relative "base_human/basen"
-require_relative "base_human/checksum"
-require_relative "base_human/feistel"
-require_relative "base_human/profiles"
-require_relative "base_human/baseh"
-require_relative "base_human/zero"
+require_relative "baseh/version"
+require_relative "baseh/errors"
+require_relative "baseh/profanity"
+require_relative "baseh/profile"
+require_relative "baseh/basen"
+require_relative "baseh/checksum"
+require_relative "baseh/feistel"
+require_relative "baseh/profiles"
+require_relative "baseh/baseh"
+require_relative "baseh/zero"
 
 # baseH (Human Reference Code) codec. See spec/IMPLEMENTATION_CODEC.md in the
 # repository root for the normative specification.
-module BaseHuman
+module Baseh
   class << self
     # Frozen tier baseh-minimum-v1: alphanumeric with no strips, no checksum,
     # hyphen-delimited XXX-XXX. Permutation off.

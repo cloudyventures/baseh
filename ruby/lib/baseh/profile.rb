@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Profile validation and derived values, spec section 2.2.
   # Validation runs once at construction, never per encode/decode.
   #

@@ -24,13 +24,13 @@ also a runnable file that prints exactly the output shown:
 ## JavaScript / TypeScript
 
 ```bash
-npm install base-human
+npm install @cloudyventures/baseh
 ```
 
 ### Zero configuration
 
 ```typescript
-import { toCode, fromCode } from "base-human";
+import { toCode, fromCode } from "@cloudyventures/baseh";
 
 toCode(123456789n);           // "74UYC19"   (bigint, number or decimal string)
 toCode("123456789");          // "74UYC19"
@@ -44,7 +44,7 @@ toCode(481890304n);           // throws BasehError [OUT_OF_RANGE]: id == capacit
 ### Frozen preset
 
 ```typescript
-import { Baseh, BasehError, basehMediumV1 } from "base-human";
+import { Baseh, BasehError, basehMediumV1 } from "@cloudyventures/baseh";
 
 const medium = new Baseh(basehMediumV1());
 
@@ -84,13 +84,13 @@ orders.capacity();           // 13492928512n
 ## Python
 
 ```bash
-pip install base-human
+pip install baseh
 ```
 
 ### Zero configuration
 
 ```python
-from base_human import to_code, from_code
+from baseh import to_code, from_code
 
 to_code(123456789)            # "74UYC19"   (int or decimal string)
 to_code("123456789")          # "74UYC19"
@@ -104,7 +104,7 @@ to_code(481890304)            # raises BasehError [OUT_OF_RANGE]
 ### Frozen preset
 
 ```python
-from base_human import Baseh, BasehError, baseh_medium_v1
+from baseh import Baseh, BasehError, baseh_medium_v1
 
 medium = Baseh(baseh_medium_v1())
 
@@ -140,7 +140,7 @@ orders.capacity()            # 13492928512
 ## Go
 
 ```bash
-go get github.com/matellis/baseh/go
+go get github.com/cloudyventures/baseh/go
 ```
 
 ### Zero configuration
@@ -197,13 +197,13 @@ orders.Capacity()                                // 13492928512
 ## Rust
 
 ```bash
-cargo add base-human
+cargo add baseh
 ```
 
 ### Zero configuration
 
 ```rust
-use base_human::{from_code, to_code};
+use baseh::{from_code, to_code};
 
 to_code(123456789u64)         // Ok("74UYC19")   (u8..u128, usize, BigUint, &str)
 to_code("123456789")          // Ok("74UYC19")
@@ -217,7 +217,7 @@ to_code(481890304u64)         // Err(BasehError { code: OutOfRange, .. })
 ### Frozen preset
 
 ```rust
-use base_human::{baseh_medium_v1, Baseh, DecodeOptions};
+use baseh::{baseh_medium_v1, Baseh, DecodeOptions};
 
 let medium = Baseh::new(baseh_medium_v1())?;
 
@@ -251,27 +251,27 @@ orders.capacity()                              // 13492928512
 ## Ruby
 
 ```bash
-gem install base-human
+gem install baseh
 ```
 
 ### Zero configuration
 
 ```ruby
-require "base_human"
+require "baseh"
 
-BaseHuman.to_code(123456789)      # "74UYC19"   (Integer or decimal String)
-BaseHuman.to_code("123456789")    # "74UYC19"
-BaseHuman.from_code("74UYC19")    # 123456789
-BaseHuman.from_code("74uyc 19")   # 123456789
+Baseh.to_code(123456789)      # "74UYC19"   (Integer or decimal String)
+Baseh.to_code("123456789")    # "74UYC19"
+Baseh.from_code("74UYC19")    # 123456789
+Baseh.from_code("74uyc 19")   # 123456789
 
-BaseHuman.from_code("74UYC1X")    # raises BasehError [INVALID_CHECKSUM]
-BaseHuman.to_code(481890304)      # raises BasehError [OUT_OF_RANGE]
+Baseh.from_code("74UYC1X")    # raises BasehError [INVALID_CHECKSUM]
+Baseh.to_code(481890304)      # raises BasehError [OUT_OF_RANGE]
 ```
 
 ### Frozen preset
 
 ```ruby
-medium = BaseHuman::Baseh.new(BaseHuman.baseh_medium_v1)
+medium = Baseh::Baseh.new(Baseh.baseh_medium_v1)
 
 medium.encode(id: 123456789)      # "74UYC19"
 medium.decode("74UYC19").id       # 123456789
@@ -280,7 +280,7 @@ medium.capacity                   # 481890304
 
 begin
   medium.decode("742YC19")
-rescue BaseHuman::BasehError => e
+rescue Baseh::BasehError => e
   warn "#{e.code}: #{e.message}"  # INVALID_CHECKSUM ...
 end
 
@@ -290,12 +290,12 @@ medium.encode(id: 1131)           # raises BasehError [BLOCKED_CODE]
 ### Customized profile
 
 ```ruby
-custom = BaseHuman.baseh_medium_v1   # fresh mutable hash per call
+custom = Baseh.baseh_medium_v1   # fresh mutable hash per call
 custom[:profile_id] = "orders-v1"
 custom[:body_length] = 7
 custom[:separator] = "-"
 custom[:grouping] = [4, 4]
-orders = BaseHuman::Baseh.new(custom)
+orders = Baseh::Baseh.new(custom)
 
 orders.encode(id: 123456789)                     # "074U-YC1J"
 orders.decode(orders.encode(id: 123456789)).id   # 123456789
@@ -315,3 +315,6 @@ orders.capacity              # 13492928512
   never issued; skip the id and try the next one.
 - On decode failure no internal id is exposed. Use `validate` where you only
   need a boolean.
+- Decoders accept a code typed without its leading zero body symbols:
+  `decode("1D")` returns the same id as `decode("000001D")`. Encoders
+  always emit the fixed-width canonical code (spec 3.4).

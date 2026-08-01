@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Zero-config pair over the frozen baseh-medium-v1 profile. No profile
   # object, no key: just the two functions an application needs when it
   # does not want to think about configuration.
   #
-  #   BaseHuman.to_code(481890303)     -> "ZZZZZZV"
-  #   BaseHuman.from_code("ZZZZZZV")   -> 481890303
+  #   Baseh.to_code(481890303)     -> "ZZZZZZV"
+  #   Baseh.from_code("ZZZZZZV")   -> 481890303
   #
   # to_code accepts an Integer or a decimal string of digits. from_code
   # strips every whitespace character (edges and internal), accepts
@@ -58,12 +58,12 @@ module BaseHuman
   end
 
   class << self
-    # See BaseHuman::Zero.to_code.
+    # See Baseh::Zero.to_code.
     def to_code(id)
       Zero.to_code(id)
     end
 
-    # See BaseHuman::Zero.from_code.
+    # See Baseh::Zero.from_code.
     def from_code(code)
       Zero.from_code(code)
     end

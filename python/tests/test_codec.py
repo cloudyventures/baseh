@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from base_human import (  # noqa: E402
+from baseh import (  # noqa: E402
     AMBIGUOUS_INPUT,
     BLOCKED_CODE,
     INVALID_CHARACTER,
@@ -335,8 +335,13 @@ class TestRoundTrip(unittest.TestCase):
         self.assertEqual(ok["canonical_code"], self.codec.encode(7))
 
     def test_length_and_character_errors(self):
+        # Spec 3.4: short input is re-padded, so "00000" now fails on
+        # checksum instead of length. Over-long input still fails on length.
         with self.assertRaises(BasehError) as ctx:
             self.codec.decode("00000")
+        self.assertEqual(ctx.exception.code, INVALID_CHECKSUM)
+        with self.assertRaises(BasehError) as ctx:
+            self.codec.decode("00000000")
         self.assertEqual(ctx.exception.code, INVALID_LENGTH)
         with self.assertRaises(BasehError) as ctx:
             self.codec.decode("0000@0X")

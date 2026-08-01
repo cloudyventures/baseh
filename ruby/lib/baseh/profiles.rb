@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Frozen tier profiles. Each is built from the full alphanumeric set with
   # cumulative visual and spoken strips; the spoken strips interact with the
   # visual ones exactly as the web tools derive them, so the tool capacities

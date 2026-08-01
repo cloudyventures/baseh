@@ -1,13 +1,13 @@
 # basehuman (Go)
 
-Go port of the baseH (Base Human) reference codec. Zero dependencies,
+Go port of the baseH reference codec. Zero dependencies,
 stdlib only. Conforms to `spec/IMPLEMENTATION_CODEC.md` and the frozen
 cross-language vectors in `vectors/`.
 
 ## Install
 
 ```sh
-go get github.com/matellis/baseh/go
+go get github.com/cloudyventures/baseh/go
 ```
 
 ## Frozen tiers
@@ -39,7 +39,7 @@ import (
 	"fmt"
 	"math/big"
 
-	basehuman "github.com/matellis/baseh/go"
+	basehuman "github.com/cloudyventures/baseh/go"
 )
 
 func main() {

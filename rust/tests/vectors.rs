@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use base_human::{
+use baseh::{
     feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Permutation, Profanity,
     ProfanityMode, Profile,
 };

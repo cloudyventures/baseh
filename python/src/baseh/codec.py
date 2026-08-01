@@ -62,6 +62,13 @@ def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False)
         if ch not in allowed:
             raise BasehError(INVALID_CHARACTER, f"Symbol {ch!r} is not accepted")
     expected = profile.body_length + profile.checksum_length
+    # Spec 3.4: a code that lost leading zero body symbols is re-padded with
+    # the body zero symbol. The checksum symbols always remain, so the split
+    # point is unambiguous. A fully stripped no-checksum code would be empty
+    # and stays a length error.
+    if len(s) < expected and len(s) >= max(profile.checksum_length, 1):
+        zero = profile.body_alphabet_norm[0]
+        s = zero * (expected - len(s)) + s
     if len(s) != expected:
         raise BasehError(INVALID_LENGTH, f"Expected {expected} symbols, got {len(s)}")
     return s
