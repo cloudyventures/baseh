@@ -1,4 +1,5 @@
-import { design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, parseRequired, powBigInt, sampleCodes, spokenPairsThrough, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
+import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, friendlyError, parseRequired, powBigInt, sampleCodes, spokenPairsThrough, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
+import { Baseh } from "base-human";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -18,6 +19,10 @@ const els = {
   allowAlnum: $<HTMLInputElement>("allow-alnum"),
   allowUpper: $<HTMLInputElement>("allow-upper"),
   allowDigits: $<HTMLInputElement>("allow-digits"),
+  convId: $<HTMLInputElement>("d-conv-id"),
+  convIdOut: $("d-conv-id-out"),
+  convCode: $<HTMLInputElement>("d-conv-code"),
+  convCodeOut: $("d-conv-code-out"),
   recommended: $("recommended"),
   repair: $("repair"),
   alternatives: $("alternatives"),
@@ -123,6 +128,8 @@ function render() {
     els.repair.innerHTML = "<p>Enter a required capacity of at least 1 (digits only).</p>";
     els.alternatives.innerHTML = "";
     els.tbody.innerHTML = "";
+    els.convIdOut.textContent = "";
+    els.convCodeOut.textContent = "";
     return;
   }
   const result = design(input);
@@ -160,10 +167,55 @@ function render() {
     els.exportBtn.textContent = "Copied";
     setTimeout(() => (els.exportBtn.textContent = "Copy export JSON"), 1200);
   };
+
+  // Live conversion against the recommended candidate's profile.
+  let h: Baseh | null = null;
+  if (result.recommended) {
+    try {
+      h = new Baseh(candidateProfile(result.recommended, input.permutation));
+    } catch {
+      h = null;
+    }
+  }
+  const idRaw = els.convId.value.trim();
+  if (idRaw === "") {
+    els.convIdOut.textContent = "";
+  } else if (!/^[0-9]+$/.test(idRaw)) {
+    els.convIdOut.textContent = "an identifier is a non-negative integer, digits only";
+  } else if (!h) {
+    els.convIdOut.textContent = "no feasible design to convert with";
+  } else {
+    try {
+      els.convIdOut.innerHTML = "";
+      const out = document.createElement("code");
+      out.textContent = h.encode(BigInt(idRaw));
+      els.convIdOut.appendChild(out);
+    } catch (e) {
+      els.convIdOut.textContent = friendlyError(e);
+    }
+  }
+  const codeRaw = els.convCode.value.replace(/\s+/g, "");
+  if (codeRaw === "") {
+    els.convCodeOut.textContent = "";
+  } else if (!h) {
+    els.convCodeOut.textContent = "no feasible design to convert with";
+  } else {
+    try {
+      els.convCodeOut.textContent = `identifier ${h.decode(codeRaw).id}`;
+    } catch (e) {
+      els.convCodeOut.textContent = friendlyError(e);
+    }
+  }
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
+  } catch {
+    // Storage full or disabled: persistence is best effort.
+  }
 }
 
 for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.separator, els.minCheck,
-  els.maxUtil, els.visual, els.spoken, els.profanity, els.permutation, els.allowAlnum, els.allowUpper, els.allowDigits]) {
+  els.maxUtil, els.visual, els.spoken, els.profanity, els.permutation, els.allowAlnum, els.allowUpper, els.allowDigits,
+  els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
 // When the user leaves the required field, restate their number in the
@@ -172,4 +224,74 @@ els.required.addEventListener("change", () => {
   const value = parseRequired(els.required.value);
   if (value !== null) els.required.value = fmt(value);
 });
+
+// Settings persist through page refresh (sessionStorage) but not across
+// a close and reopen: the tab's session store is what we write to.
+const STORAGE_KEY = "baseh-designer-state";
+
+interface SavedState {
+  required: string;
+  recordsPerDay: string;
+  retentionDays: string;
+  maxLen: string;
+  separator: string;
+  minCheck: string;
+  maxUtil: string;
+  visual: string;
+  spoken: string;
+  profanity: string;
+  permutation: boolean;
+  allowAlnum: boolean;
+  allowUpper: boolean;
+  allowDigits: boolean;
+  convId: string;
+  convCode: string;
+}
+
+function readState(): SavedState {
+  return {
+    required: els.required.value,
+    recordsPerDay: els.dRecords.value,
+    retentionDays: els.dRetention.value,
+    maxLen: els.maxLen.value,
+    separator: els.separator.value,
+    minCheck: els.minCheck.value,
+    maxUtil: els.maxUtil.value,
+    visual: els.visual.value,
+    spoken: els.spoken.value,
+    profanity: els.profanity.value,
+    permutation: els.permutation.checked,
+    allowAlnum: els.allowAlnum.checked,
+    allowUpper: els.allowUpper.checked,
+    allowDigits: els.allowDigits.checked,
+    convId: els.convId.value,
+    convCode: els.convCode.value
+  };
+}
+
+function applyState(s: SavedState) {
+  els.required.value = s.required;
+  els.dRecords.value = s.recordsPerDay;
+  els.dRetention.value = s.retentionDays;
+  els.maxLen.value = s.maxLen;
+  els.separator.value = s.separator;
+  els.minCheck.value = s.minCheck;
+  els.maxUtil.value = s.maxUtil;
+  els.visual.value = s.visual;
+  els.spoken.value = s.spoken;
+  els.profanity.value = s.profanity;
+  els.permutation.checked = s.permutation;
+  els.allowAlnum.checked = s.allowAlnum;
+  els.allowUpper.checked = s.allowUpper;
+  els.allowDigits.checked = s.allowDigits;
+  els.convId.value = s.convId;
+  els.convCode.value = s.convCode;
+}
+
+try {
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  if (raw) applyState(JSON.parse(raw) as SavedState);
+} catch {
+  // Corrupt or unavailable storage falls back to the markup defaults.
+}
 render();
