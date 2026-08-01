@@ -1,8 +1,10 @@
 //! Layered codec tests: profile validation, boundaries, normalization,
-//! aliases, correction, sequential round trips and a fuzz smoke.
+//! aliases, correction, profanity safety, sequential round trips and a
+//! fuzz smoke.
 
 use base_human::{
-    hrc32_v1, hrc32s_v1, ConfusionProfile, DecodeOptions, ErrorCode, Hrc, Permutation, Profile,
+    baseh32_v1, baseh32s_v1, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Permutation,
+    Profanity, ProfanityMode, Profile,
 };
 use num_bigint::BigUint;
 
@@ -20,18 +22,19 @@ fn base_profile() -> Profile {
         grouping: vec![3, 3, 1],
         aliases: vec![('O', '0'), ('I', '1'), ('L', '1')],
         permutation: Permutation::Disabled,
+        profanity: None,
     }
 }
 
 fn no_perm() -> Profile {
-    let mut p = hrc32_v1(KEY, "test-01");
-    p.profile_id = "hrc32-noperm-test".to_string();
+    let mut p = baseh32_v1(KEY, "test-01");
+    p.profile_id = "baseh32-noperm-test".to_string();
     p.permutation = Permutation::Disabled;
     p
 }
 
 fn assert_invalid_profile(profile: Profile, case: &str) {
-    let err = match Hrc::new(profile) {
+    let err = match Baseh::new(profile) {
         Ok(_) => panic!("{case} must be rejected"),
         Err(err) => err,
     };
@@ -182,6 +185,18 @@ fn profile_validation_rejections() {
         },
         "zero group size",
     );
+    let mut empty_sep = base_profile();
+    empty_sep.separator = String::new();
+    empty_sep.grouping = Vec::new();
+    Baseh::new(empty_sep).expect("empty separator with empty grouping is valid");
+    assert_invalid_profile(
+        Profile {
+            separator: String::new(),
+            grouping: vec![3, 3, 1],
+            ..base_profile()
+        },
+        "grouping with empty separator",
+    );
     let mut perm = base_profile();
     perm.permutation = Permutation::FeistelV1 {
         key_id: "k1".to_string(),
@@ -209,43 +224,50 @@ fn profile_validation_rejections() {
 
 #[test]
 fn shipped_profiles_accepted() {
-    Hrc::new(hrc32_v1(KEY, "test-01")).expect("hrc32-v1 valid");
-    Hrc::new(hrc32s_v1(KEY, "test-01")).expect("hrc32s-v1 valid");
+    Baseh::new(baseh32_v1(KEY, "test-01")).expect("baseh32-v1 valid");
+    Baseh::new(baseh32s_v1(KEY, "test-01")).expect("baseh32s-v1 valid");
+    assert_eq!(
+        baseh32_v1(KEY, "test-01").separator,
+        "",
+        "frozen profiles drop separators"
+    );
 }
 
 #[test]
 fn boundary_round_trips() {
     for profile in [
         no_perm(),
-        hrc32_v1(KEY, "test-01"),
-        hrc32s_v1(KEY, "test-01"),
+        baseh32_v1(KEY, "test-01"),
+        baseh32s_v1(KEY, "test-01"),
     ] {
-        let hrc = Hrc::new(profile).unwrap();
-        let cap = hrc.capacity().clone();
+        let baseh = Baseh::new(profile).unwrap();
+        let cap = baseh.capacity().clone();
         let options = DecodeOptions::default();
         for id in [0u64, 1, 31, 32, 33] {
-            round_trip(&hrc, &BigUint::from(id), &options);
+            round_trip(&baseh, &BigUint::from(id), &options);
         }
-        round_trip(&hrc, &(&cap - 2u64), &options);
-        round_trip(&hrc, &(&cap - 1u64), &options);
-        let err = hrc.encode(&cap).expect_err("capacity must be out of range");
+        round_trip(&baseh, &(&cap - 2u64), &options);
+        round_trip(&baseh, &(&cap - 1u64), &options);
+        let err = baseh
+            .encode(&cap)
+            .expect_err("capacity must be out of range");
         assert_eq!(err.code, ErrorCode::OutOfRange);
-        let err = hrc
+        let err = baseh
             .encode(&(&cap + 1u64))
             .expect_err("capacity + 1 must be out of range");
         assert_eq!(err.code, ErrorCode::OutOfRange);
     }
 }
 
-fn round_trip(hrc: &Hrc, id: &BigUint, options: &DecodeOptions) {
-    let code = hrc.encode(id).unwrap();
-    let result = hrc.decode(&code, options).unwrap();
+fn round_trip(baseh: &Baseh, id: &BigUint, options: &DecodeOptions) {
+    let code = baseh.encode(id).unwrap();
+    let result = baseh.decode(&code, options).unwrap();
     assert_eq!(result.id, *id, "round trip of {id}");
     assert_eq!(result.canonical_code, code, "canonical stability for {id}");
     assert!(!result.corrected, "canonical input for {id}");
     // Property: encoded length is fixed once separators are removed.
-    let raw_len = code.chars().filter(|c| *c != '-').count();
-    let p = hrc.profile();
+    let p = baseh.profile();
+    let raw_len = code.chars().filter(|c| !p.separator.contains(*c)).count();
     assert_eq!(
         raw_len,
         p.body_length + p.checksum_length,
@@ -255,51 +277,51 @@ fn round_trip(hrc: &Hrc, id: &BigUint, options: &DecodeOptions) {
 
 #[test]
 fn capacity_values() {
-    let hrc = Hrc::new(hrc32_v1(KEY, "test-01")).unwrap();
-    assert_eq!(hrc.capacity(), &BigUint::from(1_073_741_824u64));
+    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
+    assert_eq!(baseh.capacity(), &BigUint::from(1_073_741_824u64));
 
     // Capacity beyond u64 must still work end to end.
     let mut big = base_profile();
     big.profile_id = "big-cap".to_string();
     big.body_length = 20; // 32^20 = 2^100
     big.grouping = vec![10, 11];
-    let hrc = Hrc::new(big).unwrap();
+    let baseh = Baseh::new(big).unwrap();
     let options = DecodeOptions::default();
     let id = BigUint::from(1u64) << 99usize;
-    round_trip(&hrc, &id, &options);
-    let cap = hrc.capacity().clone();
+    round_trip(&baseh, &id, &options);
+    let cap = baseh.capacity().clone();
     assert_eq!(cap, BigUint::from(1u64) << 100usize);
 }
 
 #[test]
 fn normalization_and_aliases() {
-    let hrc = Hrc::new(no_perm()).unwrap();
+    let baseh = Baseh::new(no_perm()).unwrap();
     let options = DecodeOptions::default();
-    let canonical = hrc.encode(&BigUint::from(1u64)).unwrap();
+    let canonical = baseh.encode(&BigUint::from(1u64)).unwrap();
     let id: BigUint = "1".parse().unwrap();
 
     // Alias O -> 0 at a body position containing 0.
-    assert_eq!(canonical, "000-001-W");
-    let aliased = "O00-001-W";
-    let result = hrc.decode(aliased, &options).unwrap();
+    assert_eq!(canonical, "000001M");
+    let aliased = "O00001M";
+    let result = baseh.decode(aliased, &options).unwrap();
     assert_eq!(result.id, id);
     // Aliases are resolved during normalization, so an alias-only difference
     // still decodes as canonical; `corrected` only flags checksum repair.
     assert!(!result.corrected);
 
     // Case-insensitive input and whitespace trimming (spec 3.1 step 1).
-    let result = hrc.decode(" o00-001-W ", &options).unwrap();
+    let result = baseh.decode(" o00001m ", &options).unwrap();
     assert_eq!(result.id, id);
-    assert_eq!(hrc.decode("O00001W", &options).unwrap().id, id);
+    assert_eq!(baseh.decode("O00001M", &options).unwrap().id, id);
 
     // Internal spaces rejected unless accepted by the caller.
-    let err = hrc
-        .decode("O00 001 W", &options)
+    let err = baseh
+        .decode("O00 001 M", &options)
         .expect_err("internal space rejected in strict mode");
     assert_eq!(err.code, ErrorCode::InvalidCharacter);
-    let lenient = hrc
+    let lenient = baseh
         .decode(
-            "O00 001 W",
+            "O00 001 M",
             &DecodeOptions {
                 accept_spaces: true,
                 ..DecodeOptions::default()
@@ -308,16 +330,16 @@ fn normalization_and_aliases() {
         .unwrap();
     assert_eq!(lenient.id, id);
 
-    // Aliases in the checksum region.
-    let with_alias_check = hrc.decode("000-00I-W", &options).unwrap();
-    assert_eq!(with_alias_check.id, id);
+    // Aliases in the body region: I normalizes to 1.
+    let with_alias = baseh.decode("00000IM", &options).unwrap();
+    assert_eq!(with_alias.id, id);
 
     // Wrong checksum fails; correction with profile None cannot help.
-    let err = hrc.decode("000-001-C", &options).expect_err("bad checksum");
+    let err = baseh.decode("000001C", &options).expect_err("bad checksum");
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
-    let err = hrc
+    let err = baseh
         .decode(
-            "000-001-C",
+            "000001C",
             &DecodeOptions {
                 try_correction: true,
                 ..DecodeOptions::default()
@@ -327,16 +349,23 @@ fn normalization_and_aliases() {
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
 
     // Unknown symbol fails as INVALID_CHARACTER before length checks bite.
-    let err = hrc.decode("000-0@1-W", &options).expect_err("bad symbol");
+    let err = baseh.decode("0000@1M", &options).expect_err("bad symbol");
     assert_eq!(err.code, ErrorCode::InvalidCharacter);
-    let err = hrc.decode("000-001", &options).expect_err("short input");
+    let err = baseh.decode("000001", &options).expect_err("short input");
     assert_eq!(err.code, ErrorCode::InvalidLength);
+
+    // A checksum-only symbol in the body region fails as INVALID_CHARACTER.
+    let err = baseh
+        .decode("U00000A", &options)
+        .expect_err("checksum-only body symbol");
+    assert_eq!(err.code, ErrorCode::InvalidCharacter);
 }
 
 #[test]
 fn formatting_positions() {
-    let hrc = Hrc::new(no_perm()).unwrap();
-    let code = hrc.encode(&BigUint::from(1u64)).unwrap();
+    let baseh = Baseh::new(base_profile()).unwrap();
+    let code = baseh.encode(&BigUint::from(1u64)).unwrap();
+    assert_eq!(code, "000-001-K");
     let chars: Vec<char> = code.chars().collect();
     assert_eq!(chars[3], '-', "separator after group 1");
     assert_eq!(chars[7], '-', "separator after group 2");
@@ -345,7 +374,7 @@ fn formatting_positions() {
 
 #[test]
 fn correction_light_medium_heavy() {
-    let hrc = Hrc::new(no_perm()).unwrap();
+    let baseh = Baseh::new(no_perm()).unwrap();
     let correct = DecodeOptions {
         accept_spaces: false,
         try_correction: true,
@@ -353,25 +382,20 @@ fn correction_light_medium_heavy() {
         max_corrections: 1,
     };
 
-    // T/P confusion: canonical 0000PB with checksum M, spoken as 0000TBM.
-    let result = hrc.decode("0000TBM", &correct).unwrap();
-    let raw: String = result
-        .canonical_code
-        .chars()
-        .filter(|c| *c != '-')
-        .collect();
-    assert_eq!(&raw[..6], "0000PB");
+    // T/P confusion: canonical 0000PB with checksum C, spoken as 0000TBC.
+    let result = baseh.decode("0000TBC", &correct).unwrap();
+    assert_eq!(result.canonical_code, "0000PBC");
     assert!(result.corrected);
 
-    // Ambiguity: both one-edit candidates of 0000BT pass checksum E.
-    let err = hrc.decode("0000BTE", &correct).expect_err("ambiguous");
+    // Ambiguity: both one-edit candidates of 0000BT pass checksum 3.
+    let err = baseh.decode("0000BT3", &correct).expect_err("ambiguous");
     assert_eq!(err.code, ErrorCode::AmbiguousInput);
     assert!(!err.safe_for_customer, "ambiguity is an internal detail");
 
     // max_corrections 0 disables correction even when one edit would fix it.
-    let err = hrc
+    let err = baseh
         .decode(
-            "0000TBM",
+            "0000TBC",
             &DecodeOptions {
                 max_corrections: 0,
                 ..correct.clone()
@@ -383,7 +407,7 @@ fn correction_light_medium_heavy() {
     // Correction never touches the checksum region: flipping a checksum
     // character cannot be repaired by any one-edit body substitution of a
     // body whose checksum already passes.
-    let err = hrc
+    let err = baseh
         .decode("0000PBX", &correct)
         .expect_err("checksum region flip not correctable");
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
@@ -391,31 +415,198 @@ fn correction_light_medium_heavy() {
 
 #[test]
 fn validate_never_exposes_id() {
-    let hrc = Hrc::new(hrc32_v1(KEY, "test-01")).unwrap();
+    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
     let options = DecodeOptions::default();
-    let code = hrc.encode(&BigUint::from(7u64)).unwrap();
-    let ok = hrc.validate(&code, &options);
+    let code = baseh.encode(&BigUint::from(7u64)).unwrap();
+    let ok = baseh.validate(&code, &options);
     assert!(ok.valid);
     assert_eq!(ok.canonical_code.as_deref(), Some(code.as_str()));
     assert_eq!(ok.reason, None);
 
-    let bad = hrc.validate("000-000-0", &options);
+    let bad = baseh.validate("0000000", &options);
     assert!(!bad.valid);
     assert_eq!(bad.reason, Some(ErrorCode::InvalidChecksum));
     assert_eq!(bad.canonical_code, None);
     // ValidateOutcome has no id field at all by construction.
 }
 
+fn block_profile(mode: ProfanityMode, words: Option<Vec<String>>, extra: Vec<String>) -> Profile {
+    Profile {
+        profile_id: "test-p-block".to_string(),
+        profanity: Some(Profanity {
+            mode,
+            words,
+            extra_words: extra,
+        }),
+        ..base_profile()
+    }
+}
+
+#[test]
+fn profanity_blocklist_encode() {
+    // Default list armed, no custom words.
+    let baseh = Baseh::new(block_profile(ProfanityMode::Blocklist, None, vec![])).unwrap();
+    let mut blocked = None;
+    for n in 0..2_000_000u64 {
+        match baseh.encode(&BigUint::from(n)) {
+            Ok(code) => {
+                let upper = code.to_ascii_uppercase();
+                for word in base_human::DEFAULT_BLOCKLIST {
+                    assert!(!upper.contains(word), "{code} contains {word}");
+                }
+            }
+            Err(err) => {
+                assert_eq!(err.code, ErrorCode::BlockedCode);
+                assert!(!err.safe_for_customer);
+                blocked = Some(n);
+                break;
+            }
+        }
+    }
+    assert!(
+        blocked.is_some(),
+        "default blocklist must bite within 2M ids"
+    );
+
+    // Replacement words drop the default list: ZZZZ blocked on body 00ZZZZ.
+    let replace = Baseh::new(block_profile(
+        ProfanityMode::Blocklist,
+        Some(vec!["zzzz".to_string()]),
+        vec![],
+    ))
+    .unwrap();
+    let err = replace
+        .encode(&BigUint::from(1_048_575u64)) // body 00ZZZZ
+        .expect_err("replacement word blocks");
+    assert_eq!(err.code, ErrorCode::BlockedCode);
+
+    // extraWords augment the default list.
+    let extra = Baseh::new(block_profile(
+        ProfanityMode::Blocklist,
+        None,
+        vec!["zzzz".to_string()],
+    ))
+    .unwrap();
+    let err = extra
+        .encode(&BigUint::from(1_048_575u64))
+        .expect_err("extra word blocks");
+    assert_eq!(err.code, ErrorCode::BlockedCode);
+
+    // Decode may also raise BLOCKED_CODE: a blocked string could never have
+    // been issued. The none-mode twin mints it so the checksum matches.
+    let open = Baseh::new(Profile {
+        profanity: None,
+        ..block_profile(ProfanityMode::None, None, vec![])
+    })
+    .unwrap();
+    let code = open.encode(&BigUint::from(1_048_575u64)).unwrap();
+    let err = replace
+        .decode(&code, &DecodeOptions::default())
+        .expect_err("blocked code must not decode");
+    assert_eq!(err.code, ErrorCode::BlockedCode);
+}
+
+#[test]
+fn profanity_blocklist_profile_rules() {
+    for bad in ["A", &"Z".repeat(33), "Z1", "Z Z", "ZQ\u{E9}"] {
+        assert_invalid_profile(
+            block_profile(
+                ProfanityMode::Blocklist,
+                Some(vec![bad.to_string()]),
+                vec![],
+            ),
+            &format!("blocklist entry {bad:?}"),
+        );
+    }
+    // An empty replacement list arms an empty effective list: nothing blocked.
+    let none_blocked = Baseh::new(block_profile(
+        ProfanityMode::Blocklist,
+        Some(Vec::new()),
+        vec![],
+    ))
+    .unwrap();
+    none_blocked
+        .encode(&BigUint::from(1_048_575u64))
+        .expect("empty replacement list blocks nothing");
+}
+
+#[test]
+fn profanity_no_vowels() {
+    let mut p = base_profile();
+    p.profile_id = "novowel-test".to_string();
+    p.profanity = Some(Profanity {
+        mode: ProfanityMode::NoVowels,
+        words: None,
+        extra_words: vec![],
+    });
+    p.separator = String::new();
+    p.grouping = Vec::new();
+    let baseh = Baseh::new(p).unwrap();
+    // Body alphabet 32 - {A,E} = 30; capacity 30^6 (the checksum alphabet
+    // loses A,E,U but leaves body capacity unchanged).
+    assert_eq!(baseh.capacity(), &BigUint::from(729_000_000u64));
+
+    let options = DecodeOptions::default();
+    round_trip(&baseh, &BigUint::from(0u64), &options);
+    round_trip(&baseh, &BigUint::from(728_999_999u64), &options);
+
+    // Encoder output never contains a vowel.
+    for n in [0u64, 1, 1000, 728_999_999] {
+        let code = baseh.encode(&BigUint::from(n)).unwrap();
+        assert!(!code
+            .chars()
+            .any(|c| matches!(c, 'A' | 'E' | 'I' | 'O' | 'U')));
+    }
+
+    // A vowel in input is just another invalid character.
+    let err = baseh
+        .decode("0000A02", &options)
+        .expect_err("vowel input rejected");
+    assert_eq!(err.code, ErrorCode::InvalidCharacter);
+
+    // Stripping below two symbols is an invalid profile. Body "AB" loses A.
+    assert_invalid_profile(
+        Profile {
+            profile_id: "novowel-tiny".to_string(),
+            body_alphabet: "AB".to_string(),
+            body_length: 4,
+            checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
+            checksum_length: 0,
+            case_sensitive: false,
+            separator: String::new(),
+            grouping: Vec::new(),
+            aliases: vec![],
+            permutation: Permutation::Disabled,
+            profanity: Some(Profanity {
+                mode: ProfanityMode::NoVowels,
+                words: None,
+                extra_words: vec![],
+            }),
+        },
+        "no-vowels leaves body alphabet with one symbol",
+    );
+}
+
+#[test]
+fn error_code_serialized_names() {
+    assert_eq!(ErrorCode::BlockedCode.to_string(), "BLOCKED_CODE");
+    assert_eq!(
+        "BLOCKED_CODE".parse::<ErrorCode>(),
+        Ok(ErrorCode::BlockedCode)
+    );
+    assert_eq!(ErrorCode::InvalidChecksum.to_string(), "INVALID_CHECKSUM");
+}
+
 #[test]
 fn sequential_round_trip_smoke() {
-    let hrc = Hrc::new(hrc32_v1(KEY, "test-01")).unwrap();
+    let baseh = Baseh::new(baseh32_v1(KEY, "test-01")).unwrap();
     let options = DecodeOptions::default();
     let mut seen = std::collections::HashSet::new();
     for n in 0..10_000u64 {
         let id = BigUint::from(n);
-        let code = hrc.encode(&id).unwrap();
+        let code = baseh.encode(&id).unwrap();
         assert!(seen.insert(code.clone()), "duplicate code for {n}");
-        let result = hrc.decode(&code, &options).unwrap();
+        let result = baseh.decode(&code, &options).unwrap();
         assert_eq!(result.id, id, "sequential round trip {n}");
         // Encoder only emits canonical symbols: never O, I or L.
         for ch in code.chars() {
@@ -445,9 +636,9 @@ impl XorShift {
 #[test]
 fn fuzz_smoke() {
     let profiles = [
-        Hrc::new(no_perm()).unwrap(),
-        Hrc::new(hrc32_v1(KEY, "test-01")).unwrap(),
-        Hrc::new(hrc32s_v1(KEY, "test-01")).unwrap(),
+        Baseh::new(no_perm()).unwrap(),
+        Baseh::new(baseh32_v1(KEY, "test-01")).unwrap(),
+        Baseh::new(baseh32s_v1(KEY, "test-01")).unwrap(),
     ];
     let mut rng = XorShift(0x243F_6A88_85A3_08D3);
     let options = DecodeOptions::default();
@@ -455,7 +646,7 @@ fn fuzz_smoke() {
     for _ in 0..20_000 {
         let len = rng.below(24) as usize;
         // Printable ASCII plus stray non-ASCII code points: anything the API
-        // may legally receive must produce Ok or HrcError, never a panic.
+        // may legally receive must produce Ok or BasehError, never a panic.
         let input: String = (0..len)
             .map(|_| match rng.below(32) {
                 0 => char::from_u32(0xE9).unwrap(), // e-acute: non-ASCII
@@ -465,22 +656,22 @@ fn fuzz_smoke() {
                 n => char::from_u32(0x20 + (n as u32) % 95).unwrap(),
             })
             .collect();
-        let hrc = &profiles[rng.below(3) as usize];
-        match hrc.decode(&input, &options) {
+        let baseh = &profiles[rng.below(3) as usize];
+        match baseh.decode(&input, &options) {
             Ok(result) => {
                 ok_count += 1;
-                assert!(result.id < *hrc.capacity(), "decoded id in range");
+                assert!(result.id < *baseh.capacity(), "decoded id in range");
                 // Canonical stability: re-encoding reproduces the reporting code.
-                assert_eq!(hrc.encode(&result.id).unwrap(), result.canonical_code);
+                assert_eq!(baseh.encode(&result.id).unwrap(), result.canonical_code);
             }
             Err(err) => {
-                // All eight codes are legal; the point is that it IS an HrcError.
+                // All nine codes are legal; the point is that it IS a BasehError.
                 let _ = err.code.as_str();
             }
         }
         // validate mirrors decode exactly.
-        let outcome = hrc.validate(&input, &options);
-        assert_eq!(outcome.valid, hrc.decode(&input, &options).is_ok());
+        let outcome = baseh.validate(&input, &options);
+        assert_eq!(outcome.valid, baseh.decode(&input, &options).is_ok());
     }
     // Random garbage should almost never decode; a huge success count means
     // something is accepting everything.

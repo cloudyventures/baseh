@@ -4,7 +4,10 @@
 
 use std::collections::HashMap;
 
-use base_human::{feistel, ConfusionProfile, DecodeOptions, ErrorCode, Hrc, Permutation, Profile};
+use base_human::{
+    feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Permutation, Profanity,
+    ProfanityMode, Profile,
+};
 use num_bigint::BigUint;
 use serde_json::Value;
 
@@ -23,6 +26,15 @@ fn big(value: &Value) -> BigUint {
         .expect("decimal string")
         .parse::<BigUint>()
         .expect("valid decimal")
+}
+
+fn strings(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .expect("string array")
+        .iter()
+        .map(|w| w.as_str().expect("word string").to_string())
+        .collect()
 }
 
 fn profile_from_definition(def: &Value) -> Profile {
@@ -52,6 +64,19 @@ fn profile_from_definition(def: &Value) -> Profile {
     } else {
         Permutation::Disabled
     };
+    let profanity = def.get("profanity").map(|p| {
+        let mode = match p["mode"].as_str().expect("profanity mode") {
+            "none" => ProfanityMode::None,
+            "no-vowels" => ProfanityMode::NoVowels,
+            "blocklist" => ProfanityMode::Blocklist,
+            other => panic!("unknown profanity mode {other}"),
+        };
+        Profanity {
+            mode,
+            words: p.get("words").map(strings),
+            extra_words: p.get("extraWords").map(strings).unwrap_or_default(),
+        }
+    });
     Profile {
         profile_id: def["profileId"].as_str().unwrap().to_string(),
         body_alphabet: def["bodyAlphabet"].as_str().unwrap().to_string(),
@@ -68,11 +93,18 @@ fn profile_from_definition(def: &Value) -> Profile {
             .collect(),
         aliases,
         permutation,
+        profanity,
     }
 }
 
+fn strip_separators(code: &str, profile: &Profile) -> String {
+    code.chars()
+        .filter(|c| !profile.separator.contains(*c))
+        .collect()
+}
+
 struct Fixture {
-    profiles: HashMap<String, Hrc>,
+    profiles: HashMap<String, Baseh>,
     root: Value,
 }
 
@@ -85,15 +117,15 @@ impl Fixture {
             .iter()
             .map(|p| {
                 let id = p["profileId"].as_str().unwrap().to_string();
-                let hrc = Hrc::new(profile_from_definition(&p["definition"]))
+                let baseh = Baseh::new(profile_from_definition(&p["definition"]))
                     .expect("vector profiles are valid");
-                (id, hrc)
+                (id, baseh)
             })
             .collect();
         Fixture { profiles, root }
     }
 
-    fn get(&self, profile_id: &str) -> &Hrc {
+    fn get(&self, profile_id: &str) -> &Baseh {
         self.profiles
             .get(profile_id)
             .unwrap_or_else(|| panic!("unknown profile {profile_id}"))
@@ -104,9 +136,9 @@ impl Fixture {
 fn profile_capacities_match() {
     let fixture = Fixture::load();
     for p in fixture.root["profiles"].as_array().unwrap() {
-        let hrc = fixture.get(p["profileId"].as_str().unwrap());
+        let baseh = fixture.get(p["profileId"].as_str().unwrap());
         assert_eq!(
-            hrc.capacity(),
+            baseh.capacity(),
             &big(&p["capacity"]),
             "capacity for {}",
             p["profileId"]
@@ -118,9 +150,9 @@ fn profile_capacities_match() {
 fn encode_vectors() {
     let fixture = Fixture::load();
     for v in fixture.root["vectors"].as_array().unwrap() {
-        let hrc = fixture.get(v["profileId"].as_str().unwrap());
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
         let id = big(&v["id"]);
-        let code = hrc
+        let code = baseh
             .encode(&id)
             .unwrap_or_else(|e| panic!("encode {} for {} failed: {}", v["id"], v["profileId"], e));
         assert_eq!(
@@ -138,11 +170,11 @@ fn decode_vectors() {
     let fixture = Fixture::load();
     let options = DecodeOptions::default();
     for v in fixture.root["vectors"].as_array().unwrap() {
-        let hrc = fixture.get(v["profileId"].as_str().unwrap());
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
         let input = v["input"]
             .as_str()
             .unwrap_or_else(|| v["canonicalCode"].as_str().unwrap());
-        let result = hrc
+        let result = baseh
             .decode(input, &options)
             .unwrap_or_else(|e| panic!("decode {input:?} for {} failed: {e}", v["profileId"]));
         assert_eq!(
@@ -157,8 +189,8 @@ fn decode_vectors() {
             "decode canonical {input:?} ({})",
             v["profileId"]
         );
-        // Canonical inputs report corrected=false; the aliased, spaced and
-        // lowercase vector inputs are checked explicitly in tests/codec.rs.
+        // Canonical inputs report corrected=false; aliased and lowercase
+        // inputs are checked explicitly in tests/codec.rs.
         if v.get("input").is_none() {
             assert!(
                 !result.corrected,
@@ -173,13 +205,10 @@ fn decode_vectors() {
 fn formatted_code_carries_expected_raw_parts() {
     let fixture = Fixture::load();
     for v in fixture.root["vectors"].as_array().unwrap() {
-        let hrc = fixture.get(v["profileId"].as_str().unwrap());
-        let code = hrc.encode(&big(&v["id"])).unwrap();
-        let raw: String = code
-            .chars()
-            .filter(|c| *c != hrc.profile().separator.chars().next().unwrap())
-            .collect();
-        let body_len = hrc.profile().body_length;
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
+        let code = baseh.encode(&big(&v["id"])).unwrap();
+        let raw = strip_separators(&code, baseh.profile());
+        let body_len = baseh.profile().body_length;
         if let Some(expected_body) = v.get("rawBody") {
             assert_eq!(&raw[..body_len], expected_body.as_str().unwrap());
         }
@@ -194,21 +223,21 @@ fn error_vectors() {
     let fixture = Fixture::load();
     let options = DecodeOptions::default();
     for v in fixture.root["errors"].as_array().unwrap() {
-        let hrc = fixture.get(v["profileId"].as_str().unwrap());
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
         let input = v["input"].as_str().unwrap();
         let expected: ErrorCode = v["error"]
             .as_str()
             .unwrap()
             .parse()
             .expect("known error code");
-        let err = match hrc.decode(input, &options) {
+        let err = match baseh.decode(input, &options) {
             Ok(_) => panic!("decode {input:?} must fail with {expected}"),
             Err(err) => err,
         };
         assert_eq!(err.code, expected, "decode {input:?}");
         // Per spec 13 the failure must not leak a candidate internal ID; the
         // error type carries no id by construction.
-        let outcome = hrc.validate(input, &options);
+        let outcome = baseh.validate(input, &options);
         assert!(!outcome.valid);
         assert_eq!(outcome.reason, Some(expected));
         assert!(outcome.canonical_code.is_none());
@@ -216,10 +245,35 @@ fn error_vectors() {
 }
 
 #[test]
+fn encode_error_vectors() {
+    let fixture = Fixture::load();
+    for v in fixture.root["encodeErrors"].as_array().unwrap() {
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
+        let expected: ErrorCode = v["error"].as_str().unwrap().parse().unwrap();
+        let err = match baseh.encode(&big(&v["id"])) {
+            Ok(code) => panic!(
+                "encode {} ({}) must fail with {expected}, got {code}",
+                v["id"], v["profileId"]
+            ),
+            Err(err) => err,
+        };
+        assert_eq!(
+            err.code, expected,
+            "encode {} ({})",
+            v["id"], v["profileId"]
+        );
+        assert!(
+            !err.safe_for_customer,
+            "blocked codes are an issuance decision"
+        );
+    }
+}
+
+#[test]
 fn correction_vectors() {
     let fixture = Fixture::load();
     for v in fixture.root["correction"].as_array().unwrap() {
-        let hrc = fixture.get(v["profileId"].as_str().unwrap());
+        let baseh = fixture.get(v["profileId"].as_str().unwrap());
         let input = v["input"].as_str().unwrap();
         let confusion = match v["confusionProfile"].as_str().unwrap_or("light") {
             "none" => ConfusionProfile::None,
@@ -235,20 +289,16 @@ fn correction_vectors() {
             max_corrections: 1,
         };
         if let Some(expected_body) = v.get("expectedBody") {
-            let result = hrc
+            let result = baseh
                 .decode(input, &options)
                 .unwrap_or_else(|e| panic!("correction of {input:?} must succeed: {e}"));
-            let body_len = hrc.profile().body_length;
-            let raw: String = result
-                .canonical_code
-                .chars()
-                .filter(|c| !hrc.profile().separator.contains(*c))
-                .collect();
+            let body_len = baseh.profile().body_length;
+            let raw = strip_separators(&result.canonical_code, baseh.profile());
             assert_eq!(&raw[..body_len], expected_body.as_str().unwrap());
             assert!(result.corrected, "correction of {input:?} flags corrected");
         } else {
             let expected: ErrorCode = v["error"].as_str().unwrap().parse().unwrap();
-            let err = match hrc.decode(input, &options) {
+            let err = match baseh.decode(input, &options) {
                 Ok(_) => panic!("correction of {input:?} must fail with {expected}"),
                 Err(err) => err,
             };

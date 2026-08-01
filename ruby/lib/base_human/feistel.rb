@@ -7,7 +7,7 @@ module BaseHuman
   # HMAC-SHA-256 comes from OpenSSL; HMAC and SHA-256 are never implemented
   # by hand (section 7.5).
   module Feistel
-    TAG = "HRC-FEISTEL-V1".b
+    TAG = "BASEH-FEISTEL-V1".b
     MAX_WALKS = 1000
 
     module_function
@@ -108,7 +108,7 @@ module BaseHuman
 
         v = combined
       end
-      raise HrcError.new(
+      raise BasehError.new(
         "PERMUTATION_FAILURE",
         "Feistel cycle walking exceeded 1000 iterations",
         safe_for_customer: false

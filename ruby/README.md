@@ -1,9 +1,9 @@
 # base-human
 
-Ruby port of the HRC (Human Reference Code) codec. Encodes integer IDs as
+Ruby port of the BaseH (Human Reference Code) codec. Encodes integer IDs as
 fixed-length, checksummed, human-friendly reference codes with an optional
-reversible feistel-v1 permutation. The normative spec is
-`spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
+reversible feistel-v1 permutation and profanity safety. The normative spec
+is `spec/IMPLEMENTATION_CODEC.md` in the monorepo root.
 
 ## Install
 
@@ -29,37 +29,53 @@ require "base_human"
 
 # Supply your own permutation key material. Keep it in a secret manager and
 # never change it for a live profile.
-profile = BaseHuman.hrc32_v1(
+profile = BaseHuman.baseh32_v1(
   key_bytes: File.binread("path/to/key.bin"),
   key_id: "prod-01"
 )
 
-hrc = BaseHuman::Hrc.new(profile)
+codec = BaseHuman::Baseh.new(profile)
 
-code = hrc.encode(id: 123_456)             # => "AAC-...-X" style grouped code
+code = codec.encode(id: 123_456)           # => raw fixed-width code, no separator
 
-result = hrc.decode(code)
+result = codec.decode(code)
 result.id                                  # => 123456
-result.canonical_code                      # => canonical, grouped form
+result.canonical_code                      # => canonical form
 result.corrected                           # => true when input needed correction
 
-hrc.capacity                               # => 1073741824
+codec.capacity                             # => 1073741824
 
-check = hrc.validate("000-000-0")
+check = codec.validate("0000000")
 check.valid                                # => false
 check.reason                               # => "INVALID_CHECKSUM"
 
 # Spoken-confusion correction
-result = hrc.decode("TB1-4QD-F", try_correction: true, confusion_profile: :light)
+result = codec.decode("TB14QDF", try_correction: true, confusion_profile: :light)
 ```
 
-`BaseHuman.hrc32s_v1(...)` gives the two-checksum-digit self-service profile.
-Both helpers take `rounds:` (default 8) after `key_bytes:` and `key_id:`.
+`BaseHuman.baseh32s_v1(...)` gives the two-checksum-digit self-service
+profile. Both helpers take `rounds:` (default 8) after `key_bytes:` and
+`key_id:`.
 
-All failures raise `BaseHuman::HrcError` with a `#code` from the spec:
+## Profanity safety (spec 18)
+
+Profiles accept an optional `profanity:` object:
+
+```ruby
+# mode "no-vowels": vowels are stripped from both alphabets at construction
+# and can never appear in issued codes.
+profanity: { mode: "no-vowels" }
+
+# mode "blocklist": encode raises BLOCKED_CODE when the raw code contains an
+# entry. words replaces the default list, extra_words appends to it.
+profanity: { mode: "blocklist", words: ["ZZZZ"], extra_words: ["QQQQ"] }
+```
+
+All failures raise `BaseHuman::BasehError` with a `#code` from the spec:
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,
-`INVALID_CHARACTER`, `INVALID_CHECKSUM`, `AMBIGUOUS_INPUT` and
-`TOO_MANY_CANDIDATES`. `validate` never raises on user input.
+`INVALID_CHARACTER`, `INVALID_CHECKSUM`, `AMBIGUOUS_INPUT`,
+`TOO_MANY_CANDIDATES` and `BLOCKED_CODE`. `validate` never raises on user
+input.
 
 Ruby `Integer` is arbitrary precision, so every capacity and ID operation is
 exact at any size.

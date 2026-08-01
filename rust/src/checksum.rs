@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use num_bigint::BigUint;
 
 use crate::basen::encode_base_n;
-use crate::error::{ErrorCode, HrcError};
+use crate::error::{BasehError, ErrorCode};
 use crate::profile::PreparedProfile;
 
 /// Compute the expected checksum string for a normalized body. A body
@@ -14,7 +14,7 @@ use crate::profile::PreparedProfile;
 pub(crate) fn calculate_checksum(
     profile: &PreparedProfile,
     body: &[char],
-) -> Result<String, HrcError> {
+) -> Result<String, BasehError> {
     let p = &profile.profile;
     if p.checksum_length == 0 {
         return Ok(String::new());
@@ -33,7 +33,7 @@ fn checksum_value(
     profile: &PreparedProfile,
     body: &[char],
     body_index: &HashMap<char, u32>,
-) -> Result<BigUint, HrcError> {
+) -> Result<BigUint, BasehError> {
     let modulus = &profile.checksum_modulus;
     let thirty_seven = BigUint::from(37u64);
     let mut state = BigUint::from(17u64);
@@ -43,7 +43,7 @@ fn checksum_value(
     state = (state * &thirty_seven) % modulus;
     for (pos, ch) in body.iter().enumerate() {
         let sym_value = *body_index.get(ch).ok_or_else(|| {
-            HrcError::customer(
+            BasehError::customer(
                 ErrorCode::InvalidCharacter,
                 format!("Body symbol {ch:?} is not in the body alphabet"),
             )

@@ -22,7 +22,8 @@ class TestVectors < Minitest::Test
   end
 
   # Builds a Ruby profile hash from the embedded JS-style definition.
-  # keyBytesHex becomes a binary String per the gem's API.
+  # keyBytesHex becomes a binary String and extraWords becomes extra_words,
+  # per the gem's API.
   def self.build_profile(definition)
     perm = definition["permutation"]
     permutation =
@@ -37,6 +38,14 @@ class TestVectors < Minitest::Test
       else
         { enabled: false }
       end
+    profanity =
+      if definition["profanity"]
+        {
+          mode: definition["profanity"]["mode"],
+          words: definition["profanity"]["words"],
+          extra_words: definition["profanity"]["extraWords"]
+        }.compact
+      end
     {
       profile_id: definition["profileId"],
       body_alphabet: definition["bodyAlphabet"],
@@ -47,8 +56,9 @@ class TestVectors < Minitest::Test
       separator: definition["separator"],
       grouping: definition["grouping"],
       aliases: definition["aliases"] || {},
-      permutation: permutation
-    }
+      permutation: permutation,
+      profanity: profanity
+    }.compact
   end
 
   def codec(profile_id)
@@ -58,7 +68,7 @@ class TestVectors < Minitest::Test
                        .find { |p| p["profileId"] == profile_id }
       raise "unknown vector profile #{profile_id}" unless definition
 
-      BaseHuman::Hrc.new(self.class.build_profile(definition["definition"]))
+      BaseHuman::Baseh.new(self.class.build_profile(definition["definition"]))
     end
   end
 
@@ -78,18 +88,31 @@ class TestVectors < Minitest::Test
 
   def test_encode_vectors
     self.class.vectors_doc["vectors"].each do |vector|
-      hrc = codec(vector["profileId"])
-      code = hrc.encode(id: vector["id"].to_i)
+      codec = codec(vector["profileId"])
+      code = codec.encode(id: vector["id"].to_i)
       assert_equal vector["canonicalCode"], code,
                    "encode mismatch for #{vector['profileId']} id=#{vector['id']}"
     end
   end
 
+  def test_encode_error_vectors
+    self.class.vectors_doc["encodeErrors"].each do |vector|
+      codec = codec(vector["profileId"])
+      error = assert_raises(BaseHuman::BasehError,
+                            "expected #{vector['error']} for #{vector['profileId']} id=#{vector['id']}") do
+        codec.encode(id: vector["id"].to_i)
+      end
+      assert_equal vector["error"], error.code,
+                   "wrong code for #{vector['profileId']} id=#{vector['id']}"
+      refute error.safe_for_customer, "BLOCKED_CODE must not be customer-safe"
+    end
+  end
+
   def test_decode_vectors
     self.class.vectors_doc["vectors"].each do |vector|
-      hrc = codec(vector["profileId"])
+      codec = codec(vector["profileId"])
       input = vector["input"] || vector["canonicalCode"]
-      result = hrc.decode(input)
+      result = codec.decode(input)
       assert_equal vector["id"].to_i, result.id,
                    "decode mismatch for #{vector['profileId']} input=#{input.inspect}"
       assert_equal vector["canonicalCode"], result.canonical_code
@@ -101,20 +124,20 @@ class TestVectors < Minitest::Test
     self.class.vectors_doc["vectors"].each do |vector|
       next unless vector["rawBody"] && vector["rawChecksum"]
 
-      hrc = codec(vector["profileId"])
+      codec = codec(vector["profileId"])
       raw = vector["rawBody"] + vector["rawChecksum"]
-      # Decoding the separator-free raw form must yield the same canonical code.
-      result = hrc.decode(raw)
+      # Decoding the raw unformatted form must yield the same canonical code.
+      result = codec.decode(raw)
       assert_equal vector["canonicalCode"], result.canonical_code
     end
   end
 
   def test_error_vectors
     self.class.vectors_doc["errors"].each do |vector|
-      hrc = codec(vector["profileId"])
-      error = assert_raises(BaseHuman::HrcError,
+      codec = codec(vector["profileId"])
+      error = assert_raises(BaseHuman::BasehError,
                             "expected #{vector['error']} for #{vector['input'].inspect}") do
-        hrc.decode(vector["input"])
+        codec.decode(vector["input"])
       end
       assert_equal vector["error"], error.code,
                    "wrong code for input #{vector['input'].inspect}"
@@ -123,23 +146,23 @@ class TestVectors < Minitest::Test
 
   def test_correction_vectors
     self.class.vectors_doc["correction"].each do |vector|
-      hrc = codec(vector["profileId"])
+      codec = codec(vector["profileId"])
       confusion = (vector["confusionProfile"] || "light").to_sym
       if vector["error"]
-        error = assert_raises(BaseHuman::HrcError) do
-          hrc.decode(vector["input"], try_correction: true, confusion_profile: confusion)
+        error = assert_raises(BaseHuman::BasehError) do
+          codec.decode(vector["input"], try_correction: true, confusion_profile: confusion)
         end
         assert_equal vector["error"], error.code
       else
-        result = hrc.decode(vector["input"],
-                            try_correction: true, confusion_profile: confusion)
-        expected_checksum = vector["input"].delete("-")[6..]
+        result = codec.decode(vector["input"],
+                              try_correction: true, confusion_profile: confusion)
+        expected_checksum = vector["input"][6..]
         raw = vector["expectedBody"] + expected_checksum
         assert_equal vector["expectedBody"],
-                     result.canonical_code.delete("-")[0...6],
+                     result.canonical_code[0...6],
                      "corrected body mismatch for #{vector['input'].inspect}"
         assert_equal true, result.corrected
-        assert_equal raw, result.canonical_code.delete("-")
+        assert_equal raw, result.canonical_code
       end
     end
   end

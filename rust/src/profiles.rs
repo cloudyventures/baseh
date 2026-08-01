@@ -8,13 +8,7 @@ const DEFAULT_ROUNDS: u32 = 8;
 
 const ALIASES: &[(char, char)] = &[('O', '0'), ('I', '1'), ('L', '1')];
 
-fn frozen(
-    profile_id: &str,
-    checksum_length: usize,
-    grouping: Vec<usize>,
-    key_bytes: &[u8],
-    key_id: &str,
-) -> Profile {
+fn frozen(profile_id: &str, checksum_length: usize, key_bytes: &[u8], key_id: &str) -> Profile {
     Profile {
         profile_id: profile_id.to_string(),
         body_alphabet: BODY_ALPHABET.to_string(),
@@ -22,30 +16,31 @@ fn frozen(
         checksum_alphabet: CHECKSUM_ALPHABET.to_string(),
         checksum_length,
         case_sensitive: false,
-        separator: "-".to_string(),
-        grouping,
+        separator: String::new(),
+        grouping: Vec::new(),
         aliases: ALIASES.to_vec(),
         permutation: Permutation::FeistelV1 {
             key_id: key_id.to_string(),
             key_bytes: key_bytes.to_vec(),
             rounds: DEFAULT_ROUNDS,
         },
+        profanity: None,
     }
 }
 
-/// Frozen profile `hrc32-v1`: 6 body + 1 checksum, feistel-v1 permutation,
+/// Frozen profile `baseh32-v1`: 6 body + 1 checksum, feistel-v1 permutation,
 /// 8 rounds. Assisted-support use; structured single-substitution miss rate
 /// about 1.2 percent per position (spec 6.3).
 ///
 /// Applications assign their own `key_id` and key material; both must be
 /// immutable for the life of the profile.
-pub fn hrc32_v1(key_bytes: &[u8], key_id: &str) -> Profile {
-    frozen("hrc32-v1", 1, vec![3, 3, 1], key_bytes, key_id)
+pub fn baseh32_v1(key_bytes: &[u8], key_id: &str) -> Profile {
+    frozen("baseh32-v1", 1, key_bytes, key_id)
 }
 
-/// Frozen profile `hrc32s-v1`: 6 body + 2 checksum, feistel-v1 permutation,
-/// 8 rounds. Self-service use; provably detects all single-symbol
-/// substitutions and all adjacent transpositions (spec 6.3).
-pub fn hrc32s_v1(key_bytes: &[u8], key_id: &str) -> Profile {
-    frozen("hrc32s-v1", 2, vec![3, 3, 2], key_bytes, key_id)
+/// Frozen profile `baseh32s-v1`: 6 body + 2 checksum, feistel-v1
+/// permutation, 8 rounds. Self-service use; provably detects all
+/// single-symbol substitutions and all adjacent transpositions (spec 6.3).
+pub fn baseh32s_v1(key_bytes: &[u8], key_id: &str) -> Profile {
+    frozen("baseh32s-v1", 2, key_bytes, key_id)
 }

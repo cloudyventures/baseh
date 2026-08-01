@@ -1,4 +1,4 @@
-//! Full encode/decode flow (spec sections 3, 8, 9, 10, 11, 12).
+//! Full encode/decode flow (spec sections 3, 8, 9, 10, 11, 12 and 18).
 
 use std::collections::HashSet;
 
@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 
 use crate::basen::{decode_base_n, encode_base_n};
 use crate::checksum::calculate_checksum;
-use crate::error::{ErrorCode, HrcError};
+use crate::error::{BasehError, ErrorCode};
 use crate::feistel::{inverse_permute, permute};
 use crate::profile::{prepare_profile, Permutation, PreparedProfile, Profile};
 
@@ -106,7 +106,7 @@ fn normalize(
     input: &str,
     profile: &PreparedProfile,
     accept_spaces: bool,
-) -> Result<Vec<char>, HrcError> {
+) -> Result<Vec<char>, BasehError> {
     let trimmed = input.trim_matches(is_ascii_ws);
     let mut s: String = if profile.profile.separator.is_empty() {
         trimmed.to_string()
@@ -136,7 +136,7 @@ fn normalize(
         .collect();
     for ch in &normalized {
         if !allowed.contains(ch) {
-            return Err(HrcError::customer(
+            return Err(BasehError::customer(
                 ErrorCode::InvalidCharacter,
                 format!("Symbol {ch:?} is not accepted"),
             ));
@@ -144,7 +144,7 @@ fn normalize(
     }
     let expected = p.body_length + p.checksum_length;
     if normalized.len() != expected {
-        return Err(HrcError::customer(
+        return Err(BasehError::customer(
             ErrorCode::InvalidLength,
             format!("Expected {} symbols, got {}", expected, normalized.len()),
         ));
@@ -152,7 +152,7 @@ fn normalize(
     Ok(normalized)
 }
 
-/// Spec 11. Grouping is presentation only.
+/// Spec 11. Grouping is presentation only; skipped when the separator is empty.
 fn format_raw(raw: &[char], profile: &PreparedProfile) -> String {
     let p = &profile.profile;
     if p.separator.is_empty() {
@@ -172,7 +172,7 @@ fn generate_candidates(
     body: &[char],
     confusion: &[(char, &'static [char])],
     max_edits: u32,
-) -> Result<Vec<Vec<char>>, HrcError> {
+) -> Result<Vec<Vec<char>>, BasehError> {
     if max_edits == 0 {
         return Ok(Vec::new());
     }
@@ -190,7 +190,7 @@ fn generate_candidates(
                 if seen.insert(candidate.clone()) {
                     results.push(candidate);
                     if results.len() > MAX_CANDIDATES {
-                        return Err(HrcError::new(
+                        return Err(BasehError::new(
                             ErrorCode::TooManyCandidates,
                             "Candidate generation exceeded 64 entries",
                             false,
@@ -203,22 +203,22 @@ fn generate_candidates(
     Ok(results)
 }
 
-/// An HRC codec bound to a validated profile. Pure and stateless; safe to
+/// A BaseH codec bound to a validated profile. Pure and stateless; safe to
 /// share across threads.
-pub struct Hrc {
+pub struct Baseh {
     profile: PreparedProfile,
 }
 
-impl Hrc {
-    /// Validate the profile per spec 2.2 and bind it. Invalid profiles are
-    /// rejected here (at startup), never on the first customer request.
-    pub fn new(profile: Profile) -> Result<Hrc, HrcError> {
-        Ok(Hrc {
+impl Baseh {
+    /// Validate the profile per spec 2.2 and 18 and bind it. Invalid profiles
+    /// are rejected here (at startup), never on the first customer request.
+    pub fn new(profile: Profile) -> Result<Baseh, BasehError> {
+        Ok(Baseh {
             profile: prepare_profile(profile)?,
         })
     }
 
-    /// Spec 4: `body_alphabet_len ^ body_length`.
+    /// Spec 4: `body_alphabet_len ^ body_length` (after any vowel stripping).
     pub fn capacity(&self) -> &BigUint {
         &self.profile.capacity
     }
@@ -228,10 +228,10 @@ impl Hrc {
         &self.profile.profile
     }
 
-    /// Spec 8.
-    pub fn encode(&self, id: &BigUint) -> Result<String, HrcError> {
+    /// Spec 8, including the spec 18 blocklist scan.
+    pub fn encode(&self, id: &BigUint) -> Result<String, BasehError> {
         if *id >= self.profile.capacity {
-            return Err(HrcError::customer(
+            return Err(BasehError::customer(
                 ErrorCode::OutOfRange,
                 format!("ID {id} is outside the profile capacity"),
             ));
@@ -255,11 +255,25 @@ impl Hrc {
         let checksum = calculate_checksum(&self.profile, &body_chars)?;
         let mut raw = body_chars;
         raw.extend(checksum.chars());
+        // Spec 18.2: case-insensitive substring scan over the raw code.
+        if !self.profile.blocklist.is_empty() {
+            let upper: String = raw
+                .iter()
+                .map(|c| c.to_ascii_uppercase())
+                .collect::<String>();
+            if self.profile.blocklist.iter().any(|w| upper.contains(w)) {
+                return Err(BasehError::new(
+                    ErrorCode::BlockedCode,
+                    "The generated reference contains a blocked substring",
+                    false,
+                ));
+            }
+        }
         Ok(format_raw(&raw, &self.profile))
     }
 
     /// Spec 9.
-    pub fn decode(&self, input: &str, options: &DecodeOptions) -> Result<DecodeResult, HrcError> {
+    pub fn decode(&self, input: &str, options: &DecodeOptions) -> Result<DecodeResult, BasehError> {
         let raw = normalize(input, &self.profile, options.accept_spaces)?;
         let p = &self.profile.profile;
         let mut body: Vec<char> = raw[..p.body_length].to_vec();
@@ -274,7 +288,7 @@ impl Hrc {
         if calculate_checksum(&self.profile, &body)? != supplied_checksum.iter().collect::<String>()
         {
             if !options.try_correction || options.max_corrections == 0 {
-                return Err(HrcError::customer(
+                return Err(BasehError::customer(
                     ErrorCode::InvalidChecksum,
                     "The reference code did not pass validation",
                 ));
@@ -292,13 +306,13 @@ impl Hrc {
                 }
             }
             if valid.is_empty() {
-                return Err(HrcError::customer(
+                return Err(BasehError::customer(
                     ErrorCode::InvalidChecksum,
                     "The reference code did not pass validation",
                 ));
             }
             if valid.len() > 1 {
-                return Err(HrcError::new(
+                return Err(BasehError::new(
                     ErrorCode::AmbiguousInput,
                     "The reference code matches more than one record",
                     false,
@@ -327,6 +341,8 @@ impl Hrc {
                 *rounds,
             )?;
         }
+        // Spec 18.2: the canonical re-encode may raise BLOCKED_CODE here,
+        // since a blocked string could never have been issued.
         let canonical_code = self.encode(&value)?;
         let canonical_raw: Vec<char> = canonical_code
             .chars()
