@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculate, design, minimumLength, parseRequired, powBigInt, type CalculatorInput, type DesignerInput } from "../src/core.js";
+import { calculate, design, minimumLength, parseRequired, powBigInt, sampleCodes, type CalculatorInput, type DesignerInput } from "../src/core.js";
 
 function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
   return {
@@ -12,6 +12,7 @@ function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
     profanity: "none",
     bodyLength: 6,
     checksumLength: 1,
+    permutation: false,
     separator: "-",
     prefix: "",
     suffix: "",
@@ -36,6 +37,7 @@ function designInput(overrides: Partial<DesignerInput> = {}): DesignerInput {
     visualSafety: "none",
     spokenSafety: "none",
     profanity: "none",
+    permutation: false,
     ...overrides
   };
 }
@@ -84,6 +86,27 @@ describe("calculator", () => {
     const r = calculate(calcInput({ visualSafety: "light" }));
     assert.equal(r.examples.length, 5);
     for (const e of r.examples) assert.match(e.code, /^[0-9A-Z-]+$/);
+  });
+  it("permutation changes codes but not capacity, deterministically", () => {
+    const off = calculate(calcInput());
+    const on = calculate(calcInput({ permutation: true }));
+    const onAgain = calculate(calcInput({ permutation: true }));
+    assert.equal(on.capacity, off.capacity);
+    assert.deepEqual(on.examples, onAgain.examples);
+    assert.notDeepEqual(on.examples, off.examples);
+    for (const e of on.examples) assert.match(e.code, /^[0-9A-Z-]+$/);
+  });
+});
+
+describe("permutation previews (sampleCodes)", () => {
+  it("permuted samples are stable and differ from unpermuted", () => {
+    const plain = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 32n ** 6n);
+    const permuted = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 32n ** 6n,
+      "none", "", "none", true);
+    assert.equal(plain.length, permuted.length);
+    assert.notDeepEqual(plain, permuted);
+    assert.deepEqual(permuted, sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 32n ** 6n,
+      "none", "", "none", true));
   });
 });
 

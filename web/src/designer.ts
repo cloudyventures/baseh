@@ -13,6 +13,7 @@ const els = {
   visual: $<HTMLSelectElement>("d-visual"),
   spoken: $<HTMLSelectElement>("d-spoken"),
   profanity: $<HTMLSelectElement>("d-profanity"),
+  permutation: $<HTMLInputElement>("d-permutation"),
   allowAlnum: $<HTMLInputElement>("allow-alnum"),
   allowUpper: $<HTMLInputElement>("allow-upper"),
   allowDigits: $<HTMLInputElement>("allow-digits"),
@@ -66,7 +67,8 @@ function readInput(): DesignerInput | null {
     allowAlnum: els.allowAlnum.checked,
     visualSafety: els.visual.value as SafetyLevel,
     spokenSafety: els.spoken.value as SafetyLevel,
-    profanity: els.profanity.value as ProfanityMode
+    profanity: els.profanity.value as ProfanityMode,
+    permutation: els.permutation.checked
   };
 }
 
@@ -89,8 +91,8 @@ function sampleLine(s: { id: string; code: string; blocked?: boolean }): string 
   return `<div title="${title}">${marker}: ${rendered}</div>`;
 }
 
-function card(c: Candidate, label?: string): string {
-  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity)
+function card(c: Candidate, permutation: boolean, label?: string): string {
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation)
     .map(sampleLine)
     .join("");
   return `<div class="card alt-card">
@@ -113,11 +115,14 @@ function render() {
     return;
   }
   const result = design(input);
-  els.recommended.innerHTML = result.recommended
-    ? card(result.recommended, "Recommended")
+  const permutationNote = input.permutation
+    ? `<p class="muted">Preview codes are permuted with a public built-in key. Permutation hides sequence; it is not access control and is not part of the export.</p>`
     : "";
-  els.repair.innerHTML = result.repair ? `<p>${result.repair}</p>` : "";
-  els.alternatives.innerHTML = result.alternatives.map((a) => card(a.candidate, a.label)).join("")
+  els.recommended.innerHTML = result.recommended
+    ? card(result.recommended, input.permutation, "Recommended")
+    : "";
+  els.repair.innerHTML = (result.repair ? `<p>${result.repair}</p>` : "") + permutationNote;
+  els.alternatives.innerHTML = result.alternatives.map((a) => card(a.candidate, input.permutation, a.label)).join("")
     || (result.recommended ? "" : "");
   els.tbody.innerHTML = result.feasible.slice(0, 25).map((c) => `
     <tr>
@@ -126,7 +131,7 @@ function render() {
       <td title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</td>
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
-      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity).find((s) => s.id === "0")?.code ?? ""}</code></td>
+      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation).find((s) => s.id === "0")?.code ?? ""}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");
   els.exportBtn.onclick = async () => {
@@ -137,7 +142,7 @@ function render() {
 }
 
 for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.separator, els.minCheck,
-  els.maxUtil, els.visual, els.spoken, els.profanity, els.allowAlnum, els.allowUpper, els.allowDigits]) {
+  els.maxUtil, els.visual, els.spoken, els.profanity, els.permutation, els.allowAlnum, els.allowUpper, els.allowDigits]) {
   el.addEventListener("input", render);
 }
 // When the user leaves the required field, restate their number in the

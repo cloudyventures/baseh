@@ -82,6 +82,10 @@
         </select>
       </div>
       <fieldset class="field">
+        <legend>Permutation<span class="tip" tabindex="0" aria-label="Permutation details"><span class="i">i</span><span class="tip-body">Permutation shuffles which code an identifier gets, hiding obvious sequence in the previews. It changes nothing about capacity, length or validation, and it is not access control. The preview uses a public built-in key; a real application generates its own key and keeps it server-side. Permutation is not part of the exported design.</span></span></legend>
+        <label class="check"><input id="d-permutation" type="checkbox" /> Preview with permutation on</label>
+      </fieldset>
+      <fieldset class="field">
         <legend>Allowed alphabets</legend>
         <label class="check"><input id="allow-alnum" type="checkbox" checked /> Alphanumeric</label>
         <label class="check"><input id="allow-upper" type="checkbox" checked /> Letters only</label>

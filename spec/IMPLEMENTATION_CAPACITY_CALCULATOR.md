@@ -89,7 +89,16 @@ Default to the safe checksum alphabet. Permit custom configuration in advanced m
 
 ### 3.8 Permutation
 
-The shipped tool does not expose permutation. Permutation is a codec-level opt-in for applications that manage their own server-side key; it has no place in a client-side preview because any key visible to the browser is public by definition. Live previews and exported configurations are always unpermuted.
+Options:
+
+- Off (default)
+- On, presentation only
+
+Switching it on re-renders the live preview with the built-in public preview key so the user can see how permutation reshapes a sequence. Display a warning when it is on:
+
+> Permutation hides obvious sequence but does not provide access control. The preview uses a public built-in key; a real application generates its own key and keeps it server-side.
+
+Exported configurations record the on/off state and carry placeholder key fields; they never contain real key material.
 
 ### 3.9 Formatting
 

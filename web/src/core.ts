@@ -42,6 +42,19 @@ export const CATALOG_VERSION = "1";
 export const SCORING_VERSION = "1";
 export const DESIGNER_VERSION = "1";
 
+/**
+ * Public preview key, used only to demonstrate permutation output in these
+ * tools. A real application generates its own key and never ships it to a
+ * browser.
+ */
+export const PREVIEW_KEY_ID = "preview-01";
+export const PREVIEW_KEY_BYTES = new TextEncoder().encode("BASEHUMAN-PREVIEW-KEY-01");
+
+function previewPermutation(on: boolean): BasehProfile["permutation"] {
+  if (!on) return { enabled: false };
+  return { enabled: true, algorithm: "feistel-v1", keyId: PREVIEW_KEY_ID, keyBytes: PREVIEW_KEY_BYTES, rounds: 8 };
+}
+
 export interface CalculatorInput {
   namespace: string;
   alphabetMode: AlphabetMode;
@@ -51,6 +64,7 @@ export interface CalculatorInput {
   profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
+  permutation: boolean;
   separator: string;
   prefix: string;
   suffix: string;
@@ -240,7 +254,7 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         grouping: input.separator ? groupingFor(totalLen) : [],
         aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, input.spokenSafety) },
         profanity: { mode: input.profanity },
-        permutation: { enabled: false }
+        permutation: previewPermutation(input.permutation)
       };
       const h = new Baseh(profile);
       const ids = [0n, 1n, BigInt(alphabet.length) - 1n, BigInt(alphabet.length), capacity - 1n];
@@ -312,6 +326,7 @@ export interface DesignerInput {
   visualSafety: SafetyLevel;
   spokenSafety: SafetyLevel;
   profanity: ProfanityMode;
+  permutation: boolean;
 }
 
 interface AlphabetEntry {
@@ -495,7 +510,8 @@ export function sampleCodes(
   capacity: bigint,
   spoken: SafetyLevel = "none",
   separator: string = "",
-  profanity: ProfanityMode = "none"
+  profanity: ProfanityMode = "none",
+  permutation: boolean = false
 ): Array<{ id: string; code: string; blocked?: boolean }> {
   const out: Array<{ id: string; code: string; blocked?: boolean }> = [];
   try {
@@ -511,7 +527,7 @@ export function sampleCodes(
       grouping: separator ? groupingFor(totalLen) : [],
       aliases: { ...baseAliases(alphabet), ...spokenAliases(alphabet, spoken) },
       profanity: { mode: profanity },
-      permutation: { enabled: false }
+      permutation: previewPermutation(permutation)
     };
     const h = new Baseh(profile);
     for (const id of new Set([0n, 1n, capacity - 1n])) {
