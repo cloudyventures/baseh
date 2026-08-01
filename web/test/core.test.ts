@@ -117,3 +117,51 @@ describe("designer (spec 15)", () => {
     assert.deepEqual(a, b);
   });
 });
+
+describe("spoken safety (strip one of each pair)", async () => {
+  const { deriveAlphabet, deriveChecksumAlphabet, spokenAliases } = await import("../src/core.js");
+
+  it("light strips D and T from alnum and aliases them back", () => {
+    const a = deriveAlphabet("alnum", "", "none", "light");
+    assert.equal(a.includes("D"), false);
+    assert.equal(a.includes("T"), false);
+    assert.equal(a.includes("B"), true);
+    assert.equal(a.includes("P"), true);
+    assert.equal(a.length, 34);
+    assert.deepEqual(spokenAliases(a, "light"), { D: "B", T: "P" });
+  });
+  it("heavy strips all six dropped letters", () => {
+    const a = deriveAlphabet("alnum", "", "none", "heavy");
+    for (const c of "DTNWSG") assert.equal(a.includes(c), false);
+    assert.equal(a.length, 30);
+  });
+  it("a pair is skipped when the kept symbol is absent", () => {
+    const a = deriveAlphabet("digits", "", "none", "heavy");
+    assert.equal(a, "0123456789");
+    assert.deepEqual(spokenAliases(a, "heavy"), {});
+  });
+  it("checksum alphabet drops the same symbols so aliases stay valid", () => {
+    const body = deriveAlphabet("alnum", "", "none", "light");
+    const check = deriveChecksumAlphabet(body, "light");
+    assert.equal(check.includes("D"), false);
+    assert.equal(check.includes("T"), false);
+  });
+  it("spoken light lowers alnum capacity", () => {
+    const plain = calculate(calcInput());
+    const spoken = calculate(calcInput({ spokenSafety: "light" }));
+    assert.ok(spoken.capacity < plain.capacity);
+    assert.equal(spoken.capacity.toString(), "1544804416");
+  });
+  it("designer reflects the spoken level in candidate alphabets", () => {
+    const r = design(designInput({ requiredCapacity: 1_000_000n, spokenSafety: "medium" }));
+    assert.ok(r.feasible.every((c) => c.spoken === "medium"));
+    const alnum = r.feasible.find((c) => c.alphabetId.startsWith("alnum"));
+    assert.ok(alnum && !alnum.alphabet.includes("N"));
+  });
+  it("example codes for a spoken-light profile contain no stripped symbols", () => {
+    const r = calculate(calcInput({ spokenSafety: "heavy", checksumLength: 2 }));
+    for (const ex of r.examples) {
+      assert.doesNotMatch(ex.code.slice(0, 6), /[DTNWSG]/);
+    }
+  });
+});

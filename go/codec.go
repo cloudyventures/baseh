@@ -29,7 +29,7 @@ type DecodeOptions struct {
 	AcceptSpaces  bool
 	TryCorrection bool
 	// ConfusionProfile is "none", "light", "medium" or "heavy".
-	// The zero value selects "light".
+	// The zero value selects "none", the reference default.
 	ConfusionProfile string
 	// MaxCorrections is 0 or 1 per the spec. The zero value selects 1,
 	// the spec default.
@@ -51,35 +51,35 @@ type ValidateResult struct {
 	Reason        ErrorCode
 }
 
-// Hrc is a validated, immutable codec bound to one profile. It is safe for
-// concurrent use.
-type Hrc struct {
+// Baseh is a validated, immutable codec bound to one profile. It is safe
+// for concurrent use.
+type Baseh struct {
 	prep *prepared
 }
 
-// NewHrc validates the profile per spec 2.2 and returns a codec ready for
+// NewBaseh validates the profile per spec 2.2 and returns a codec ready for
 // use. Invalid profiles fail here, at application startup, not on the first
 // customer request.
-func NewHrc(profile Profile) (*Hrc, error) {
+func NewBaseh(profile Profile) (*Baseh, error) {
 	prep, err := prepareProfile(profile)
 	if err != nil {
 		return nil, err
 	}
-	return &Hrc{prep: prep}, nil
+	return &Baseh{prep: prep}, nil
 }
 
 // Profile returns the profile this codec was built from.
-func (h *Hrc) Profile() Profile {
+func (h *Baseh) Profile() Profile {
 	return h.prep.profile
 }
 
 // Capacity returns A^bodyLength as a fresh *big.Int.
-func (h *Hrc) Capacity() *big.Int {
+func (h *Baseh) Capacity() *big.Int {
 	return new(big.Int).Set(h.prep.capacity)
 }
 
-// Encode implements spec 8.
-func (h *Hrc) Encode(id *big.Int) (string, error) {
+// Encode implements spec 8 plus the spec-18.2 encode-time blocklist scan.
+func (h *Baseh) Encode(id *big.Int) (string, error) {
 	if id == nil || id.Sign() < 0 || id.Cmp(h.prep.capacity) >= 0 {
 		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v is outside the profile capacity", id), true)
 	}
@@ -92,17 +92,30 @@ func (h *Hrc) Encode(id *big.Int) (string, error) {
 		value = permuted
 	}
 	body := encodeBaseN(value, h.prep.bodyNorm, h.prep.profile.BodyLength)
-	checksum := calculateChecksum(h.prep, body)
-	return formatRaw(body+checksum, h.prep), nil
+	checksum, err := calculateChecksum(h.prep, body)
+	if err != nil {
+		return "", err
+	}
+	raw := body + checksum
+	// Spec 18.2: case-insensitive substring scan over the raw code.
+	if len(h.prep.blocklist) > 0 {
+		upper := strings.ToUpper(raw)
+		for _, word := range h.prep.blocklist {
+			if strings.Contains(upper, word) {
+				return "", newError(BLOCKED_CODE, "the generated reference contains a blocked substring", false)
+			}
+		}
+	}
+	return formatRaw(raw, h.prep), nil
 }
 
 // Decode implements spec 9. All returned errors are *Error.
-func (h *Hrc) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
-	o := DecodeOptions{ConfusionProfile: "light", MaxCorrections: 1}
+func (h *Baseh) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
+	o := DecodeOptions{ConfusionProfile: "none", MaxCorrections: 1}
 	if opts != nil {
 		o = *opts
 		if o.ConfusionProfile == "" {
-			o.ConfusionProfile = "light"
+			o.ConfusionProfile = "none"
 		}
 		// The spec budget is 0 or 1. With a plain int the zero value cannot
 		// be distinguished from an explicit 0, so 0 selects the spec default
@@ -121,17 +134,17 @@ func (h *Hrc) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 	body := raw[:h.prep.profile.BodyLength]
 	suppliedChecksum := raw[h.prep.profile.BodyLength:]
 
-	// A checksum-only symbol in a body position is INVALID_CHARACTER. A
-	// body-only symbol in a checksum position instead flows through to a
-	// checksum mismatch (INVALID_CHECKSUM): the frozen error vector
-	// "000-000-0" -> INVALID_CHECKSUM fixes this precedence.
-	for i := 0; i < len(body); i++ {
-		if !h.prep.inBodyAlphabet[body[i]] {
-			return nil, newError(INVALID_CHARACTER, fmt.Sprintf("symbol %q cannot appear in the body", string(body[i])), true)
-		}
+	// Spec 3.1 validates union membership before the split. There is no
+	// per-region membership check: a checksum-region symbol outside the
+	// checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
+	// outside the body alphabet fails in calculateChecksum or decodeBaseN
+	// as INVALID_CHARACTER. The frozen error vectors fix this precedence.
+	expectedChecksum, err := calculateChecksum(h.prep, body)
+	if err != nil {
+		return nil, err
 	}
 
-	if calculateChecksum(h.prep, body) != suppliedChecksum {
+	if expectedChecksum != suppliedChecksum {
 		if !o.TryCorrection {
 			return nil, newError(INVALID_CHECKSUM, "the reference code did not pass validation", true)
 		}
@@ -146,7 +159,11 @@ func (h *Hrc) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 		valid := make(map[string]struct{})
 		var only string
 		for _, candidate := range candidates {
-			if calculateChecksum(h.prep, candidate) == suppliedChecksum {
+			candidateChecksum, err := calculateChecksum(h.prep, candidate)
+			if err != nil {
+				return nil, err
+			}
+			if candidateChecksum == suppliedChecksum {
 				if _, dup := valid[candidate]; !dup {
 					valid[candidate] = struct{}{}
 					only = candidate
@@ -182,7 +199,7 @@ func (h *Hrc) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 
 // Validate implements spec 12.4. It never returns an internal ID and never
 // returns an error for user input problems; Reason carries the code instead.
-func (h *Hrc) Validate(input string, opts *DecodeOptions) ValidateResult {
+func (h *Baseh) Validate(input string, opts *DecodeOptions) ValidateResult {
 	result, err := h.Decode(input, opts)
 	if err == nil {
 		return ValidateResult{Valid: true, CanonicalCode: result.CanonicalCode}
@@ -197,7 +214,7 @@ func (h *Hrc) Validate(input string, opts *DecodeOptions) ValidateResult {
 
 // normalize implements spec 3.1 steps 1 through 7 and returns the raw
 // unformatted string.
-func (h *Hrc) normalize(input string, acceptSpaces bool) (string, error) {
+func (h *Baseh) normalize(input string, acceptSpaces bool) (string, error) {
 	s := strings.Trim(input, "\t\n\v\f\r ")
 	if h.prep.profile.Separator != "" {
 		s = strings.ReplaceAll(s, h.prep.profile.Separator, "")
@@ -228,7 +245,8 @@ func (h *Hrc) normalize(input string, acceptSpaces bool) (string, error) {
 	return s, nil
 }
 
-// formatRaw applies the presentation grouping of spec 11.
+// formatRaw applies the presentation grouping of spec 11. An empty
+// separator skips grouping entirely.
 func formatRaw(raw string, prep *prepared) string {
 	if prep.profile.Separator == "" {
 		return raw

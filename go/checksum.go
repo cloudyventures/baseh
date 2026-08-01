@@ -1,10 +1,14 @@
 package basehuman
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 // checksumValue implements spec 6.2: a rolling polynomial over profile ID
-// bytes and body symbol values, reduced modulo S^K.
-func checksumValue(prep *prepared, body string) *big.Int {
+// bytes and body symbol values, reduced modulo S^K. A body symbol outside
+// the body alphabet fails with INVALID_CHARACTER.
+func checksumValue(prep *prepared, body string) (*big.Int, error) {
 	modulus := prep.checksumModulus
 	state := big.NewInt(17)
 	multiplier := big.NewInt(37)
@@ -20,19 +24,26 @@ func checksumValue(prep *prepared, body string) *big.Int {
 	state.Mod(state, modulus)
 
 	for pos := 0; pos < len(body); pos++ {
+		symValue, ok := prep.bodyIndex[body[pos]]
+		if !ok {
+			return nil, newError(INVALID_CHARACTER, fmt.Sprintf("body symbol %q is not in the body alphabet", string(body[pos])), true)
+		}
 		state.Mul(state, multiplier)
-		state.Add(state, tmp.SetInt64(prep.bodyIndex[body[pos]]+int64(pos)+1))
+		state.Add(state, tmp.SetInt64(symValue+int64(pos)+1))
 		state.Mod(state, modulus)
 	}
-	return state
+	return state, nil
 }
 
 // calculateChecksum returns the fixed-width checksum string for a normalized
 // body. An empty string is returned when checksumLength is zero.
-func calculateChecksum(prep *prepared, body string) string {
+func calculateChecksum(prep *prepared, body string) (string, error) {
 	if prep.profile.ChecksumLength == 0 {
-		return ""
+		return "", nil
 	}
-	value := checksumValue(prep, body)
-	return encodeBaseN(value, prep.checksumNorm, prep.profile.ChecksumLength)
+	value, err := checksumValue(prep, body)
+	if err != nil {
+		return "", err
+	}
+	return encodeBaseN(value, prep.checksumNorm, prep.profile.ChecksumLength), nil
 }

@@ -1,12 +1,15 @@
-"""HRC (Human Reference Code) codec, Python implementation.
+"""BaseH codec, Python implementation.
 
-Public API mirrors spec section 12: Hrc codec class, HrcError with a stable
-.code attribute and the frozen profile helpers hrc32_v1 and hrc32s_v1.
+Public API mirrors spec section 12: the Baseh codec class, BasehError with a
+stable .code attribute and the frozen profile helpers baseh32_v1 and
+baseh32s_v1.
 """
 
-from .codec import CONFUSION_MAPS, DecodeResult, Hrc, generate_candidates
+from .blocklist import DEFAULT_BLOCKLIST
+from .codec import CONFUSION_MAPS, Baseh, DecodeResult, generate_candidates
 from .errors import (
     AMBIGUOUS_INPUT,
+    BLOCKED_CODE,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
@@ -14,18 +17,19 @@ from .errors import (
     OUT_OF_RANGE,
     PERMUTATION_FAILURE,
     TOO_MANY_CANDIDATES,
-    HrcError,
+    BasehError,
 )
-from .profiles import hrc32_v1, hrc32s_v1
+from .profiles import baseh32_v1, baseh32s_v1
 
 __all__ = [
-    "Hrc",
-    "HrcError",
+    "Baseh",
+    "BasehError",
     "DecodeResult",
     "CONFUSION_MAPS",
+    "DEFAULT_BLOCKLIST",
     "generate_candidates",
-    "hrc32_v1",
-    "hrc32s_v1",
+    "baseh32_v1",
+    "baseh32s_v1",
     "INVALID_PROFILE",
     "OUT_OF_RANGE",
     "PERMUTATION_FAILURE",
@@ -34,6 +38,7 @@ __all__ = [
     "INVALID_CHECKSUM",
     "AMBIGUOUS_INPUT",
     "TOO_MANY_CANDIDATES",
+    "BLOCKED_CODE",
 ]
 
 __version__ = "1.0.0"

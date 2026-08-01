@@ -11,7 +11,7 @@ import hashlib
 import hmac
 from dataclasses import dataclass
 
-from .errors import PERMUTATION_FAILURE, HrcError
+from .errors import PERMUTATION_FAILURE, BasehError
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,8 @@ class FeistelKey:
     key_bytes: bytes
     rounds: int
 
-_TAG = b"HRC-FEISTEL-V1"
+
+_TAG = b"BASEH-FEISTEL-V1"
 _MAX_WALKS = 1000
 
 
@@ -95,7 +96,7 @@ def permute(value: int, capacity: int, key) -> int:
         if out < capacity:
             return out
         v = out
-    raise HrcError(
+    raise BasehError(
         PERMUTATION_FAILURE, "Feistel cycle walking exceeded 1000 iterations", False
     )
 
@@ -113,6 +114,6 @@ def inverse_permute(value: int, capacity: int, key) -> int:
         if out < capacity:
             return out
         v = out
-    raise HrcError(
+    raise BasehError(
         PERMUTATION_FAILURE, "Feistel cycle walking exceeded 1000 iterations", False
     )

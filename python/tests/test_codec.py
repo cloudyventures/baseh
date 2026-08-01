@@ -1,5 +1,5 @@
-"""Unit tests derived from spec sections 3, 5 and the test-suite document:
-profile validation rejections, round trips and fuzz smoke."""
+"""Unit tests derived from the spec and the test-suite document:
+profile validation rejections, profanity modes, round trips, fuzz smoke."""
 
 import random
 import string
@@ -11,17 +11,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from base_human import (  # noqa: E402
     AMBIGUOUS_INPUT,
+    BLOCKED_CODE,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
     INVALID_PROFILE,
     OUT_OF_RANGE,
     TOO_MANY_CANDIDATES,
-    Hrc,
-    HrcError,
+    Baseh,
+    BasehError,
     generate_candidates,
-    hrc32_v1,
-    hrc32s_v1,
+    baseh32_v1,
+    baseh32s_v1,
 )
 
 _TEST_KEY = bytes.fromhex("746573742d6f6e6c792d6b65792d6d6174657269616c2d30303031")
@@ -29,7 +30,7 @@ _CAPACITY = 32 ** 6  # 1,073,741,824
 
 
 def _base_profile() -> dict:
-    return hrc32_v1(_TEST_KEY, "test-01")
+    return baseh32_v1(_TEST_KEY, "test-01")
 
 
 class _ProfileCase(unittest.TestCase):
@@ -38,8 +39,8 @@ class _ProfileCase(unittest.TestCase):
         mutate(profile)
         with self.subTest(case=label):
             try:
-                Hrc(profile)
-            except HrcError as err:
+                Baseh(profile)
+            except BasehError as err:
                 self.assertEqual(err.code, INVALID_PROFILE, label)
             else:
                 self.fail(f"profile accepted: {label}")
@@ -47,56 +48,133 @@ class _ProfileCase(unittest.TestCase):
 
 class TestProfileValidation(_ProfileCase):
     def test_rejections(self):
+        # Non-ASCII symbol: build without an escape so the source stays ASCII.
+        def non_ascii(p):
+            p["bodyAlphabet"] = "01" + chr(0xE9)
+
+        def separator_in_body(p):
+            p["separator"] = "-"
+            p["grouping"] = [3, 3, 1]
+            p["bodyAlphabet"] = "0123456789ABCDEFGHJKMNPQRSTVWXY-"
+
+        def separator_in_checksum(p):
+            p["separator"] = "-"
+            p["grouping"] = [3, 3, 1]
+            p["checksumAlphabet"] = "234679ACDEFGHJKMNPQRTUVWXY"[:25] + "-"
+
+        def group_sum_mismatch(p):
+            p["separator"] = "-"
+            p["grouping"] = [3, 3]
+
         cases = [
             (lambda p: p.update(profileId=""), "empty profile id"),
             (lambda p: p.update(bodyAlphabet="A"), "body alphabet too small"),
             (lambda p: p.update(bodyAlphabet="ABCA"), "duplicate body symbols"),
             (lambda p: p.update(bodyAlphabet="aA"), "case collision"),
-            (lambda p: p.update(bodyAlphabet="0e9"), None),  # placeholder, replaced below
+            (non_ascii, "non-ascii symbol"),
             (lambda p: p.update(bodyLength=0), "zero body length"),
             (lambda p: p.update(bodyLength=-1), "negative body length"),
             (lambda p: p.update(bodyLength=33), "body length above limit"),
             (lambda p: p.update(checksumLength=-1), "negative checksum length"),
             (lambda p: p.update(checksumAlphabet="2"), "checksum alphabet too small"),
-            (lambda p: p.update(bodyAlphabet="0123456789ABCDEFGHJKMNPQRSTVWXY-"),
-             "separator in body alphabet"),
-            (lambda p: p.update(checksumAlphabet="234679ACDEFGHJKMNPQRTUVWXY"[: 25] + "-"),
-             "separator in checksum alphabet"),
+            (separator_in_body, "separator in body alphabet"),
+            (separator_in_checksum, "separator in checksum alphabet"),
             (lambda p: p.update(aliases={"Z": "@"}), "alias target not canonical"),
             (lambda p: p.update(aliases={"Q": "O"}), "alias chain"),
             (lambda p: p.update(aliases={"Q": "Q"}), "alias cycle (source canonical)"),
-            (lambda p: p.update(grouping=[3, 3]), "group total mismatch"),
+            (group_sum_mismatch, "group total mismatch"),
+            (lambda p: p.update(grouping=[3]), "grouping with empty separator"),
             (lambda p: p["permutation"].pop("keyBytes"), "missing permutation key"),
             (lambda p: p["permutation"].update(rounds=5), "odd rounds"),
             (lambda p: p["permutation"].update(rounds=2), "too few rounds"),
             (lambda p: p["permutation"].update(rounds=18), "too many rounds"),
+            (lambda p: p.update(profanity={"mode": "vowel-soup"}), "unknown profanity mode"),
+            (lambda p: p.update(profanity={"mode": "no-vowels"}, bodyAlphabet="AE"),
+             "no-vowels strips body alphabet below two"),
+            (lambda p: p.update(profanity={"mode": "blocklist", "words": ["A"]}),
+             "blocklist entry too short"),
+            (lambda p: p.update(profanity={"mode": "blocklist", "words": ["AB1"]}),
+             "blocklist entry with digit"),
         ]
-        # Non-ASCII symbol: build without an escape so the source stays ASCII.
-        def non_ascii(p):
-            p["bodyAlphabet"] = "01" + chr(0xE9)
-
-        cases[4] = (non_ascii, "non-ascii symbol")
         for mutate, label in cases:
             self.assertRejects(mutate, label)
 
     def test_shipped_profiles_accepted(self):
-        Hrc(_base_profile())
-        Hrc(hrc32s_v1(_TEST_KEY, "test-01"))
+        Baseh(_base_profile())
+        Baseh(baseh32s_v1(_TEST_KEY, "test-01"))
 
     def test_zero_checksum_profile_accepted(self):
         profile = _base_profile()
         profile["checksumLength"] = 0
         profile["checksumAlphabet"] = ""
-        profile["grouping"] = [3, 3]
-        profile["aliases"] = {"O": "0", "I": "1", "L": "1"}
-        Hrc(profile)
+        Baseh(profile)
+
+    def test_separated_profile_grouping_accepted(self):
+        profile = _base_profile()
+        profile["separator"] = "-"
+        profile["grouping"] = [3, 3, 1]
+        codec = Baseh(profile)
+        code = codec.encode(1)
+        self.assertEqual(code[3], "-")
+        self.assertEqual(codec.decode(code).id, 1)
+
+
+class TestProfanity(unittest.TestCase):
+    def _profile(self, profanity, **overrides):
+        profile = _base_profile()
+        profile["permutation"] = {"enabled": False}
+        profile.update(overrides)
+        profile["profanity"] = profanity
+        return profile
+
+    def test_blocklist_default_blocks_raw_substring(self):
+        codec = Baseh(self._profile({"mode": "blocklist"}))
+        # Find an id whose raw code contains a default word; encode must fail.
+        blocked = None
+        for value in range(200000):
+            try:
+                codec.encode(value)
+            except BasehError as err:
+                self.assertEqual(err.code, BLOCKED_CODE)
+                self.assertFalse(err.safe_for_customer)
+                blocked = value
+                break
+        self.assertIsNotNone(blocked)
+
+    def test_blocklist_replacement_and_extra(self):
+        replace = Baseh(self._profile({"mode": "blocklist", "words": ["ZZZZ"]}))
+        self.assertEqual(replace.profile.blocklist, ("ZZZZ",))
+        extra = Baseh(self._profile({"mode": "blocklist", "extraWords": ["QQQQ"]}))
+        self.assertEqual(len(extra.profile.blocklist), 13)
+        self.assertIn("QQQQ", extra.profile.blocklist)
+
+    def test_blocklist_dedup_and_case(self):
+        codec = Baseh(
+            self._profile({"mode": "blocklist", "words": ["zzzz", "ZZZZ", "qq"]})
+        )
+        self.assertEqual(codec.profile.blocklist, ("ZZZZ", "QQ"))
+
+    def test_no_vowels_changes_alphabet_and_capacity(self):
+        codec = Baseh(self._profile({"mode": "no-vowels"}))
+        for vowel in "AEIOU":
+            self.assertNotIn(vowel, codec.profile.body_alphabet_norm)
+        self.assertEqual(codec.capacity(), 30 ** 6)
+        code = codec.encode(0)
+        self.assertEqual(len(code), 7)
+        self.assertEqual(codec.decode(code).id, 0)
+
+    def test_no_vowels_rejects_vowel_input(self):
+        codec = Baseh(self._profile({"mode": "no-vowels"}))
+        with self.assertRaises(BasehError) as ctx:
+            codec.decode("0000A00")
+        self.assertEqual(ctx.exception.code, INVALID_CHARACTER)
 
 
 class TestRoundTrip(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.codec = Hrc(_base_profile())
-        cls.codec_s = Hrc(hrc32s_v1(_TEST_KEY, "test-01"))
+        cls.codec = Baseh(_base_profile())
+        cls.codec_s = Baseh(baseh32s_v1(_TEST_KEY, "test-01"))
 
     def test_boundary_ids(self):
         boundary = [0, 1, 31, 32, 33, _CAPACITY - 2, _CAPACITY - 1]
@@ -112,7 +190,7 @@ class TestRoundTrip(unittest.TestCase):
     def test_out_of_range(self):
         for bad in (-1, _CAPACITY, _CAPACITY * 2):
             with self.subTest(id=bad):
-                with self.assertRaises(HrcError) as ctx:
+                with self.assertRaises(BasehError) as ctx:
                     self.codec.encode(bad)
                 self.assertEqual(ctx.exception.code, OUT_OF_RANGE)
 
@@ -130,9 +208,9 @@ class TestRoundTrip(unittest.TestCase):
 
     def test_raw_length(self):
         code = self.codec.encode(0)
-        self.assertEqual(len(code.replace("-", "")), 7)
+        self.assertEqual(len(code), 7)
         code_s = self.codec_s.encode(0)
-        self.assertEqual(len(code_s.replace("-", "")), 8)
+        self.assertEqual(len(code_s), 8)
 
     def test_aliases(self):
         value = None
@@ -153,7 +231,7 @@ class TestRoundTrip(unittest.TestCase):
 
     def test_validate_never_raises(self):
         self.assertEqual(
-            self.codec.validate("000-000-0"),
+            self.codec.validate("0000000"),
             {"valid": False, "reason": INVALID_CHECKSUM},
         )
         ok = self.codec.validate(self.codec.encode(7))
@@ -161,27 +239,27 @@ class TestRoundTrip(unittest.TestCase):
         self.assertEqual(ok["canonical_code"], self.codec.encode(7))
 
     def test_length_and_character_errors(self):
-        with self.assertRaises(HrcError) as ctx:
-            self.codec.decode("000-00")
+        with self.assertRaises(BasehError) as ctx:
+            self.codec.decode("00000")
         self.assertEqual(ctx.exception.code, INVALID_LENGTH)
-        with self.assertRaises(HrcError) as ctx:
-            self.codec.decode("000-0@0-X")
+        with self.assertRaises(BasehError) as ctx:
+            self.codec.decode("0000@0X")
         self.assertEqual(ctx.exception.code, INVALID_CHARACTER)
 
     def test_candidate_cap(self):
         # A confusion map wider than the built-ins that exceeds 64 candidates.
         wide = {"0": list("123456789ABCDEFG")}
-        with self.assertRaises(HrcError) as ctx:
+        with self.assertRaises(BasehError) as ctx:
             generate_candidates("000000", wide)
         self.assertEqual(ctx.exception.code, TOO_MANY_CANDIDATES)
 
 
 class TestFuzz(unittest.TestCase):
-    """Random ASCII and unicode inputs must only ever raise HrcError."""
+    """Random ASCII and unicode inputs must only ever raise BasehError."""
 
     @classmethod
     def setUpClass(cls):
-        cls.codec = Hrc(_base_profile())
+        cls.codec = Baseh(_base_profile())
 
     def test_fuzz(self):
         rng = random.Random(20260730)
@@ -203,7 +281,7 @@ class TestFuzz(unittest.TestCase):
                         ["none", "light", "medium", "heavy"]
                     ),
                 )
-            except HrcError:
+            except BasehError:
                 pass
             # Any other exception escapes and fails the test.
 

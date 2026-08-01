@@ -55,21 +55,24 @@ The exact alphabet must always be displayed. Presets are configuration helpers, 
 
 ### 3.5 Spoken safety
 
-Spoken safety affects two separate features:
+Spoken safety strips one member of each sound-alike pair from every generation alphabet and aliases the stripped symbol back to the kept member on input. A misheard letter can therefore never appear in a freshly encoded code, and a code entered with it decodes automatically as the kept letter. No ambiguity and no correction search is involved because the alias mapping is deterministic.
 
-1. Canonical exclusions from generation.
-2. Candidate substitutions accepted during checksum-assisted correction.
+Pairs are cumulative by level, ordered from the most common sound-alike confusion to the least:
 
-Presets:
-
-| Level | Behaviour |
+| Level | Pairs removed (kept <- removed) |
 |---|---|
-| None | No spoken exclusions or candidate substitutions |
-| Light | Small high-confidence substitution pairs |
-| Medium | Larger reviewed set |
-| Heavy | Conservative generation alphabet and bounded candidate map |
+| None | No changes |
+| Light | `B <- D`, `P <- T` |
+| Medium | Light plus `M <- N`, `V <- W` |
+| Heavy | Medium plus `F <- S`, `C <- G` |
 
-The UI must show the resulting alphabet size and every substitution pair.
+Rules:
+
+1. A pair applies only when the kept symbol is present in the body alphabet.
+2. Each applied pair removes its second symbol from both the body alphabet and the checksum alphabet, so the alias source is never a canonical symbol. Each removal shrinks the alphabet and therefore capacity.
+3. The alias maps the removed symbol to the kept symbol exactly like the built-in `O -> 0` aliases.
+
+The UI must show the resulting alphabet size and every active pair.
 
 ### 3.6 Checksum length
 

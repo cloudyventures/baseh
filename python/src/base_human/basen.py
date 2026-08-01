@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .errors import INVALID_CHARACTER, OUT_OF_RANGE, HrcError
+from .errors import INVALID_CHARACTER, OUT_OF_RANGE, BasehError
 
 
 def alphabet_index(alphabet: str) -> dict:
@@ -14,7 +14,7 @@ def encode_base_n(value: int, alphabet: str, length: int) -> str:
     base = len(alphabet)
     capacity = base ** length
     if value < 0 or value >= capacity:
-        raise HrcError(OUT_OF_RANGE, "value is outside the fixed-length capacity")
+        raise BasehError(OUT_OF_RANGE, "value is outside the fixed-length capacity")
     out = [""] * length
     v = value
     for pos in range(length - 1, -1, -1):
@@ -31,6 +31,6 @@ def decode_base_n(text: str, alphabet: str, index: dict | None = None) -> int:
     for ch in text:
         digit = index.get(ch)
         if digit is None:
-            raise HrcError(INVALID_CHARACTER, f"Symbol {ch!r} is not in the alphabet")
+            raise BasehError(INVALID_CHARACTER, f"Symbol {ch!r} is not in the alphabet")
         value = value * base + digit
     return value

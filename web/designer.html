@@ -61,7 +61,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="d-spoken">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">Sets the sound-alike correction map recorded with each recommendation: which substitutions the decoder may try when a code fails validation. None attempts no corrections. Light tries B/D and P/T. Medium adds M/N and V/W. Heavy adds F/S and C/G. This does not change capacity, but heavier maps raise ambiguity risk at decode time, and the solver scores larger maps worse so recommendations stay conservative.</span></span></label>
+        <label for="d-spoken">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">For codes read out over the phone. For each sound-alike pair, one letter is removed from the alphabet so it can never appear in a new code, and a code that contains it anyway decodes automatically as the kept letter: no ambiguity, no guessing. Light removes D (decodes as B) and T (decodes as P). Medium also removes N (decodes as M) and W (decodes as V). Heavy also removes S (decodes as F) and G (decodes as C). Pairs run from the most common confusions at Light to the least at Heavy. Each removed letter shrinks the alphabet, so higher levels need either a longer body or accept less capacity, and the solver prices that in automatically.</span></span></label>
         <select id="d-spoken">
           <option value="none">None</option>
           <option value="light" selected>Light</option>

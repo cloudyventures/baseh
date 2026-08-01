@@ -9,7 +9,7 @@ import (
 // Feistel-v1, spec 7.3. HMAC-SHA-256 round function, alternating half
 // widths and cycle walking capped at 1000 iterations.
 
-var feistelTag = []byte("HRC-FEISTEL-V1")
+var feistelTag = []byte("BASEH-FEISTEL-V1")
 
 const maxWalks = 1000
 

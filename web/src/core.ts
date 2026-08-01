@@ -34,8 +34,52 @@ export interface CalculatorInput {
   safetyMargin: number;
 }
 
-export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel): string {
-  if (visual === "heavy") return SAFE_BODY;
+/**
+ * Spoken safety pairs, ordered by how common the sound-alike confusion is.
+ * Light holds the most common pairs, heavy the least. For each pair the second
+ * symbol is stripped from every generation alphabet and aliased back to the
+ * first on input, so a misheard letter decodes automatically. Levels are
+ * cumulative: medium includes light pairs, heavy includes all.
+ */
+export const SPOKEN_PAIRS: Record<Exclude<SafetyLevel, "none">, Array<[string, string]>> = {
+  light: [["B", "D"], ["P", "T"]],
+  medium: [["M", "N"], ["V", "W"]],
+  heavy: [["F", "S"], ["C", "G"]]
+};
+
+export function spokenPairsThrough(level: SafetyLevel): Array<[string, string]> {
+  if (level === "none") return [];
+  const pairs = [...SPOKEN_PAIRS.light];
+  if (level === "medium" || level === "heavy") pairs.push(...SPOKEN_PAIRS.medium);
+  if (level === "heavy") pairs.push(...SPOKEN_PAIRS.heavy);
+  return pairs;
+}
+
+/** A pair applies only when the alphabet can actually emit the kept symbol. */
+function spokenPairsFor(alphabet: string, spoken: SafetyLevel): Array<[string, string]> {
+  return spokenPairsThrough(spoken).filter(([keep]) => alphabet.includes(keep));
+}
+
+export function applySpoken(alphabet: string, spoken: SafetyLevel): string {
+  const drops = new Set(spokenPairsFor(alphabet, spoken).map(([, drop]) => drop));
+  return [...alphabet].filter((c) => !drops.has(c)).join("");
+}
+
+/** Checksum alphabet with the same spoken drops, so alias sources stay non-canonical. */
+export function deriveChecksumAlphabet(bodyAlphabet: string, spoken: SafetyLevel): string {
+  const drops = new Set(spokenPairsFor(bodyAlphabet, spoken).map(([, drop]) => drop));
+  return [...SAFE_CHECKSUM].filter((c) => !drops.has(c)).join("");
+}
+
+/** Aliases that map each stripped symbol back to the kept member of its pair. */
+export function spokenAliases(bodyAlphabet: string, spoken: SafetyLevel): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [keep, drop] of spokenPairsFor(bodyAlphabet, spoken)) out[drop] = keep;
+  return out;
+}
+
+export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: SafetyLevel, spoken: SafetyLevel = "none"): string {
+  if (visual === "heavy") return applySpoken(SAFE_BODY, spoken);
   let base: string;
   if (mode === "custom") {
     base = custom.toUpperCase().replace(/\s+/g, "");
@@ -50,7 +94,7 @@ export function deriveAlphabet(mode: AlphabetMode, custom: string, visual: Safet
   if (hasDigits && visual === "medium") {
     chars = chars.filter((c) => c !== "B" && c !== "S");
   }
-  return chars.join("");
+  return applySpoken(chars.join(""), spoken);
 }
 
 export function powBigInt(base: bigint, exp: number): bigint {
@@ -86,7 +130,8 @@ export interface CalculatorResult {
 
 export function calculate(input: CalculatorInput): CalculatorResult {
   const problems: string[] = [];
-  const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety);
+  const alphabet = deriveAlphabet(input.alphabetMode, input.customAlphabet, input.visualSafety, input.spokenSafety);
+  const checksumAlphabet = deriveChecksumAlphabet(alphabet, input.spokenSafety);
   if (alphabet.length < 2) problems.push("Alphabet needs at least two symbols.");
   if (new Set(alphabet.toUpperCase()).size !== alphabet.length) {
     problems.push("Alphabet has duplicate symbols after case normalization.");
@@ -95,14 +140,14 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   if (input.bodyLength < 1 || input.bodyLength > 32) problems.push("Body length must be 1 through 32.");
   if (input.checksumLength < 0 || input.checksumLength > 8) problems.push("Checksum length must be 0 through 8.");
   for (const ch of input.separator + input.prefix + input.suffix) {
-    if (alphabet.includes(ch) || SAFE_CHECKSUM.includes(ch)) {
+    if (alphabet.includes(ch) || checksumAlphabet.includes(ch)) {
       problems.push(`Separator or affix "${ch}" collides with an alphabet.`);
       break;
     }
   }
 
   const capacity = powBigInt(BigInt(Math.max(alphabet.length, 1)), input.bodyLength);
-  const checksumStates = powBigInt(BigInt(SAFE_CHECKSUM.length), input.checksumLength);
+  const checksumStates = powBigInt(BigInt(checksumAlphabet.length), input.checksumLength);
   const displayedCombinations = capacity * checksumStates;
   const bits = (input.bodyLength * Math.log2(Math.max(alphabet.length, 2))).toFixed(1);
 
@@ -147,12 +192,12 @@ export function calculate(input: CalculatorInput): CalculatorResult {
         profileId: "ui-preview",
         bodyAlphabet: alphabet,
         bodyLength: input.bodyLength,
-        checksumAlphabet: SAFE_CHECKSUM,
+        checksumAlphabet,
         checksumLength: input.checksumLength,
         caseSensitive: false,
         separator: input.separator,
         grouping: input.separator ? groupingFor(totalLen) : [],
-        aliases: { O: "0", I: "1", L: "1" },
+        aliases: { O: "0", I: "1", L: "1", ...spokenAliases(alphabet, input.spokenSafety) },
         permutation: input.permutation
           ? { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
           : { enabled: false }
@@ -229,6 +274,7 @@ export interface Candidate {
   alphabetId: string;
   alphabet: string;
   alphabetSize: number;
+  spoken: SafetyLevel;
   bodyLength: number;
   checksumLength: number;
   capacity: bigint;
@@ -249,16 +295,19 @@ export interface DesignerResult {
 function allowedAlphabets(input: DesignerInput): AlphabetEntry[] {
   const out: AlphabetEntry[] = [];
   const visual = input.visualSafety;
+  const spoken = input.spokenSafety;
+  const spTag = spoken === "none" ? "" : `-sp${spoken[0]}`;
   if (visual === "heavy") {
-    return [{ id: "safe32", alphabet: SAFE_BODY, size: 32, penalty: 0 }];
+    const derived = applySpoken(SAFE_BODY, spoken);
+    return [{ id: `safe${derived.length}${spTag}`, alphabet: derived, size: derived.length, penalty: 0 }];
   }
   if (input.allowAlnum) {
-    const derived = deriveAlphabet("alnum", "", visual);
-    out.push({ id: visual === "none" ? "alnum36" : `alnum${derived.length}-${visual}`, alphabet: derived, size: derived.length, penalty: 0 });
+    const derived = deriveAlphabet("alnum", "", visual, spoken);
+    out.push({ id: visual === "none" && spoken === "none" ? "alnum36" : `alnum${derived.length}-${visual}${spTag}`, alphabet: derived, size: derived.length, penalty: 0 });
   }
   if (input.allowUpper) {
-    const derived = deriveAlphabet("upper", "", visual);
-    out.push({ id: visual === "none" ? "upper26" : `upper-${visual}`, alphabet: derived, size: derived.length, penalty: 10 });
+    const derived = deriveAlphabet("upper", "", visual, spoken);
+    out.push({ id: visual === "none" && spoken === "none" ? "upper26" : `upper${derived.length}-${visual}${spTag}`, alphabet: derived, size: derived.length, penalty: 10 });
   }
   if (input.allowDigits) {
     out.push({ id: "digits10", alphabet: DIGITS, size: 10, penalty: 10 });
@@ -302,12 +351,12 @@ export function design(input: DesignerInput): DesignerResult {
         const utilPenalty =
           utilPerMyriad <= 0.5 ? 0 : utilPerMyriad <= 0.7 ? 20 : utilPerMyriad <= 0.8 ? 100 : utilPerMyriad <= 0.9 ? 500 : 1e9;
         const checksumPenalty = input.minimumChecksumLength > 0 ? 0 : [40, 0, 5, 15][checksumLength] ?? 15;
-        const correctionPenalty = input.spokenSafety === "heavy" ? 24 : input.spokenSafety === "medium" ? 8 : input.spokenSafety === "light" ? 0 : 0;
-        const score = displayed * 1000 + utilPenalty + alpha.penalty + checksumPenalty + correctionPenalty;
+        const score = displayed * 1000 + utilPenalty + alpha.penalty + checksumPenalty;
         candidates.push({
           alphabetId: alpha.id,
           alphabet: alpha.alphabet,
           alphabetSize: alpha.size,
+          spoken: input.spokenSafety,
           bodyLength,
           checksumLength,
           capacity,
@@ -365,7 +414,8 @@ export function sampleCodes(
   alphabet: string,
   bodyLength: number,
   checksumLength: number,
-  capacity: bigint
+  capacity: bigint,
+  spoken: SafetyLevel = "none"
 ): Array<{ id: string; code: string }> {
   const out: Array<{ id: string; code: string }> = [];
   try {
@@ -374,12 +424,12 @@ export function sampleCodes(
       profileId: "ui-preview",
       bodyAlphabet: alphabet,
       bodyLength,
-      checksumAlphabet: SAFE_CHECKSUM,
+      checksumAlphabet: deriveChecksumAlphabet(alphabet, spoken),
       checksumLength,
       caseSensitive: false,
       separator: "",
       grouping: [],
-      aliases: { O: "0", I: "1", L: "1" },
+      aliases: { O: "0", I: "1", L: "1", ...spokenAliases(alphabet, spoken) },
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: DEMO_KEY_ID, keyBytes: DEMO_KEY_BYTES, rounds: 8 }
     };
     const h = new Baseh(profile);

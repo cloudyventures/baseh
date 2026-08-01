@@ -27,6 +27,11 @@ type vectorFile struct {
 		Input     string `json:"input"`
 		Error     string `json:"error"`
 	} `json:"errors"`
+	EncodeErrors []struct {
+		ProfileID string `json:"profileId"`
+		ID        string `json:"id"`
+		Error     string `json:"error"`
+	} `json:"encodeErrors"`
 	Correction []struct {
 		ProfileID        string `json:"profileId"`
 		ConfusionProfile string `json:"confusionProfile"`
@@ -75,11 +80,11 @@ func parseBig(t *testing.T, s string) *big.Int {
 	return v
 }
 
-func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Hrc {
+func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Baseh {
 	t.Helper()
-	codecs := make(map[string]*Hrc)
+	codecs := make(map[string]*Baseh)
 	for _, vp := range vf.Profiles {
-		h, err := NewHrc(vp.Definition)
+		h, err := NewBaseh(vp.Definition)
 		if err != nil {
 			t.Fatalf("profile %s rejected: %v", vp.ProfileID, err)
 		}
@@ -89,6 +94,19 @@ func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Hrc {
 		codecs[vp.ProfileID] = h
 	}
 	return codecs
+}
+
+func unformat(vf vectorFile, profileID, code string) string {
+	for _, vp := range vf.Profiles {
+		if vp.ProfileID == profileID {
+			sep := vp.Definition.Separator
+			if sep == "" {
+				return code
+			}
+			return strings.ReplaceAll(code, sep, "")
+		}
+	}
+	return code
 }
 
 func TestConformanceVectors(t *testing.T) {
@@ -112,7 +130,7 @@ func TestConformanceVectors(t *testing.T) {
 			if code != v.CanonicalCode {
 				t.Errorf("encode = %q, want %q", code, v.CanonicalCode)
 			}
-			raw := strings.ReplaceAll(code, "-", "")
+			raw := unformat(vf, v.ProfileID, code)
 			if v.RawBody != "" && raw[:len(v.RawBody)] != v.RawBody {
 				t.Errorf("raw body = %q, want %q", raw[:len(v.RawBody)], v.RawBody)
 			}
@@ -163,6 +181,31 @@ func TestConformanceErrors(t *testing.T) {
 	}
 }
 
+func TestConformanceEncodeErrors(t *testing.T) {
+	var vf vectorFile
+	loadJSON(t, "../vectors/vectors.json", &vf)
+	codecs := buildVectorProfiles(t, vf)
+
+	for _, e := range vf.EncodeErrors {
+		t.Run(e.ProfileID+"/"+e.ID, func(t *testing.T) {
+			_, err := codecs[e.ProfileID].Encode(parseBig(t, e.ID))
+			if err == nil {
+				t.Fatalf("encode %s succeeded, want %s", e.ID, e.Error)
+			}
+			var herr *Error
+			if !errors.As(err, &herr) {
+				t.Fatalf("error type %T, want *Error", err)
+			}
+			if string(herr.Code) != e.Error {
+				t.Errorf("code = %s, want %s", herr.Code, e.Error)
+			}
+			if e.Error == string(BLOCKED_CODE) && herr.SafeForCustomer {
+				t.Errorf("BLOCKED_CODE must not be safe for customer")
+			}
+		})
+	}
+}
+
 func TestConformanceCorrection(t *testing.T) {
 	var vf vectorFile
 	loadJSON(t, "../vectors/vectors.json", &vf)
@@ -192,7 +235,7 @@ func TestConformanceCorrection(t *testing.T) {
 			if res.Corrected != c.Corrected {
 				t.Errorf("corrected = %v, want %v", res.Corrected, c.Corrected)
 			}
-			raw := strings.ReplaceAll(res.CanonicalCode, "-", "")
+			raw := unformat(vf, c.ProfileID, res.CanonicalCode)
 			if !strings.HasPrefix(raw, c.ExpectedBody) {
 				t.Errorf("canonical raw %q, want body %q", raw, c.ExpectedBody)
 			}
