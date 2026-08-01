@@ -183,7 +183,7 @@ fn format_raw(raw: &[char], profile: &PreparedProfile) -> String {
 /// Spec 10. Substitution-only candidate generation, capped and deduplicated.
 fn generate_candidates(
     body: &[char],
-    confusion: &[(char, &'static [char])],
+    confusion: &[(char, Vec<char>)],
     max_edits: u32,
 ) -> Result<Vec<Vec<char>>, BasehError> {
     if max_edits == 0 {
@@ -306,11 +306,33 @@ impl Baseh {
                     "The reference code did not pass validation",
                 ));
             }
-            let candidates = generate_candidates(
-                &body,
-                options.confusion_profile.map(),
-                options.max_corrections,
-            )?;
+            // Spec 10: replacements that are not body alphabet symbols are
+            // dropped before candidate generation. A suggested symbol the
+            // alphabet cannot contain (say a spoken drop on a stripped-
+            // alphabet profile) could never validate; generating it anyway
+            // would throw INVALID_CHARACTER from the checksum step instead of
+            // reporting an honest INVALID_CHECKSUM.
+            let body_set: HashSet<char> =
+                self.profile.body_alphabet_norm.iter().copied().collect();
+            let filtered_map: Vec<(char, Vec<char>)> = options
+                .confusion_profile
+                .map()
+                .iter()
+                .filter_map(|(source, replacements)| {
+                    let kept: Vec<char> = replacements
+                        .iter()
+                        .copied()
+                        .filter(|r| body_set.contains(r))
+                        .collect();
+                    if kept.is_empty() {
+                        None
+                    } else {
+                        Some((*source, kept))
+                    }
+                })
+                .collect();
+            let candidates =
+                generate_candidates(&body, &filtered_map, options.max_corrections)?;
             let mut valid: HashSet<Vec<char>> = HashSet::new();
             for candidate in candidates {
                 let candidate_checksum = calculate_checksum(&self.profile, &candidate)?;

@@ -69,9 +69,13 @@ const MEDIUM: TierShape = TierShape {
     separator: "",
     grouping: &[],
     aliases: &[
+        // B and S are dropped for looking like 8 and 5; since they can never
+        // be issued, a typed B is always an 8 and a typed S always a 5.
         ('O', '0'),
         ('I', '1'),
         ('L', '1'),
+        ('B', '8'),
+        ('S', '5'),
         ('T', 'P'),
         ('N', 'M'),
         ('W', 'V'),

@@ -498,6 +498,105 @@ fn correction_light_medium_heavy() {
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
 }
 
+/// Search ids upward for the first whose encoded medium code contains `sym`,
+/// skipping blocklist-reserved ids (they are never issued).
+fn first_medium_code_with(baseh: &Baseh, sym: char) -> (BigUint, String) {
+    for i in 1..5_000_000u64 {
+        let id = BigUint::from(i);
+        match baseh.encode(&id) {
+            Ok(code) => {
+                if code.contains(sym) {
+                    return (id, code);
+                }
+            }
+            Err(e) if e.code == ErrorCode::BlockedCode => continue,
+            Err(e) => panic!("encode {i} failed: {e}"),
+        }
+    }
+    panic!("no medium code contains {sym} in range");
+}
+
+#[test]
+fn look_alike_aliases_on_frozen_medium() {
+    let baseh = Baseh::new(baseh_medium_v1()).unwrap();
+    let options = DecodeOptions::default();
+
+    // Typed B decodes as 8 and is not reported as a correction.
+    let (id, code) = first_medium_code_with(&baseh, '8');
+    let result = baseh.decode(&code.replacen('8', "B", 1), &options).unwrap();
+    assert_eq!(result.id, id);
+    assert!(!result.corrected);
+
+    // Typed S decodes as 5, uppercase or lowercase.
+    let (id, code) = first_medium_code_with(&baseh, '5');
+    assert_eq!(
+        baseh.decode(&code.replacen('5', "S", 1), &options).unwrap().id,
+        id
+    );
+    assert_eq!(
+        baseh.decode(&code.replacen('5', "s", 1), &options).unwrap().id,
+        id
+    );
+
+    // A genuinely wrong symbol still fails the checksum.
+    let (_, code) = first_medium_code_with(&baseh, '8');
+    let err = baseh
+        .decode(&code.replacen('8', "7", 1), &options)
+        .expect_err("7 is not confusable with 8");
+    assert_eq!(err.code, ErrorCode::InvalidChecksum);
+}
+
+#[test]
+fn medium_encode_never_emits_b_or_s() {
+    let baseh = Baseh::new(baseh_medium_v1()).unwrap();
+    for i in 0..2000u64 {
+        match baseh.encode(&BigUint::from(i)) {
+            Ok(code) => assert!(
+                !code.contains('B') && !code.contains('S'),
+                "code {code} emits B or S"
+            ),
+            // Blocklisted identifiers are reserved and never issued; skip them.
+            Err(e) if e.code == ErrorCode::BlockedCode => continue,
+            Err(e) => panic!("encode {i} failed: {e}"),
+        }
+    }
+}
+
+#[test]
+fn correction_skips_replacements_outside_the_body_alphabet() {
+    // baseh-medium drops B, S and T. A P in the body under confusion light
+    // would suggest a T that can never validate; that candidate must be
+    // skipped and the failure reported as INVALID_CHECKSUM, never thrown as
+    // INVALID_CHARACTER from the checksum step.
+    let baseh = Baseh::new(baseh_medium_v1()).unwrap();
+    let mut code = String::new();
+    for i in 100_000..1_000_000u64 {
+        match baseh.encode(&BigUint::from(i)) {
+            Ok(c) => {
+                if c.contains('P') {
+                    code = c;
+                    break;
+                }
+            }
+            Err(e) if e.code == ErrorCode::BlockedCode => continue,
+            Err(e) => panic!("encode {i} failed: {e}"),
+        }
+    }
+    assert!(code.contains('P'), "no medium code contains P in range");
+    let flipped = if code.ends_with('2') { '3' } else { '2' };
+    let bad = format!("{}{flipped}", &code[..code.len() - 1]);
+    let options = DecodeOptions {
+        accept_spaces: false,
+        try_correction: true,
+        confusion_profile: ConfusionProfile::Light,
+        max_corrections: 1,
+    };
+    let err = baseh
+        .decode(&bad, &options)
+        .expect_err("wrong checksum symbol with no valid candidates");
+    assert_eq!(err.code, ErrorCode::InvalidChecksum);
+}
+
 #[test]
 fn validate_never_exposes_id() {
     let baseh = Baseh::new(baseh_medium_p_v1(KEY, "test-01", 8)).unwrap();

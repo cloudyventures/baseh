@@ -75,8 +75,15 @@ class TestZeroConfig(unittest.TestCase):
     def test_from_code_invalid_input_no_correction(self):
         _throws_code(lambda: from_code("0000000"), INVALID_CHECKSUM)
         _throws_code(lambda: from_code("!!!!!!!"), INVALID_CHARACTER)
-        # B is not canonical in Medium and is not an alias; no correction guesses it.
-        _throws_code(lambda: from_code("B00000C"), INVALID_CHARACTER)
+        # B is an alias at Medium: it decodes as 8 rather than failing.
+        code8 = ""
+        id8 = -1
+        for value in range(1, 100000):
+            code8 = to_code(value)
+            if "8" in code8:
+                id8 = value
+                break
+        self.assertEqual(from_code(code8.replace("8", "B")), id8)
         _throws_code(lambda: from_code(""), INVALID_LENGTH)
 
 

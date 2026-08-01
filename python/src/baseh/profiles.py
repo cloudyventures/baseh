@@ -47,7 +47,9 @@ _TIERS = {
         "checksumLength": 1,
         "separator": "",
         "grouping": [],
-        "aliases": {**_OIL_ALIASES, "T": "P", "N": "M", "W": "V"},
+        # B and S are dropped for looking like 8 and 5; since they can never
+        # be issued, a typed B is always an 8 and a typed S always a 5.
+        "aliases": {**_OIL_ALIASES, "B": "8", "S": "5", "T": "P", "N": "M", "W": "V"},
     },
     "heavy": {
         "profileId": "baseh-heavy",

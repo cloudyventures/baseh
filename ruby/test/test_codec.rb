@@ -288,8 +288,9 @@ class TestCodec < Minitest::Test
   end
 
   def test_encoder_never_emits_alias_sources
-    # Medium tier aliases O/I/L/T/N/W; none may appear in issued codes. The
-    # tier blocklist reserves some ids, so skip those.
+    # Medium tier aliases O/I/L/B/S/T/N/W; none may appear in issued codes.
+    # B and S are covered by a dedicated test below. The tier blocklist
+    # reserves some ids, so skip those.
     codec = Baseh::Baseh.new(Baseh.baseh_medium_v1)
     1_000.times do |i|
       begin
@@ -403,6 +404,61 @@ class TestCodec < Minitest::Test
     end
   end
 
+  # --- look-alike aliases on the frozen medium tier ---
+
+  def plain_medium
+    @plain_medium ||= Baseh::Baseh.new(Baseh.baseh_medium_v1)
+  end
+
+  # First medium code containing sym, searching ids upward. The tier
+  # blocklist reserves some ids; skip those.
+  def first_medium_code_with(sym)
+    (1..5_000_000).each do |id|
+      begin
+        code = plain_medium.encode(id: id)
+      rescue Baseh::BasehError => e
+        raise unless e.code == "BLOCKED_CODE"
+        next
+      end
+      return [id, code] if code.include?(sym)
+    end
+    raise "no medium code contains #{sym} in range"
+  end
+
+  def test_medium_typed_b_decodes_as_8
+    id, code = first_medium_code_with("8")
+    result = plain_medium.decode(code.sub("8", "B"))
+    assert_equal id, result.id
+    refute result.corrected
+  end
+
+  def test_medium_typed_s_decodes_as_5_and_lowercase_works
+    id, code = first_medium_code_with("5")
+    assert_equal id, plain_medium.decode(code.sub("5", "S")).id
+    assert_equal id, plain_medium.decode(code.sub("5", "s")).id
+    refute plain_medium.decode(code.sub("5", "S")).corrected
+  end
+
+  def test_medium_genuinely_wrong_symbol_still_fails_checksum
+    _id, code = first_medium_code_with("8")
+    wrong = code.sub("8", "7")
+    error = assert_raises(Baseh::BasehError) { plain_medium.decode(wrong) }
+    assert_equal "INVALID_CHECKSUM", error.code
+  end
+
+  def test_medium_encode_never_emits_b_or_s
+    2_000.times do |id|
+      begin
+        code = plain_medium.encode(id: id)
+      rescue Baseh::BasehError => e
+        # Blocklisted identifiers are reserved and never issued; skip them.
+        assert_equal "BLOCKED_CODE", e.code
+        next
+      end
+      refute_match(/[BS]/, code)
+    end
+  end
+
   # --- correction (test-suite section 9) ---
 
   def test_correction_light_finds_single_substitution
@@ -449,6 +505,29 @@ class TestCodec < Minitest::Test
     error = assert_raises(Baseh::BasehError) do
       noperm_codec.decode("0000TBC", try_correction: true,
                                       confusion_profile: :light, max_corrections: 0)
+    end
+    assert_equal "INVALID_CHECKSUM", error.code
+  end
+
+  def test_correction_ignores_replacements_outside_the_body_alphabet
+    # baseh-medium drops B, S and T. A P in the body under confusion light
+    # would suggest a T that can never validate; that candidate must be
+    # filtered out and the failure reported as INVALID_CHECKSUM, never thrown
+    # as INVALID_CHARACTER from the checksum step.
+    code = nil
+    (100_000..1_000_000).each do |id|
+      begin
+        candidate = plain_medium.encode(id: id)
+      rescue Baseh::BasehError => e
+        raise unless e.code == "BLOCKED_CODE"
+        next
+      end
+      (code = candidate) && break if candidate.include?("P")
+    end
+    assert code, "expected a medium code containing P"
+    bad = code[0..-2] + (code.end_with?("2") ? "3" : "2")
+    error = assert_raises(Baseh::BasehError) do
+      plain_medium.decode(bad, try_correction: true, confusion_profile: :light)
     end
     assert_equal "INVALID_CHECKSUM", error.code
   end

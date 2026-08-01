@@ -180,13 +180,25 @@ class Baseh:
                     INVALID_CHECKSUM, "The reference code did not pass validation"
                 )
             if confusion_profile == "none":
-                confusion_map: dict = {}
+                raw_map: dict = {}
             elif confusion_profile in CONFUSION_MAPS:
-                confusion_map = CONFUSION_MAPS[confusion_profile]
+                raw_map = CONFUSION_MAPS[confusion_profile]
             else:
                 raise ValueError(
                     f"unknown confusion profile: {confusion_profile!r}"
                 )
+            # Spec 10: replacements that are not body alphabet symbols are
+            # dropped before candidate generation. A suggested symbol the
+            # alphabet cannot contain (say a spoken drop on a stripped-alphabet
+            # profile) could never validate; generating it anyway would raise
+            # INVALID_CHARACTER from the checksum step instead of reporting an
+            # honest INVALID_CHECKSUM.
+            body_set = set(self._profile.body_alphabet_norm)
+            confusion_map = {}
+            for source, replacements in raw_map.items():
+                kept = [r for r in replacements if r in body_set]
+                if kept:
+                    confusion_map[source] = kept
             valid: set = set()
             for candidate in generate_candidates(body, confusion_map, max_corrections):
                 if calculate_checksum(self._profile, candidate) == supplied_checksum:

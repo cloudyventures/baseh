@@ -57,8 +57,20 @@ class TestZero < Minitest::Test
   def test_from_code_raises_on_invalid_input_with_no_correction
     assert_baseh_error("INVALID_CHECKSUM") { Baseh.from_code("0000000") }
     assert_baseh_error("INVALID_CHARACTER") { Baseh.from_code("!!!!!!!") }
-    # B is not canonical in Medium and is not an alias; no correction guesses it.
-    assert_baseh_error("INVALID_CHARACTER") { Baseh.from_code("B00000C") }
+    # B is an alias at Medium: it decodes as 8 rather than failing.
+    code8 = nil
+    id8 = nil
+    (1..100_000).each do |i|
+      begin
+        code8 = Baseh.to_code(i)
+      rescue Baseh::BasehError => e
+        raise unless e.code == "BLOCKED_CODE"
+        next
+      end
+      (id8 = i) && break if code8.include?("8")
+    end
+    assert id8, "expected a medium code containing 8"
+    assert_equal id8, Baseh.from_code(code8.sub("8", "B"))
     assert_baseh_error("INVALID_LENGTH") { Baseh.from_code("") }
   end
 end

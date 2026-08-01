@@ -413,6 +413,111 @@ func TestCorrectionModes(t *testing.T) {
 	}
 }
 
+// TestMediumLookalikeAliases mirrors the JS "look-alike aliases on frozen
+// tiers" suite: typed B decodes as 8 and typed S as 5 on baseh-medium-v1.
+func TestMediumLookalikeAliases(t *testing.T) {
+	medium := mustNew(t, BasehMediumV1())
+	firstCodeWith := func(sym string) (int64, string) {
+		for id := int64(1); id < 5000000; id++ {
+			code, err := medium.Encode(big.NewInt(id))
+			if err != nil {
+				// Blocklisted identifiers are reserved and never issued.
+				var herr *Error
+				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
+					continue
+				}
+				t.Fatalf("encode %d: %v", id, err)
+			}
+			if strings.Contains(code, sym) {
+				return id, code
+			}
+		}
+		t.Fatalf("no medium code contains %q in range", sym)
+		return 0, ""
+	}
+
+	// Typed B decodes as 8 and is not reported as a correction.
+	id, code := firstCodeWith("8")
+	aliased := strings.Replace(code, "8", "B", 1)
+	res, err := medium.Decode(aliased, nil)
+	if err != nil || res.ID.Int64() != id {
+		t.Fatalf("typed B: decode %q -> %+v, %v", aliased, res, err)
+	}
+	if res.Corrected {
+		t.Errorf("typed B reported as a correction")
+	}
+
+	// Typed S decodes as 5; the lowercase form works too.
+	id, code = firstCodeWith("5")
+	for _, in := range []string{strings.Replace(code, "5", "S", 1), strings.Replace(code, "5", "s", 1)} {
+		res, err := medium.Decode(in, nil)
+		if err != nil || res.ID.Int64() != id {
+			t.Errorf("typed S: decode %q -> %+v, %v", in, res, err)
+		}
+	}
+
+	// A genuinely wrong symbol still fails the checksum.
+	_, code = firstCodeWith("8")
+	wrong := strings.Replace(code, "8", "7", 1)
+	if _, err := medium.Decode(wrong, nil); err == nil {
+		t.Errorf("wrong symbol %q accepted", wrong)
+	} else {
+		assertCode(t, err, INVALID_CHECKSUM)
+	}
+
+	// Encode never emits B or S.
+	for i := int64(0); i < 5000; i++ {
+		code, err := medium.Encode(big.NewInt(i))
+		if err != nil {
+			var herr *Error
+			if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
+				continue
+			}
+			t.Fatalf("encode %d: %v", i, err)
+		}
+		if strings.ContainsAny(code, "BS") {
+			t.Errorf("encode %d emitted B or S: %q", i, code)
+		}
+	}
+}
+
+// TestCorrectionFilterRegression mirrors the JS "ignores map replacements the
+// profile alphabet cannot contain" case: a P in a medium body under the light
+// confusion map would suggest a T the alphabet dropped. Such candidates are
+// never generated, so the failure is INVALID_CHECKSUM, never
+// INVALID_CHARACTER from the checksum step.
+func TestCorrectionFilterRegression(t *testing.T) {
+	medium := mustNew(t, BasehMediumV1())
+	code := ""
+	for id := int64(1); id < 1000000; id++ {
+		c, err := medium.Encode(big.NewInt(id))
+		if err != nil {
+			var herr *Error
+			if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
+				continue
+			}
+			t.Fatalf("encode %d: %v", id, err)
+		}
+		if strings.Contains(c, "P") {
+			code = c
+			break
+		}
+	}
+	if code == "" {
+		t.Fatal("no medium code contains P in range")
+	}
+	flip := "2"
+	if strings.HasSuffix(code, "2") {
+		flip = "3"
+	}
+	bad := code[:len(code)-1] + flip
+	_, err := medium.Decode(bad, &DecodeOptions{TryCorrection: true, ConfusionProfile: "light"})
+	if err == nil {
+		t.Fatalf("wrong checksum %q accepted", bad)
+	}
+	assertCode(t, err, INVALID_CHECKSUM)
+}
+
 func TestProfanityBlocklist(t *testing.T) {
 	base := func() Profile {
 		p := baseh32Shape()

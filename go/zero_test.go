@@ -137,9 +137,26 @@ func TestFromCodeInvalidInput(t *testing.T) {
 	_, err = FromCode("!!!!!!!")
 	assertZeroCode(t, err, INVALID_CHARACTER)
 
-	// B is not canonical in Medium and is not an alias.
-	_, err = FromCode("B00000C")
-	assertZeroCode(t, err, INVALID_CHARACTER)
+	// B is an alias at Medium: it decodes as 8 rather than failing.
+	var code8 string
+	var id8 *big.Int
+	for id := int64(1); id < 100000; id++ {
+		c, err := ToCode(big.NewInt(id))
+		if err != nil {
+			t.Fatalf("ToCode(%d): %v", id, err)
+		}
+		if strings.Contains(c, "8") {
+			code8, id8 = c, big.NewInt(id)
+			break
+		}
+	}
+	if code8 == "" {
+		t.Fatal("no medium code contains 8 in range")
+	}
+	id, err := FromCode(strings.Replace(code8, "8", "B", 1))
+	if err != nil || id.Cmp(id8) != 0 {
+		t.Fatalf("FromCode(typed B) = %v, %v; want %v", id, err, id8)
+	}
 
 	_, err = FromCode("")
 	assertZeroCode(t, err, INVALID_LENGTH)

@@ -72,7 +72,9 @@ func mediumShape() tierShape {
 		checksumLength:   1,
 		separator:        "",
 		grouping:         nil,
-		aliases:          tierAliases("T", "P", "N", "M", "W", "V"),
+		// B and S are dropped for looking like 8 and 5; since they can never be
+		// issued, a typed B is always an 8 and a typed S always a 5.
+		aliases: tierAliases("B", "8", "S", "5", "T", "P", "N", "M", "W", "V"),
 	}
 }
 
