@@ -17,7 +17,8 @@
 //!   the env var it skips cleanly.
 //!
 //! Overrides for smoke runs: `BASEH_SOAK_SWEEP` caps the per-profile sweep
-//! bound, `BASEH_SOAK_RANDOM` sets the random sample count.
+//! bound, `BASEH_SOAK_RANDOM` sets the random sample count, and
+//! `BASEH_SOAK_PROFILE` runs only profiles whose id contains the substring.
 
 use baseh::{
     baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1,
@@ -228,7 +229,15 @@ fn random_phase(h: &Baseh, profile_id: &str, variant: &str, count: u64) {
 /// Runs both phases over every shipped profile in both permutation variants.
 /// `sweep_cap` caps the per-profile sweep bound (None = full soak bounds).
 fn run(sweep_cap: Option<u64>, random_count: u64) {
+    // Optional profile filter: BASEH_SOAK_PROFILE=expandable runs only the
+    // shipped profiles whose id contains the substring.
+    let filter = std::env::var("BASEH_SOAK_PROFILE").ok();
     for shipped in shipped_profiles() {
+        if let Some(f) = &filter {
+            if !shipped.profile_id.contains(f.as_str()) {
+                continue;
+            }
+        }
         let variants = [
             Variant {
                 label: "permutation-on",
