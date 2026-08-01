@@ -116,7 +116,7 @@ function card(c: Candidate, permutation: boolean, label?: string): string {
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
     <div>Capacity: <strong title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</strong></div>
     <div>Utilization: ${(c.utilization * 100).toFixed(1)}% &middot; Displayed: ${c.displayedLength} chars</div>
-    <div>Alphabet: ${c.alphabetId} (${c.alphabetSize} symbols)</div>
+    <div>Alphabet: <code>${c.alphabetId}</code> (${c.alphabetSize} symbols)</div>
     ${samples ? `<div class="samples">${samples}</div>` : ""}
   </div>`;
 }
