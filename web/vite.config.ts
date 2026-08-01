@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  base: "/base-human/",
+  base: "/baseh/",
   resolve: {
     alias: {
       "base-human": resolve(__dirname, "../js/src/index.ts")
