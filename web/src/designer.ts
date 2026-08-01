@@ -203,7 +203,7 @@ function render() {
     try {
       const result = h.decode(codeRaw);
       els.convCodeOut.textContent = result.corrected
-        ? `identifier ${result.id}, corrected to ${result.canonicalCode}`
+        ? `Identifier: ${result.id} - corrected to ${result.canonicalCode}`
         : `identifier ${result.id}`;
     } catch (e) {
       els.convCodeOut.textContent = friendlyError(e);
