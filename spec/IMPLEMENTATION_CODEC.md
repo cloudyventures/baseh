@@ -66,8 +66,9 @@ Apply these steps in order:
 4. Convert to uppercase when the profile is case-insensitive.
 5. Apply direct aliases.
 6. Reject any remaining symbol not in the body or checksum alphabet.
-7. Verify exact unformatted length.
-8. Split body and checksum.
+7. Re-pad leading zeros when the input is short (3.4).
+8. Verify exact unformatted length.
+9. Split body and checksum.
 
 Do not use Unicode compatibility normalization in version 1. Restricting the format to ASCII avoids lookalike characters from other scripts.
 
@@ -108,6 +109,25 @@ The decoder must:
 5. Return `INVALID_CHECKSUM` when none is valid.
 
 The default correction budget is one substituted body symbol. Automatic correction of two or more symbols is disabled.
+
+### 3.4 Stripped leading zeros
+
+Humans naturally drop leading zero symbols when reading or typing a code
+(`000001D` becomes `1D`). The decoder must accept this form:
+
+- When the normalized input is shorter than `bodyLength + checksumLength`
+  but still holds at least `checksumLength` symbols (at least one symbol
+  when there is no checksum), left-pad it with the body zero symbol up to
+  the exact length, then continue.
+- The checksum symbols are always retained by the human, so the body and
+  checksum split stays unambiguous.
+- A short input that is not a stripped valid code fails `INVALID_CHECKSUM`,
+  not `INVALID_LENGTH`. Over-long input still fails `INVALID_LENGTH`.
+- A fully stripped no-checksum code would be the empty string and stays
+  `INVALID_LENGTH`.
+
+This is decode-only leniency. The encoder always emits the fixed-width
+canonical code and `canonicalCode` in the decode result stays fixed width.
 
 ## 4. Capacity
 

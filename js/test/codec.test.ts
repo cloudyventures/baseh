@@ -189,13 +189,50 @@ describe("aliases and normalization", () => {
       e instanceof BasehError && e.code === "INVALID_CHARACTER");
   });
   it("rejects wrong length", () => {
-    assert.throws(() => h.decode("00-0-A"), (e: unknown) =>
+    assert.throws(() => h.decode("00-00-0A"), (e: unknown) =>
       e instanceof BasehError && e.code === "INVALID_LENGTH");
   });
   it("trims whitespace; inner spaces only when enabled", () => {
     const code = h.encode(1n);
     assert.equal(h.decode(`  ${code}  \n`).id, 1n);
     assert.equal(h.decode(code, { acceptSpaces: true }).id, 1n);
+  });
+});
+
+describe("stripped leading zeros (spec 3.4)", () => {
+  const medium = new Baseh(basehMediumV1());
+  const minimum = new Baseh(basehMinimumV1());
+  it("re-pads a code that lost leading zero body symbols", () => {
+    assert.equal(medium.decode("C").id, 0n); // "000000C"
+    assert.equal(medium.decode("1D").id, 1n); // "000001D"
+    assert.equal(medium.decode("ZG").id, 27n); // "00000ZG"
+  });
+  it("works with lowercase and aliases in the stripped form", () => {
+    assert.equal(medium.decode("c").id, 0n);
+    assert.equal(medium.decode("zg").id, 27n);
+  });
+  it("full-width input is unchanged", () => {
+    assert.equal(medium.decode("000001D").id, 1n);
+  });
+  it("a short code that is not a stripped valid code fails the checksum, not the length", () => {
+    assert.throws(() => medium.decode("12"), (e: unknown) =>
+      e instanceof BasehError && e.code === "INVALID_CHECKSUM");
+  });
+  it("empty input stays a length error", () => {
+    assert.throws(() => medium.decode(""), (e: unknown) =>
+      e instanceof BasehError && e.code === "INVALID_LENGTH");
+  });
+  it("over-long input stays a length error", () => {
+    assert.throws(() => medium.decode("0000000C"), (e: unknown) =>
+      e instanceof BasehError && e.code === "INVALID_LENGTH");
+  });
+  it("no-checksum profiles pad too, except a fully stripped (empty) code", () => {
+    assert.equal(minimum.decode("0").id, 0n);
+    assert.throws(() => minimum.decode(""), (e: unknown) =>
+      e instanceof BasehError && e.code === "INVALID_LENGTH");
+  });
+  it("canonical output stays fixed width", () => {
+    assert.equal(medium.encode(0n), "000000C");
   });
 });
 

@@ -58,6 +58,14 @@ export function normalize(input: string, profile: PreparedProfile, acceptSpaces 
     }
   }
   const expected = profile.bodyLength + profile.checksumLength;
+  // Spec 3.4: a code that lost leading zero body symbols is re-padded with
+  // the body zero symbol. The checksum symbols always remain, so the split
+  // point is unambiguous. A fully stripped no-checksum code would be empty
+  // and stays a length error.
+  if (s.length < expected && s.length >= Math.max(profile.checksumLength, 1)) {
+    const zero = profile.bodyAlphabetNorm[0] as string;
+    s = zero.repeat(expected - s.length) + s;
+  }
   if (s.length !== expected) {
     throw new BasehError("INVALID_LENGTH", `Expected ${expected} symbols, got ${s.length}`);
   }
