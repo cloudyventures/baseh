@@ -90,3 +90,4 @@ button:hover { border-color: var(--accent); }
   .cols { grid-template-columns: 1fr; }
   #alternatives { grid-template-columns: 1fr; }
 }
+.sample-gap { display: inline-block; width: 1.1em; }

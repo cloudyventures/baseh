@@ -2,7 +2,7 @@
  * Shared math for the calculator and designer. No DOM access.
  * Capacity math is exact bigint; ratios are display-only Numbers.
  */
-import { Baseh, BasehError, type BasehProfile } from "base-human";
+import { Baseh, BasehError, type BasehProfile } from "@cloudyventures/baseh";
 
 export type AlphabetMode = "digits" | "upper" | "alnum" | "custom";
 export type SafetyLevel = "none" | "light" | "medium" | "heavy";
@@ -15,11 +15,11 @@ export type ProfanityMode = "none" | "no-vowels" | "blocklist";
  */
 export function parseRequired(raw: string): bigint | null {
   const cleaned = raw.replace(/[,_\s]/g, "");
-  const m = cleaned.match(/^(\d+)(?:\.(\d+))?([kmbt])?$/i);
+  const m = cleaned.match(/^(\d+)(?:\.(\d+))?([kmgbt])?$/i);
   if (!m) return null;
   const intPart = m[1]!;
   const fracPart = m[2] ?? "";
-  const suffixExp = { k: 3, m: 6, b: 9, t: 12 }[m[3]?.toLowerCase() ?? ""] ?? 0;
+  const suffixExp = { k: 3, m: 6, g: 9, b: 9, t: 12 }[m[3]?.toLowerCase() ?? ""] ?? 0;
   const digits = BigInt(intPart + fracPart);
   const shift = suffixExp - fracPart.length;
   let value: bigint;
