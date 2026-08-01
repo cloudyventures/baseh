@@ -72,6 +72,9 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist
+          # A re-run of the tag (or a repeat tag push) re-attempts the same
+          # wheel. Already-on-PyPI is success here, not a failure.
+          skip-existing: true
 
   publish-crates:
     needs: verify
@@ -112,6 +115,8 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: ruby
       - uses: rubygems/release-gem@v1
         with:
           working-directory: ruby
