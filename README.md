@@ -1,8 +1,8 @@
 # baseH
 
-Communicating identifiers with humans has been a challenge: you either end up with a long string of numbers or a mix of letters and numbers like an airline reservation. You’re forced to choose between the benefits of hard to confuse, easy to say over the phone but easily to mis-transcribe and too long against the opposite. 
+Communicating identifiers with humans has been a challenge: you either end up with a long string of numbers or a mix of letters and numbers like an airline reservation. You're forced to choose between the benefits of hard to confuse, easy to say over the phone but easily to mis-transcribe and too long against the opposite. 
 
-baseH is designed to give you the best of both worlds: short, clear codes that are easily to copy and to say. It’s base36 reworked for humans: a reversible, checksummed encoding of non-negative integers into short references that people can read, type and dictate over the phone. The alphabet drops the symbols that cause transcription errors and a checksum catches the rest. It’s intended to be used for order numbers, support tickets, returns, bookings and similar records.
+baseH is designed to give you the best of both worlds: short, clear codes that are easily to copy and to say. It's base36 reworked for humans: a reversible, checksummed encoding of non-negative integers into short references that people can read, type and dictate over the phone. The alphabet drops the symbols that cause transcription errors and a checksum catches the rest. It's intended to be used for order numbers, support tickets, returns, bookings and similar records.
 
 This implementation gives you total control over length, capacity, checksums and profanity, with error hardening for audio, visual or both. It was originally developed in support of new AI based customer service systems where a user might start in one channel and follow up in another, e.g. start on chat, follow up by phone, and so needed an easy to use reference number that worked both over the phone and the keyboard. 
 
@@ -24,25 +24,25 @@ This implementation gives you total control over length, capacity, checksums and
 
 Interactive, client-side only:
 
-- [Capacity calculator](https://matellis.github.io/baseh/) - parameters
+- [Capacity calculator](https://cloudyventures.github.io/baseh/) - parameters
   in, exact capacity and operational lifetime out.
-- [Code designer](https://matellis.github.io/baseh/designer.html) -
+- [Code designer](https://cloudyventures.github.io/baseh/designer.html) -
   required capacity in, shortest valid configuration out.
 
 ## Install
 
 | Language | Command |
 |---|---|
-| JavaScript / TypeScript | `npm install base-human` |
-| Python | `pip install base-human` |
-| Go | `go get github.com/matellis/baseh/go` |
-| Rust | `cargo add base-human` |
-| Ruby | `gem install base-human` |
+| JavaScript / TypeScript | `npm install @cloudyventures/baseh` |
+| Python | `pip install baseh` |
+| Go | `go get github.com/cloudyventures/baseh/go` |
+| Rust | `cargo add baseh` |
+| Ruby | `gem install baseh` |
 
 ## Quick start
 
 ```typescript
-import { Baseh, basehMediumV1 } from "base-human";
+import { Baseh, basehMediumV1 } from "@cloudyventures/baseh";
 
 const h = new Baseh(basehMediumV1());
 
@@ -86,16 +86,35 @@ const profile = basehMediumV1();
 profile.bodyLength = 7;
 ```
 
+## When the namespace fills up
+
+Plan so it does not, and design so it does not matter if it does.
+
+- **Size with headroom.** The designer defaults to a maximum utilization of
+  50% and the calculator shows how many years a configuration lasts at your
+  traffic. One extra body symbol multiplies capacity by the whole alphabet
+  (about 28x at Medium), so an extra character of headroom usually costs less
+  than a migration.
+- **Old codes keep working when you do outgrow it.** Stretching the body
+  creates a new versioned profile (`orders-v1` to `orders-v2`); codes issued
+  under the old profile still decode against it forever. Keep both profiles
+  registered in your lookup layer and route by length: codes are fixed width,
+  so 7 characters means the old profile and 8 means the new one. The checksum
+  mixes in the profile ID, so a code presented to the wrong profile fails
+  validation loudly instead of silently resolving to the wrong record.
+- **Customers never mark their codes.** Length alone distinguishes old from
+  new, and the same id sequence simply continues under the longer profile.
+
 ## Repository layout
 
 ```text
 spec/       normative design documents
 vectors/    frozen cross-language conformance vectors
-js/         TypeScript reference implementation (npm: base-human)
-python/     Python implementation (PyPI: base-human)
-go/         Go implementation (module github.com/matellis/baseh/go)
-rust/       Rust implementation (crates.io: base-human)
-ruby/       Ruby implementation (RubyGems: base-human)
+js/         TypeScript reference implementation (npm: @cloudyventures/baseh)
+python/     Python implementation (PyPI: baseh)
+go/         Go implementation (module github.com/cloudyventures/baseh/go)
+rust/       Rust implementation (crates.io: baseh)
+ruby/       Ruby implementation (RubyGems: baseh)
 web/        calculator and designer source
 docs/       examples in all five languages, application cookbook
 ```

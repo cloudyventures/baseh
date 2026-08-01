@@ -1,5 +1,5 @@
 import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, exportDesign, friendlyError, parseRequired, powBigInt, sampleCodes, spokenPairsThrough, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
-import { Baseh } from "base-human";
+import { Baseh } from "@cloudyventures/baseh";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -110,7 +110,7 @@ function collisionRate(c: Candidate, input: DesignerInput): string {
 function card(c: Candidate, permutation: boolean, label?: string): string {
   const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation)
     .map(sampleLine)
-    .join(`<span class="muted"> &bull; </span>`);
+    .join(`<span class="sample-gap"></span>`);
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
@@ -293,5 +293,11 @@ try {
   if (raw) applyState(JSON.parse(raw) as SavedState);
 } catch {
   // Corrupt or unavailable storage falls back to the markup defaults.
+}
+// Whatever the required field holds (markup default or restored state),
+// show it in the compact form so big values never read as walls of zeroes.
+{
+  const initial = parseRequired(els.required.value);
+  if (initial !== null) els.required.value = fmt(initial);
 }
 render();
