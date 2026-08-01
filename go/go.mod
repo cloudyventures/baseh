@@ -1,3 +1,3 @@
-module github.com/matellis/base-human/go
+module github.com/matellis/baseh/go
 
 go 1.22

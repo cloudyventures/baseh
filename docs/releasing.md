@@ -16,14 +16,14 @@ registration below.
 ## One-time setup per registry
 
 Register the trusted publisher once in each dashboard. In every case the
-repository is `matellis/base-human` and the workflow is `release.yml`
+repository is `matellis/baseh` and the workflow is `release.yml`
 (environment is left blank; publishing is keyed to tag pushes).
 
 - **PyPI**: pypi.org, Manage account, Publishing, add a pending publisher
   for package name `base-human`. The pending form works before the package
   exists; the first release creates it.
 - **npm**: npmjs.com, package `base-human` settings, Trusted Publisher,
-  connect GitHub repo `matellis/base-human` with workflow `release.yml`.
+  connect GitHub repo `matellis/baseh` with workflow `release.yml`.
   For the very first publish of a new package name, create the package
   placeholder from the npm site first, then connect the publisher.
 - **crates.io**: crates.io, crate `base-human` settings, Trusted Publishing,
@@ -32,7 +32,7 @@ repository is `matellis/base-human` and the workflow is `release.yml`
   flow once the name is registered in the dashboard.
 - **RubyGems**: rubygems.org, gem `base-human` (create the gem entry or
   claim it on first push per rubygems.org trusted-publishing docs), Trusted
-  Publishers, add repo `matellis/base-human`, workflow `release.yml`.
+  Publishers, add repo `matellis/baseh`, workflow `release.yml`.
 
 If a registry's first-publish flow still demands a classic token, mint a
 scoped publish token for that registry only, record it in 1Password first,

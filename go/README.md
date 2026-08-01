@@ -7,7 +7,7 @@ cross-language vectors in `vectors/`.
 ## Install
 
 ```sh
-go get github.com/matellis/base-human/go
+go get github.com/matellis/baseh/go
 ```
 
 ## Usage
@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"math/big"
 
-	basehuman "github.com/matellis/base-human/go"
+	basehuman "github.com/matellis/baseh/go"
 )
 
 func main() {
