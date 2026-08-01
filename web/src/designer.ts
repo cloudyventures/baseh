@@ -84,7 +84,7 @@ function sampleLine(s: { id: string; code: string; blocked?: boolean }): string 
     marker = "&infin;";
   }
   const rendered = s.blocked
-    ? `<span class="muted">blocked: this identifier spells a bad word and is never issued</span>`
+    ? `<span class="muted">blocked: this identifier spells a profanity and is never issued</span>`
     : `<code>${s.code}</code>`;
   return `<div title="${title}">${marker}: ${rendered}</div>`;
 }
