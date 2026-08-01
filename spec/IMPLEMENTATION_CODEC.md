@@ -11,12 +11,15 @@ This document is normative. It defines profile validation, integer encoding, dec
 ```typescript
 type BasehProfile = {
   profileId: string;
+  mode: "fixed" | "expandable";
   bodyAlphabet: string;
-  bodyLength: number;
+  bodyLength: number;       // fixed mode only; ignored in expandable mode
+  minLength: number;        // expandable mode only; default 4
   checksumAlphabet: string;
   checksumLength: number;
   caseSensitive: boolean;
   separator: string;
+  separatorMinLength: number; // expandable mode only; default 0
   grouping: number[];
   aliases: Record<string, string>;
   permutation:
@@ -36,10 +39,29 @@ type BasehProfile = {
 A profile is valid only when all conditions are true:
 
 - `profileId` is non-empty.
+- `mode` is `"fixed"` or `"expandable"`. A profile constructed without a
+  mode is treated as `"fixed"`: pre-`mode` persisted profiles and all
+  version 1 and version 2 frozen tier definitions (section 17) carry no
+  `mode` field and must keep decoding byte-identically, so backward
+  compatibility pins the default to `"fixed"`. Expandable mode is the
+  RECOMMENDED mode for new profiles, but any newly authored or frozen
+  profile must declare its mode explicitly, and a decoder must never guess
+  the mode from the presented input. All version 1 and version 2 frozen
+  tiers (section 17) are `"fixed"` and are unchanged by this document's
+  expandable-mode rules.
 - `bodyAlphabet` has at least two symbols.
 - Every alphabet symbol is exactly one ASCII character.
 - Body symbols are unique after case normalization.
-- `bodyLength` is an integer from 1 through 32.
+- In fixed mode, `bodyLength` is an integer from 1 through 32. In
+  expandable mode `bodyLength` is ignored.
+- In expandable mode, `minLength` is an integer of at least 1 (default 4)
+  and must be greater than `checksumLength`, so every generation carries at
+  least one body symbol.
+- In expandable mode, the prepared body alphabet must not contain `0` or
+  `O` (the zero ban, section 19.2). Profile preparation removes both
+  symbols silently — including from a custom alphabet — before any other
+  validation, and validation then asserts their absence like any other
+  profile invariant.
 - `checksumLength` is an integer from 0 through 8.
 - If `checksumLength` is positive, `checksumAlphabet` has at least two symbols.
 - Checksum symbols are unique after case normalization.
@@ -48,7 +70,13 @@ A profile is valid only when all conditions are true:
 - Every alias target is a canonical body or checksum symbol.
 - Alias application is idempotent.
 - Alias chains are forbidden.
-- Group sizes sum to `bodyLength + checksumLength`. When the separator is empty, `grouping` must be empty.
+- In fixed mode, group sizes sum to `bodyLength + checksumLength`, and
+  `separatorMinLength` must be 0. In expandable mode the sum rule does not
+  apply: when the separator is non-empty, `grouping` must be non-empty with
+  every group size a positive integer, interpreted as a right-anchored
+  repeating pattern (section 19.5); `separatorMinLength` is an integer of
+  at least 0 (default 0). In either mode, when the separator is empty,
+  `grouping` must be empty.
 - A permutation key is present when permutation is enabled.
 - Feistel rounds are an even integer from 4 through 16.
 
@@ -66,8 +94,11 @@ Apply these steps in order:
 4. Convert to uppercase when the profile is case-insensitive.
 5. Apply direct aliases.
 6. Reject any remaining symbol not in the body or checksum alphabet.
-7. Re-pad leading zeros when the input is short (3.4).
-8. Verify exact unformatted length.
+7. Fixed mode only: re-pad leading zeros when the input is short (3.4).
+   Expandable mode never re-pads (section 19.2).
+8. Verify the unformatted length: exactly `bodyLength + checksumLength` in
+   fixed mode; at least `minLength` in expandable mode, where the length
+   selects the generation (section 19.7).
 9. Split body and checksum.
 
 Do not use Unicode compatibility normalization in version 1. Restricting the format to ASCII avoids lookalike characters from other scripts.
@@ -117,7 +148,11 @@ The decoder must:
 
 The default correction budget is one substituted body symbol. Automatic correction of two or more symbols is disabled.
 
-### 3.4 Stripped leading zeros
+### 3.4 Stripped leading zeros (fixed mode only)
+
+This section applies to fixed-mode profiles only. Expandable mode has no
+left-padding and no stripped-zero leniency (section 19.2); presented input
+shorter than `minLength` fails `INVALID_LENGTH`.
 
 Humans naturally drop leading zero symbols when reading or typing a code
 (`000001D` becomes `1D`). The decoder must accept this form:
@@ -149,6 +184,10 @@ Allowed internal IDs are:
 ```text
 0 <= id < C
 ```
+
+This is the fixed-mode model. Expandable mode has no single capacity: each
+total length `L` is a generation covering `A^(L - checksumLength)` ids, and
+the generations tile the non-negative integers contiguously (section 19.1).
 
 Use arbitrary-precision integers. JavaScript implementations must use `bigint`, not `number`, when the profile may exceed `Number.MAX_SAFE_INTEGER`.
 
@@ -195,7 +234,7 @@ function decodeBaseN(text, alphabet):
 
 ### 5.3 Fixed length
 
-The encoder always emits exactly `bodyLength` body characters, including leading zero-value symbols.
+In fixed mode the encoder always emits exactly `bodyLength` body characters, including leading zero-value symbols. In expandable mode the encoder emits exactly `L - checksumLength` body characters for the selected generation `L`, and the zero ban (section 19.2) guarantees none of them is a leading zero glyph.
 
 ## 6. Checksum
 
@@ -313,6 +352,28 @@ Normative algorithm. All integer-to-byte conversions are unsigned big-endian unl
    right as an unsigned big-endian integer in ceil(wr(i) / 8) bytes
        (zero bytes when wr(i) = 0)
    ```
+
+   In expandable mode the permutation domain is one generation's value
+   range (section 19.4), and the total code length `L` of that generation
+   is mixed into the key derivation. The expandable-mode `message_i` is
+   exactly this byte sequence:
+
+   ```text
+   "BASEH-FEISTEL-V1" (14 ASCII bytes)
+   0x00
+   ASCII(profileId)
+   0x00
+   ASCII decimal representation of L, most significant digit first,
+       no leading zeros
+   0x00
+   i as one byte (round number, 0-based)
+   right as an unsigned big-endian integer in ceil(wr(i) / 8) bytes
+       (zero bytes when wr(i) = 0)
+   ```
+
+   The version string stays `"BASEH-FEISTEL-V1"`: expandable mode is a new
+   mode, not a change to the fixed-mode construction, and fixed-mode
+   messages remain byte-for-byte unchanged.
 
    "Low N bits of HMAC-SHA-256" means: take the first `ceil(N / 8)` bytes of the 32-byte digest, interpret them as a big-endian integer and mask with `2^N - 1`. When `wr(i)` is 0, `right` is always 0 and the message ends after the round byte.
 
@@ -502,6 +563,8 @@ Formatted:
 
 The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
 
+In expandable mode the separator applies only at or above `separatorMinLength`: when the presented or emitted total length `L` is below `separatorMinLength`, the code renders bare and the decoder accepts (and expects) no separators, regardless of the configured `separator` and `grouping`. At or above the threshold the configured separator and grouping apply to that length per section 19.5.
+
 The web tools pick `grouping` from the total displayed length (`bodyLength + checksumLength`) with one fixed rule, so a configuration transferred between the tools and a frozen profile keeps the same visual rhythm: no delimiter at 3 or fewer characters; groups of 2 at 4; groups of 3 up to 6; groups of 4 up to 8; groups of 5 beyond that, with any leftover short group trailing. Every frozen tier uses this rule directly: Minimum at 6 characters is `[3, 3]` and Light, Medium and Heavy at 8 characters are `[4, 4]`, all hyphen-delimited (section 17).
 
 ## 12. Public API
@@ -555,6 +618,9 @@ Errors:
 ```typescript
 capacity(profile: BasehProfile): bigint
 ```
+
+Fixed mode only: returns `bodyAlphabetSize^bodyLength`. Expandable profiles
+have no single capacity; use the per-generation formulas of section 19.1.
 
 ### 12.4 Validate
 
@@ -672,6 +738,57 @@ Version 2 shapes: all four tiers permute with the frozen published key (section 
 
 Each tier also ships a keyed variant whose `profileId` gains a `-p` segment (`baseh-minimum-p-v1` through `baseh-heavy-p-v1`): identical to the plain tier but with Feistel-v1 permutation keyed by caller-supplied key material (section 7) instead of the frozen published key. Application-specific permutation keys are never part of a frozen profile and each application assigns its own `keyId` and key material. Profile helpers return a freshly built, mutable profile object on every call, so an application can load a default and then modify it (longer body, custom separator, no profanity blocklist) without mutating the frozen definition from which it started. The shared `vectors.json` pins every tier's checksum, formatting and frozen-key Feistel behaviour; implementations must match it before release.
 
+### 17.1 The expandable tier
+
+One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recommended starting point for new namespaces. Its codes are four characters while the namespace is small and gain one symbol automatically as issuance climbs (section 19); every shorter code keeps decoding forever. All four fixed tiers above are `mode: "fixed"` and are byte-for-byte unaffected by this profile.
+
+```json
+{
+  "profileId": "baseh-expandable-v1",
+  "mode": "expandable",
+  "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+  "minLength": 4,
+  "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+  "checksumLength": 2,
+  "caseSensitive": false,
+  "separator": "-",
+  "separatorMinLength": 6,
+  "grouping": [4, 4],
+  "aliases": {
+    "O": "0",
+    "I": "1",
+    "L": "1",
+    "T": "P",
+    "N": "M",
+    "W": "V"
+  },
+  "permutation": {
+    "enabled": true,
+    "algorithm": "feistel-v1",
+    "keyId": "frozen",
+    "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
+    "rounds": 8
+  },
+  "profanity": {
+    "mode": "blocklist"
+  }
+}
+```
+
+The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3), giving a checksum modulus of `35^2 = 1225`. Since `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well, at every generation (section 6.3). The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, length 6 renders `XX-XXXX`, 7 renders `XXX-XXXX`, 8 renders `XXXX-XXXX` and the `[4, 4]` pattern repeats right-anchored beyond that (section 19.5).
+
+Generation capacities (body alphabet 34, checksum length 2, so generation `L` holds `34^(L-2)` ids; section 19.1):
+
+| Total length | Body symbols | Generation capacity | Cumulative ids |
+|---:|---:|---:|---:|
+| 4 | 2 | 1,156 | 1,156 |
+| 5 | 3 | 39,304 | 40,460 |
+| 6 | 4 | 1,336,336 | 1,376,796 |
+| 7 | 5 | 45,435,424 | 46,812,220 |
+| 8 | 6 | 1,544,804,416 | 1,591,616,636 |
+
+`baseh-expandable-p-v1` is the keyed variant, mirroring the fixed `-p` tiers: identical to `baseh-expandable-v1` but with Feistel-v1 permutation keyed by caller-supplied key material (section 7) instead of the frozen published key, with the caller assigning its own `keyId`.
+
 ## 18. Profanity safety
 
 Profiles gain an optional `profanity` object. It never changes decode
@@ -741,3 +858,234 @@ and retry encoding.
 Substring matching false-positives on innocent strings containing the
 substring (the Scunthorpe problem). Keep lists short and curated; prefer
 `no-vowels` for broad prevention and `blocklist` for specific terms.
+
+## 19. Expandable mode
+
+Expandable mode gives a profile variable-length codes driven by id
+magnitude: codes are short while the namespace is small and gain one symbol
+automatically as the id counter climbs. Nothing is ever re-issued, re-mapped
+or reclaimed, and every code ever issued keeps decoding under the same
+profile. All rules in this section are mode-conditional; fixed-mode
+behaviour is unchanged everywhere.
+
+### 19.1 Generations and capacity
+
+Let `A` be the body alphabet size, `K` the checksum length and `min` the
+profile `minLength`. Each total code length `L >= min` is a **generation**
+with body length `L - K` and generation capacity:
+
+```text
+generationCapacity(L) = A^(L - K)
+```
+
+Generations tile the non-negative integers contiguously in ascending length.
+Generation `L` covers exactly the ids:
+
+```text
+generationBase(L) <= id < generationBase(L + 1)
+
+generationBase(L) = sum of A^(k - K) for k from min through L - 1
+                  = (A^(L - K) - A^(min - K)) / (A - 1)
+```
+
+with `generationBase(min) = 0`. The total length is bounded by 32, matching
+the fixed-mode body-length ceiling: an id that would require `L > 32` fails
+`OUT_OF_RANGE`. There is no other upper bound on the id; a growing sequence
+never runs out, it simply gets longer.
+
+Worked example for `baseh-expandable-v1` (`A = 34`, `K = 2`, `min = 4`):
+
+```text
+generationBase(4) = 0
+generationBase(5) = 34^2                    = 1,156
+generationBase(6) = 34^2 + 34^3             = 40,460
+generationBase(7) = ... + 34^4              = 1,376,796
+```
+
+So id `1,155` is the last four-character code and id `1,156` is the first
+five-character code.
+
+### 19.2 The zero ban and the no-padding rule
+
+In expandable mode the body alphabet must not contain `0` or `O`. Profile
+preparation removes both symbols silently — including from a custom
+alphabet — before any other validation, exactly as `no-vowels` stripping
+does (section 18.1), and validation then asserts their absence like any
+other profile invariant (section 2.2).
+
+The consequence is load-bearing: the body zero symbol carries value 0, so
+with `0` removed from the body alphabet no canonical code can begin with a
+zero-value symbol. No human ever sees a leading zero glyph to drop, so
+expandable mode has **no left-padding anywhere**: the encoder never pads,
+and the fixed-mode stripped-leading-zeros leniency of section 3.4 does not
+apply. Presented input shorter than `minLength` fails `INVALID_LENGTH`.
+
+The ban applies to body positions only. Because the checksum alphabet does
+contain `0` (section 19.3), a presented `0` passes the union-membership
+check of normalization step 6 (section 3.1) and then fails at the body
+split with `INVALID_CHARACTER` whenever it lands in a body position — the
+same path fixed mode already uses for a body-alphabet violation (section
+9). A typed `O` is aliased to `0` during normalization (the `O -> 0` alias
+still applies) and then follows exactly the same path: it fails
+`INVALID_CHARACTER` in a body position and resolves correctly in a checksum
+position.
+
+### 19.3 Checksum alphabet
+
+In expandable mode the checksum alphabet is the body alphabet plus `0`,
+ordered as `"0"` followed by the body alphabet in order. For the default
+34-symbol body this is 35 symbols. The checksum algorithm itself is
+unchanged (section 6.2): same version 1 rolling polynomial, same `profileId`
+domain separation, same modulus rule `S^K` — only the alphabet, and
+therefore `S`, differs per profile as usual. The `O -> 0` alias applies to
+checksum positions. The checksum does not mix in the code length; domain
+separation between generations comes from the length-selects-generation
+decode flow (section 19.7): a body of the wrong length splits differently
+and the checksum fails at the random-match rate.
+
+### 19.4 Per-generation permutation
+
+Permutation stays on in expandable mode. The Feistel domain is each
+generation's own value range:
+
+```text
+domain(L) = A^(L - K)     values 0 through A^(L - K) - 1
+```
+
+where `A` is the body alphabet size, `K` the checksum length and `L` the
+total length of the generation. The value permuted is the id's offset
+within the generation (`id - generationBase(L)`), never the raw id. The
+total length `L` is mixed into the key derivation alongside the `profileId`
+via the expandable-mode message encoding of section 7.3, so each generation
+is an independent shuffle. The algorithm, round function, cycle walking and
+iteration ceiling are otherwise unchanged, and fixed-mode Feistel is
+byte-for-byte unchanged.
+
+### 19.5 Separators and grouping
+
+`separatorMinLength` is an integer of at least 0 (default 0, meaning the
+separator always applies, as fixed mode behaves today). When the total
+length `L` is below `separatorMinLength`, the separator is empty and the
+grouping is empty for that length, regardless of the configured `separator`
+and `grouping`: the code renders bare and the decoder expects no
+separators. At or above the threshold, the configured separator and
+grouping apply to that length.
+
+In expandable mode the fixed-mode rule "group sizes sum to `bodyLength +
+checksumLength`" cannot hold for every length, so `grouping` is interpreted
+as a **right-anchored repeating pattern**. For a pattern `[p0, p1, ...,
+p(m-1)]` and a total length `L >= separatorMinLength`, groups are consumed
+from the right end of the code, cycling through the pattern from its last
+element backwards (`p(m-1)`, `p(m-2)`, ..., `p0`, `p(m-1)`, ...); when the
+remaining leading symbols are fewer than the next pattern element they form
+the leftmost group on their own. Validation requires only that the pattern
+be non-empty with positive integer sizes (section 2.2).
+
+Worked example for the frozen pattern `[4, 4]`, which reduces to groups of
+four from the right with any short group leading:
+
+```text
+L = 6    XX-XXXX
+L = 7    XXX-XXXX
+L = 8    XXXX-XXXX
+L = 9    X-XXXX-XXXX
+L = 10   XX-XXXX-XXXX
+```
+
+Right-anchoring keeps the trailing visual rhythm — including the checksum
+group — stable as codes grow, so a customer who has seen eight-character
+codes reads a nine-character one without relearning the shape.
+
+### 19.6 Encode flow
+
+```text
+function encodeExpandable(id, profile):
+    validateProfile(profile)
+    A = len(profile.bodyAlphabet)
+    K = profile.checksumLength
+
+    if id < 0:
+        error OUT_OF_RANGE
+
+    L = smallest total length >= profile.minLength
+        with id < generationBase(L + 1)        # section 19.1
+
+    if L > 32:
+        error OUT_OF_RANGE
+
+    value = id - generationBase(L)             # offset within generation
+    domain = pow(A, L - K)
+
+    if profile.permutation.enabled:
+        value = permute(value, domain, profile.permutation, L)   # 19.4
+
+    body = encodeBaseN(value, profile.bodyAlphabet, L - K)
+    checksum = calculateChecksum(profile, body)
+    raw = body + checksum
+
+    if profile.profanity.mode == "blocklist":
+        if any effective blocklist word is a case-insensitive
+           substring of raw:                   # section 18
+            error BLOCKED_CODE
+
+    if L < profile.separatorMinLength:
+        return raw
+
+    return format(raw, expandableGrouping(L, profile.grouping),
+                  profile.separator)
+```
+
+### 19.7 Decode flow
+
+Decode follows section 9 with the fixed-mode steps replaced as follows:
+
+1. Normalize per section 3.1, without the re-pad step.
+2. `L = ` the normalized unformatted length. If `L < minLength`, error
+   `INVALID_LENGTH`. If `L > 32`, error `INVALID_LENGTH`.
+3. Split `body = raw[0 : L - K]` and `suppliedChecksum = raw[L - K :]`.
+4. If the body contains a symbol outside the body alphabet, error
+   `INVALID_CHARACTER`. This is where a presented `0` or `O` in a body
+   position fails (section 19.2).
+5. Checksum validation and correction proceed exactly as section 9, with
+   one restriction: correction candidates must stay within the presented
+   length. `AMBIGUOUS_INPUT` behaviour is unchanged, but candidate
+   generation never adds or removes symbols (section 10 already forbids
+   insertions and deletions), so no cross-generation correction is
+   possible.
+6. `offset = decodeBaseN(body, profile.bodyAlphabet)`; if permutation is
+   enabled, `offset = inversePermute(offset, A^(L - K), profile.permutation, L)`.
+   Then `id = generationBase(L) + offset`.
+7. `canonicalCode = encode(id, profile)`. Because the permutation keeps an
+   offset inside its generation, the canonical code always has the
+   presented length `L`, and `corrected` is computed as in section 9.
+
+A code presented at the wrong length for its id — for example a code from
+generation 5 with a symbol appended — decodes as a different generation,
+splits body and checksum differently and fails `INVALID_CHECKSUM` at the
+random-match rate; it can never alias a valid shorter code.
+
+### 19.8 Error semantics
+
+New and clarified cases for expandable mode:
+
+- Normalized input shorter than `minLength`: `INVALID_LENGTH`. There is no
+  stripped-zero rescue (section 19.2).
+- Normalized input longer than 32 symbols: `INVALID_LENGTH`.
+- `0` or `O` (after the `O -> 0` alias) in a body position:
+  `INVALID_CHARACTER`. In a checksum position both are accepted, with `O`
+  resolving to `0`.
+- Encode of a negative id, or of an id requiring `L > 32`: `OUT_OF_RANGE`.
+- Wrong-length presentation of an otherwise valid code:
+  `INVALID_CHECKSUM` (section 19.7).
+- `AMBIGUOUS_INPUT` correction is unchanged but never crosses generations:
+  candidates keep the presented length.
+
+### 19.9 Mode declaration
+
+Expandable mode changes encode and decode behaviour — length model,
+alphabet preparation, padding, permutation domain, formatting — enough that
+the mode is part of a profile's identity. A persisted or frozen profile
+definition must declare `mode` explicitly once implementations support it,
+and a decoder must not guess the mode from the presented input. Profiles
+constructed programmatically without a mode are treated as `"fixed"`
+(section 2.2).

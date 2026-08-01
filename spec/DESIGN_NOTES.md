@@ -387,3 +387,54 @@ format:
 ```
 
 Enable correction only after checksum testing and customer confusion data are available.
+
+## 24. Expandable mode (decided 2026-08)
+
+Variable-length codes were on the future-extensions list for a long time.
+The settled design is normative in `IMPLEMENTATION_CODEC.md` section 19;
+this note records the trade-offs.
+
+### Why expandable at all
+
+The fixed tiers force a one-time capacity decision: pick six characters and
+every customer types six characters forever, even when the namespace holds a
+thousand records. Expandable mode starts at four characters and grows one
+symbol at a time as issuance climbs, with no re-issue, no migration and no
+series marker in the code. We deliberately rejected visible generation
+markers (a prefix or version symbol): they cost a character forever, invite
+people to drop them, and the presented length already identifies the
+generation unambiguously. The cost of variable length is real — a code's
+shape is no longer a validation shortcut and staff tools must not assume a
+width — so fixed mode stays the right choice for forms and labels that print
+a blank of fixed size.
+
+### Why ban `0` and `O` rather than restrict them positionally
+
+The leading-zero problem only exists because the body zero symbol can sit
+at the front of a code. We considered banning zero-value symbols from the
+first position only, but that creates a residue class of unencodable bodies
+the encoder must skip, breaks the clean `A^L` generation capacity and makes
+every implementation agree on a skip rule. Removing `0` and `O` from the
+body alphabet entirely is simpler: no canonical code can begin with a zero
+glyph, no human ever drops a leading symbol, and the alphabet shrinks by
+exactly two at every position. The checksum alphabet keeps `0` (with the
+`O -> 0` alias) so the checksum modulus stays as large as the body allows.
+
+### Why per-generation Feistel
+
+A single Feistel domain over all ids would couple the generations: enlarging
+the domain when a generation fills would re-map every issued code. Running
+an independent permutation inside each generation's `A^(L-K)` range, with
+the length mixed into the key derivation alongside the profile id, keeps
+every issued code stable forever while sequential ids still look shuffled at
+every size. The construction is the same feistel-v1 with a longer domain
+string; fixed-mode messages are byte-for-byte unchanged, so existing vectors
+keep passing.
+
+### Why no left-padding in this mode
+
+Fixed mode re-pads stripped leading zeros as decode-only leniency. That rule
+exists only because humans drop zero glyphs they were shown. With the zero
+ban, no expandable code ever displays a leading zero, so the leniency has
+nothing to rescue — and keeping it would make short inputs ambiguous across
+generations. Short input is simply `INVALID_LENGTH`.

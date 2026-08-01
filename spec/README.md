@@ -90,6 +90,12 @@ With two checksum symbols the checksummed tiers provably detect every single-sym
 
 Permutation is always on in the plain tiers, keyed with the published frozen key (`IMPLEMENTATION_CODEC.md` section 7.5) so the zero-argument helpers work out of the box. The frozen key hides sequence only; it is not a secret. An application that wants a private mapping uses a `-p` variant and passes its own key; that key is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
 
+## Expandable mode
+
+Profiles carry a `mode`: `"fixed"` (every frozen tier above, unchanged) or `"expandable"`. An expandable profile emits variable-length codes that grow one symbol at a time as the id sequence climbs — short codes while the namespace is small, no re-issue and no migration, and every shorter code keeps decoding. The mechanism (generations, the `0`/`O` body ban that removes any leading zero glyph, the zero-keeping checksum alphabet, per-generation Feistel and threshold-based separators) is normative in `IMPLEMENTATION_CODEC.md` section 19.
+
+One expandable tier ships frozen: `baseh-expandable-v1` (34-symbol body, 2 checksum symbols from a 35-symbol alphabet, minimum length 4, hyphen grouping from 6 characters up, frozen-key per-generation permutation), plus the keyed variant `baseh-expandable-p-v1`. See `IMPLEMENTATION_CODEC.md` section 17.1 for the full definition and capacity table.
+
 ## Terminology
 
 - **Internal ID**: The non-negative integer stored by the application.
