@@ -110,7 +110,7 @@ function collisionRate(c: Candidate, input: DesignerInput): string {
 function card(c: Candidate, permutation: boolean, label?: string): string {
   const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, permutation)
     .map(sampleLine)
-    .join(`<span class="sample-gap"></span>`);
+    .join("");
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>

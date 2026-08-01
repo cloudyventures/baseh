@@ -81,13 +81,19 @@ button {
 button:hover { border-color: var(--accent); }
 .alt-card { margin-bottom: 0.6rem; }
 .alt-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.samples { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+.samples {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;
+  font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem;
+}
 .field-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
-.sample { white-space: nowrap; }
+.sample {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
+  padding: 0.3rem 0.4rem; text-align: center;
+}
 .samples code { color: var(--ink); }
 #alternatives { display: grid; grid-template-columns: 1fr 1fr; column-gap: 0.6rem; }
 @media (max-width: 900px) {
   .cols { grid-template-columns: 1fr; }
   #alternatives { grid-template-columns: 1fr; }
 }
-.sample-gap { display: inline-block; width: 1.1em; }
