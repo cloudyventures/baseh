@@ -44,8 +44,6 @@ from .profiles import (
     baseh_minimum_p_v1,
     baseh_minimum_v1,
 )
-from .zero import from_code, to_code
-
 __all__ = [
     "Baseh",
     "BasehError",
@@ -80,8 +78,6 @@ __all__ = [
     "AMBIGUOUS_INPUT",
     "TOO_MANY_CANDIDATES",
     "BLOCKED_CODE",
-    "to_code",
-    "from_code",
 ]
 
 __version__ = "1.0.0"

@@ -7,8 +7,8 @@ from baseh import (
     BasehError,
     baseh_expandable_v1,
     baseh_medium_v1,
-    from_code,
-    to_code,
+    decode,
+    encode,
 )
 
 
@@ -32,14 +32,12 @@ show(
 )
 show('decode lowercase', lambda: expandable.decode(expandable.encode(42).lower()).id)
 
-# 2. Zero configuration: the default Medium tier behind two functions.
+# 2. Zero configuration: package-level encode/decode on the default
+# expandable v1 tier; decode returns the full DecodeResult.
 print("== zero config ==")
-show("to_code(123456789)", lambda: to_code(123456789))
-show('to_code("123456789")', lambda: to_code("123456789"))
-show('from_code("C8XP-8J49")', lambda: from_code("C8XP-8J49"))
-show('from_code("c8xp 8j49")', lambda: from_code("c8xp 8j49"))
-show('from_code("C8XP-8J4X")', lambda: from_code("C8XP-8J4X"))
-show("to_code(481890304)", lambda: to_code(481890304))
+show("encode(123456789)", lambda: encode(123456789))
+show("decode(...) round trip", lambda: decode(encode(123456789)).id)
+show("decode lowercase", lambda: decode(encode(42).lower()).id)
 
 # 3. A frozen preset: load baseh-medium-v1 and use the full codec.
 print("== preset ==")

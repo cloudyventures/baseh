@@ -11,25 +11,23 @@ rescue Baseh::BasehError => e
   puts "#{label} -> raises BasehError [#{e.code}]: #{e.message}"
 end
 
-# 0. Zero configuration, expandable mode (the recommended default):
-#    codes start short and grow one character as the id sequence climbs.
-#    Expandable mode: shipping in the next release; shown here as the new default.
-puts "== expandable (zero config) =="
-expandable = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
-show("expandable.encode(id: 123456)") { expandable.encode(id: 123456) }
+# 0. Zero configuration: the expandable default profile behind two module
+#    functions. Codes start short and grow one character as the id sequence
+#    climbs. Most applications never need a profile object at all.
+puts "== zero config (expandable default) =="
+show("Baseh.encode(123456)") { Baseh.encode(123456) }
 # => 4 characters at this namespace size; grows as ids climb
-show("expandable round trip") { expandable.decode(expandable.encode(id: 123456)).id }
+show("Baseh.decode(code).id round trip") { Baseh.decode(Baseh.encode(123456)).id }
+show('Baseh.decode("bogus") ') { Baseh.decode("ZZZZ-ZZZZ") }
 # A keyed private-mapping variant mirrors the other -p tiers:
 #   Baseh.baseh_expandable_p_v1(key_bytes: ..., key_id: "prod-01")
 
-# 1. Zero configuration, fixed mode: the default Medium tier behind two functions.
-puts "== zero config (fixed) =="
-show("Baseh.to_code(123456789)") { Baseh.to_code(123456789) }
-show('Baseh.to_code("123456789")') { Baseh.to_code("123456789") }
-show('Baseh.from_code("C8XP-8J49")') { Baseh.from_code("C8XP-8J49") }
-show('Baseh.from_code("c8xp 8j49")') { Baseh.from_code("c8xp 8j49") }
-show('Baseh.from_code("C8XP-8J4X")') { Baseh.from_code("C8XP-8J4X") }
-show("Baseh.to_code(481890304)") { Baseh.to_code(481890304) }
+# 1. The same expandable profile used explicitly, when you want the codec
+#    object in hand (e.g. to pass it around or check its generation).
+puts "== expandable (explicit codec) =="
+expandable = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+show("expandable.encode(id: 123456)") { expandable.encode(id: 123456) }
+show("expandable round trip") { expandable.decode(expandable.encode(id: 123456)).id }
 
 # 2. A frozen preset: load baseh-medium-v1 and use the full codec.
 puts "== preset =="

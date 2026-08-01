@@ -83,10 +83,6 @@ authorization token. The smallest expandable generations are a small
 namespace, so rate-limit public lookups and enforce authorization after
 decode.
 
-> Note: expandable mode is documented ahead of its implementation release.
-> The `basehExpandableV1` helper lands in the next published version; the
-> fixed tiers below work today.
-
 ## Frozen tiers (fixed mode)
 
 The classic frozen tiers are all `mode: "fixed"`: constant-width codes for

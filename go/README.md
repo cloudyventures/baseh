@@ -12,9 +12,6 @@ go get github.com/cloudyventures/baseh/go/v2
 
 ## Expandable mode
 
-*Documented ahead of its implementation release; the helpers below ship in
-the next release.*
-
 Profiles carry a `Mode` field: `"expandable"` or `"fixed"`. All the frozen
 tiers below are `Mode: "fixed"` and behave exactly as before. The new
 frozen tier `baseh-expandable-v1` (helper `ExpandableV1()`) is the
@@ -83,8 +80,7 @@ without affecting other profiles from the same helper.
 
 ## Usage
 
-Expandable mode (documented ahead of its implementation release; shipping
-in the next release) is the recommended default for new users. Codes start
+Expandable mode is the recommended default for new users. Codes start
 at 4 characters and grow automatically as the id sequence climbs — no
 migration, no re-issue, and old shorter codes keep decoding forever:
 

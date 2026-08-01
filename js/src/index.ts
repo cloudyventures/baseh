@@ -21,7 +21,6 @@ export {
   type FrozenKeyOptions
 } from "./profiles.js";
 export { generationBase, generationCapacity, generationForId, expandableGrouping } from "./codec.js";
-export { toCode, fromCode } from "./zero.js";
 export { encode, decode, validate } from "./facade.js";
 export { DEFAULT_BLOCKLIST, effectiveBlocklist, stripVowels } from "./blocklist.js";
 export type { BasehProfanity, BasehProfanityMode } from "./blocklist.js";
