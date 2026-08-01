@@ -120,8 +120,7 @@ function render() {
     fit += `<div>Lifetime at current rate: ${fmt(r.lifetimeDays)} days${years < 1e6 ? ` (about ${years.toFixed(1)} years)` : ""}</div>`;
   }
   if (input.checksumLength === 0) fit += `<div class="warn">No checksum: typing errors cannot be detected reliably.</div>`;
-  if (input.permutation) fit += `<div class="warn">Permutation hides obvious sequence but does not provide access control. The preview uses a public built-in key; a real application generates its own key and keeps it server-side.</div>`;
-  els.fitOut.innerHTML = fit || "<div>Enter demand figures to see utilization and lifetime.</div>";
+  els.fitOut.innerHTML = fit;
 
   els.problems.innerHTML = r.problems.map((p) => `<p>${p}</p>`).join("");
   els.copyJson.disabled = !r.valid;

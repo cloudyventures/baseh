@@ -115,13 +115,10 @@ function render() {
     return;
   }
   const result = design(input);
-  const permutationNote = input.permutation
-    ? `<p class="muted">Preview codes are permuted with a public built-in key. Permutation hides sequence; it is not access control and is not part of the export.</p>`
-    : "";
   els.recommended.innerHTML = result.recommended
     ? card(result.recommended, input.permutation, "Recommended")
     : "";
-  els.repair.innerHTML = (result.repair ? `<p>${result.repair}</p>` : "") + permutationNote;
+  els.repair.innerHTML = result.repair ? `<p>${result.repair}</p>` : "";
   els.alternatives.innerHTML = result.alternatives.map((a) => card(a.candidate, input.permutation, a.label)).join("")
     || (result.recommended ? "" : "");
   els.tbody.innerHTML = result.feasible.slice(0, 25).map((c) => `
