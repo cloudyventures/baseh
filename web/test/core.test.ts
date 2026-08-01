@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculate, design, minimumLength, parseRequired, powBigInt, sampleCodes, type CalculatorInput, type DesignerInput } from "../src/core.js";
+import { calculate, design, minimumLength, parseIdentifier, parseRequired, powBigInt, sampleCodes, type CalculatorInput, type DesignerInput } from "../src/core.js";
 
 function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
   return {
@@ -260,6 +260,26 @@ describe("parseRequired", () => {
     assert.equal(parseRequired("6x"), null);
     assert.equal(parseRequired("-5"), null);
     assert.equal(parseRequired("6.5.2m"), null);
+  });
+});
+
+describe("parseIdentifier", () => {
+  it("accepts zero and plain digits", () => {
+    assert.equal(parseIdentifier("0"), 0n);
+    assert.equal(parseIdentifier("123456789"), 123456789n);
+  });
+  it("accepts k m g b t suffixes, case-insensitive", () => {
+    assert.equal(parseIdentifier("6k"), 6000n);
+    assert.equal(parseIdentifier("2.5M"), 2500000n);
+    assert.equal(parseIdentifier("1g"), 1000000000n);
+    assert.equal(parseIdentifier("1.5B"), 1500000000n);
+    assert.equal(parseIdentifier("6T"), 6000000000000n);
+  });
+  it("rejects junk", () => {
+    assert.equal(parseIdentifier(""), null);
+    assert.equal(parseIdentifier("abc"), null);
+    assert.equal(parseIdentifier("6x"), null);
+    assert.equal(parseIdentifier("-5"), null);
   });
 });
 

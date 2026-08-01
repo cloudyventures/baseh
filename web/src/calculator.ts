@@ -1,4 +1,4 @@
-import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, friendlyError, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
+import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, friendlyError, parseIdentifier, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
 import { renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 
@@ -242,10 +242,11 @@ function render() {
     }
   }
   const idRaw = els.convId.value.trim();
+  const idParsed = idRaw === "" ? null : parseIdentifier(idRaw);
   if (idRaw === "") {
     els.convIdOut.textContent = "";
-  } else if (!/^[0-9]+$/.test(idRaw)) {
-    els.convIdOut.textContent = "an identifier is a non-negative integer, digits only";
+  } else if (idParsed === null) {
+    els.convIdOut.textContent = "an identifier is a non-negative integer; K, M, G, B and T suffixes are fine (\"1.5M\")";
   } else if (!h) {
     els.convIdOut.textContent = "the configuration is invalid, fix it to convert";
   } else {
@@ -254,7 +255,7 @@ function render() {
       const lab = document.createElement("span");
       lab.textContent = "Code: ";
       const out = document.createElement("code");
-      out.textContent = h.encode(BigInt(idRaw));
+      out.textContent = h.encode(idParsed);
       els.convIdOut.append(lab, out);
     } catch (e) {
       els.convIdOut.textContent = friendlyError(e);
