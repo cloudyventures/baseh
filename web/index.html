@@ -83,7 +83,7 @@
       <fieldset class="field">
         <legend>Permutation</legend>
         <label class="check"><input id="permutation" type="checkbox" /> On (presentation only)</label>
-        <p class="muted">Hides obvious sequence in the preview. It is not access control: the preview key is public and a real application's key must never reach a browser.</p>
+        <p class="muted">Hides obvious sequence in the preview. It is not access control: the preview key is public and a real application's key must never reach a browser. It also costs compute: with permutation off, encode is about 20x faster and decode about 13x faster (1 microsecond per code instead of tens of microseconds), so it matters for bulk encoding, not per request.</p>
       </fieldset>
       <div class="field">
         <label for="separator">Separator (optional)</label>
