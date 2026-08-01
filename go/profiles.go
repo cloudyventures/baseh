@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 // Frozen tiers. Each is built from the full alphanumeric set with cumulative
 // visual and spoken strips; the spoken strips interact with the visual ones
@@ -18,7 +18,7 @@ package basehuman
 //
 // Every helper returns a freshly-built Profile value (fresh maps, slices
 // and key bytes), so callers can load a default and modify it before
-// NewBaseh.
+// New.
 
 const (
 	minimumBodyAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -112,7 +112,7 @@ var FrozenKeyBytes = []byte("baseh-frozen-key-v1")
 
 // keyedPermutation builds the feistel-v1 permutation block for the -p
 // variants. keyID defaults to "default" and rounds to 8 when zero. Key
-// bytes are required: an empty keyBytes yields a profile that NewBaseh
+// bytes are required: an empty keyBytes yields a profile that New
 // rejects with INVALID_PROFILE. Key material is application-specific and
 // never part of the frozen profile.
 func keyedPermutation(keyBytes []byte, keyID string, rounds int) Permutation {
@@ -160,54 +160,54 @@ func buildTier(shape tierShape, permutation Permutation, pSuffix bool) Profile {
 	}
 }
 
-// BasehMinimumV1 returns the frozen baseh-minimum-v1 profile: alphanumeric,
+// MinimumV1 returns the frozen baseh-minimum-v1 profile: alphanumeric,
 // no safety strips, no checksum, hyphen-delimited XXX-XXX. Capacity
 // 2,176,782,336 ids.
-func BasehMinimumV1() Profile {
+func MinimumV1() Profile {
 	return buildTier(minimumShape(), frozenPermutation(), false)
 }
 
-// BasehMinimumPV1 is baseh-minimum with feistel-v1 permutation. Key bytes
+// MinimumPV1 is baseh-minimum with feistel-v1 permutation. Key bytes
 // are required; keyID defaults to "default" and rounds to 8.
-func BasehMinimumPV1(keyBytes []byte, keyID string, rounds int) Profile {
+func MinimumPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(minimumShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }
 
-// BasehLightV1 returns the frozen baseh-light-v1 profile: visual light plus
+// LightV1 returns the frozen baseh-light-v1 profile: visual light plus
 // spoken light, two checksum symbols, hyphen-delimited. Capacity
 // 887,503,681 ids.
-func BasehLightV1() Profile {
+func LightV1() Profile {
 	return buildTier(lightShape(), frozenPermutation(), false)
 }
 
-// BasehLightPV1 is baseh-light with feistel-v1 permutation. Key bytes
+// LightPV1 is baseh-light with feistel-v1 permutation. Key bytes
 // are required; keyID defaults to "default" and rounds to 8.
-func BasehLightPV1(keyBytes []byte, keyID string, rounds int) Profile {
+func LightPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(lightShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }
 
-// BasehMediumV1 returns the frozen baseh-medium-v1 profile: visual medium
+// MediumV1 returns the frozen baseh-medium-v1 profile: visual medium
 // plus spoken medium, two checksum symbols, hyphen-delimited. Capacity
 // 481,890,304 ids. The default tier.
-func BasehMediumV1() Profile {
+func MediumV1() Profile {
 	return buildTier(mediumShape(), frozenPermutation(), false)
 }
 
-// BasehMediumPV1 is baseh-medium with feistel-v1 permutation. Key bytes
+// MediumPV1 is baseh-medium with feistel-v1 permutation. Key bytes
 // are required; keyID defaults to "default" and rounds to 8.
-func BasehMediumPV1(keyBytes []byte, keyID string, rounds int) Profile {
+func MediumPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(mediumShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }
 
-// BasehHeavyV1 returns the frozen baseh-heavy-v1 profile: the most
+// HeavyV1 returns the frozen baseh-heavy-v1 profile: the most
 // conservative alphabet plus spoken heavy, two checksum symbols,
 // hyphen-delimited. Capacity 308,915,776 ids.
-func BasehHeavyV1() Profile {
+func HeavyV1() Profile {
 	return buildTier(heavyShape(), frozenPermutation(), false)
 }
 
-// BasehHeavyPV1 is baseh-heavy with feistel-v1 permutation. Key bytes
+// HeavyPV1 is baseh-heavy with feistel-v1 permutation. Key bytes
 // are required; keyID defaults to "default" and rounds to 8.
-func BasehHeavyPV1(keyBytes []byte, keyID string, rounds int) Profile {
+func HeavyPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(heavyShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }

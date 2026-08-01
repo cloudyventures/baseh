@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ func assertZeroCode(t *testing.T, err error, want ErrorCode) {
 }
 
 func TestZeroConfigMatchesFrozenMedium(t *testing.T) {
-	medium := mustNew(t, BasehMediumV1())
+	medium := mustNew(t, MediumV1())
 
 	cases := []int64{0, 123456789, 481890303}
 	for _, n := range cases {
