@@ -130,6 +130,77 @@ Two behaviours are worth knowing before writing the error copy:
 Applying the same recipe to the other implementations is mechanical: every one of
 them exposes `normalize`, `validate` and `decode` with these semantics.
 
+## Framework view helpers
+
+The codec is pure and stateless, so one instance per profile can live for the
+whole process. Build it once, share it, and render codes at the edge — the
+database stores the integer id, never the code string.
+
+### Rails / ERB
+
+```ruby
+# app/helpers/baseh_helper.rb
+module BasehHelper
+  # Built once at boot; the codec is immutable after preparation and safe to
+  # share across threads and requests.
+  CODEC = Baseh::Baseh.new(Baseh.baseh_expandable_v1)
+
+  # <%= baseh_code(@order) %> -> "8J4Q" (grows as the id space climbs)
+  def baseh_code(record)
+    CODEC.encode(id: record.id)
+  end
+end
+```
+
+```erb
+<p>Your reference is <strong><%= baseh_code(@order) %></strong>.</p>
+```
+
+Decoding is controller work, not helper work. Treat the code as an opaque
+alias: decode, then authorize, and return the same response for "no such
+record" and "not yours" (see the security checklist below):
+
+```ruby
+class OrdersController < ApplicationController
+  before_action :set_order, only: :show
+
+  private
+
+  def set_order
+    id = BasehHelper::CODEC.decode(params[:code]).id
+    @order = current_account.orders.find(id)
+  rescue Baseh::BasehError, ActiveRecord::RecordNotFound
+    render_not_found
+  end
+end
+```
+
+Three rules make this pattern work:
+
+- **One codec, not one per request.** `Baseh::Baseh.new` runs profile
+  preparation (alphabet derivation, key scheduling). Hoist it into a constant
+  or an initializer; never build it inside the helper method.
+- **Keep the id server-side.** The helper emits the code; the record's integer
+  id never appears in markup, URLs or logs. The route carries the code
+  (`/orders/8J4Q`), the controller decodes it.
+- **Catch `Baseh::BasehError`, branch on `e.code` if you must, not on the
+  message text.** Typed `O`/`I`/`L`, lowercase and missing separators are
+  normalized away before decoding, so a rescue here means a genuinely wrong or
+  out-of-namespace code — the same user-facing "not found" either way.
+
+### Other frameworks
+
+The recipe is identical everywhere; only the injection point differs:
+
+- **Django (Python)**: a custom template filter (`@register.filter`) wrapping a
+  module-level `Baseh(baseh_expandable_v1())` — `{{ order.id|baseh_code }}`.
+- **Express (TypeScript)**: a module-level codec with a locals/helper function,
+  or format in the route handler and pass the string to the template.
+- **Go `html/template`**: register a `template.FuncMap` entry (`"basehCode"`)
+  closing over the shared `*baseh.Codec`.
+- **Rust**: call the codec in the handler and pass the rendered string into
+  whichever template engine you use; a filter/helper indirection buys little.
+
 ## Observability
 
 Record:
