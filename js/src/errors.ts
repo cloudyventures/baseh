@@ -1,4 +1,4 @@
-/** Error codes defined by the BaseH codec specification. */
+/** Error codes defined by the baseH codec specification. */
 export type BasehErrorCode =
   | "INVALID_PROFILE"
   | "OUT_OF_RANGE"

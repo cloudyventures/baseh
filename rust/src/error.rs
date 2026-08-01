@@ -1,4 +1,4 @@
-//! Error codes defined by the BaseH codec specification (spec section 13).
+//! Error codes defined by the baseH codec specification (spec section 13).
 
 use std::fmt;
 

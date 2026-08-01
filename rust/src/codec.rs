@@ -203,7 +203,7 @@ fn generate_candidates(
     Ok(results)
 }
 
-/// A BaseH codec bound to a validated profile. Pure and stateless; safe to
+/// A baseH codec bound to a validated profile. Pure and stateless; safe to
 /// share across threads.
 pub struct Baseh {
     profile: PreparedProfile,

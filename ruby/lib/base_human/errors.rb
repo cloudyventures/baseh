@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module BaseHuman
-  # Error raised by every BaseH failure path. #code is one of the spec error
+  # Error raised by every baseH failure path. #code is one of the spec error
   # codes (spec sections 12, 13 and 18).
   class BasehError < StandardError
     CODES = %w[
@@ -23,7 +23,7 @@ module BaseHuman
     attr_reader :safe_for_customer
 
     def initialize(code, message, safe_for_customer: true)
-      raise ArgumentError, "unknown BaseH error code #{code}" unless CODES.include?(code)
+      raise ArgumentError, "unknown baseH error code #{code}" unless CODES.include?(code)
 
       super(message)
       @code = code

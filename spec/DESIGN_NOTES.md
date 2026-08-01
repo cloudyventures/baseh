@@ -1,10 +1,10 @@
-# BaseH Design Notes
+# baseH Design Notes
 
 ## 1. Key decisions
 
 ### 1.1 Codes are aliases
 
-The database ID remains authoritative. BaseH is a customer-facing representation.
+The database ID remains authoritative. baseH is a customer-facing representation.
 
 ### 1.2 Capacity comes only from the body
 

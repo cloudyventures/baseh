@@ -48,7 +48,7 @@ pub const DEFAULT_BLOCKLIST: [&str; 12] = [
     "CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC", "SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
 ];
 
-/// A BaseH profile. Construct one, pass it to [`crate::Baseh::new`] and keep
+/// A baseH profile. Construct one, pass it to [`crate::Baseh::new`] and keep
 /// the resulting codec. Profiles are validated at construction per spec 2.2.
 ///
 /// `aliases` is a list of `(source, target)` pairs rather than a map so that
@@ -85,7 +85,7 @@ pub(crate) struct PreparedProfile {
 fn fail(reason: impl Into<String>) -> BasehError {
     BasehError::new(
         ErrorCode::InvalidProfile,
-        format!("Invalid BaseH profile: {}", reason.into()),
+        format!("Invalid baseH profile: {}", reason.into()),
         false,
     )
 }

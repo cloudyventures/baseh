@@ -40,7 +40,7 @@ export interface PreparedProfile extends BasehProfile {
 const ASCII_ONLY = /^[\x20-\x7e]*$/;
 
 function fail(reason: string): never {
-  throw new BasehError("INVALID_PROFILE", `Invalid BaseH profile: ${reason}`, false);
+  throw new BasehError("INVALID_PROFILE", `Invalid baseH profile: ${reason}`, false);
 }
 
 function isAsciiChar(ch: string): boolean {

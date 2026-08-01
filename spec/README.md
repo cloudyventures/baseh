@@ -1,4 +1,4 @@
-# BaseH
+# baseH
 
 ## Status
 
@@ -6,9 +6,9 @@ Implementation specification.
 
 ## Purpose
 
-BaseH is base36 reworked for humans. It converts non-negative integers into short alphanumeric references that people can read, type and dictate, using an alphabet chosen to avoid transcription confusion plus a checksum. It is intended for order numbers, support tickets, cases, returns, bookings and similar records.
+baseH is base36 reworked for humans. It converts non-negative integers into short alphanumeric references that people can read, type and dictate, using an alphabet chosen to avoid transcription confusion plus a checksum. It is intended for order numbers, support tickets, cases, returns, bookings and similar records.
 
-The encoded value is reversible. A system can convert an internal numeric identifier into a BaseH and convert a valid BaseH back into the same identifier.
+The encoded value is reversible. A system can convert an internal numeric identifier into a baseH and convert a valid baseH back into the same identifier.
 
 ## Design goals
 
@@ -33,7 +33,7 @@ The encoded value is reversible. A system can convert an internal numeric identi
 - Protection against deliberate guessing.
 - Replacement for an internal database key.
 
-An BaseH is a reference alias. Access control must not depend on its secrecy.
+An baseH is a reference alias. Access control must not depend on its secrecy.
 
 ## Documents
 
@@ -132,7 +132,7 @@ Checksum calculation
 Formatting
     |
     v
-Displayed BaseH
+Displayed baseH
 ```
 
 Decoding performs the reverse sequence:

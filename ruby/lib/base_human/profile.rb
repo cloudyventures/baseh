@@ -71,7 +71,7 @@ module BaseHuman
       private
 
       def self.fail_profile!(reason)
-        raise BasehError.new("INVALID_PROFILE", "Invalid BaseH profile: #{reason}", safe_for_customer: false)
+        raise BasehError.new("INVALID_PROFILE", "Invalid baseH profile: #{reason}", safe_for_customer: false)
       end
 
       def ascii_char?(ch)

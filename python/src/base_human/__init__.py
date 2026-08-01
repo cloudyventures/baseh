@@ -1,4 +1,4 @@
-"""BaseH codec, Python implementation.
+"""baseH codec, Python implementation.
 
 Public API mirrors spec section 12: the Baseh codec class, BasehError with a
 stable .code attribute and the frozen profile tier helpers (baseh_medium_v1
@@ -29,6 +29,7 @@ from .profiles import (
     baseh_minimum_p_v1,
     baseh_minimum_v1,
 )
+from .zero import from_code, to_code
 
 __all__ = [
     "Baseh",
@@ -54,6 +55,8 @@ __all__ = [
     "AMBIGUOUS_INPUT",
     "TOO_MANY_CANDIDATES",
     "BLOCKED_CODE",
+    "to_code",
+    "from_code",
 ]
 
 __version__ = "1.0.0"

@@ -1,4 +1,4 @@
-"""Error type and codes defined by the BaseH codec specification."""
+"""Error type and codes defined by the baseH codec specification."""
 
 INVALID_PROFILE = "INVALID_PROFILE"
 OUT_OF_RANGE = "OUT_OF_RANGE"
@@ -31,6 +31,6 @@ class BasehError(Exception):
     def __init__(self, code: str, message: str, safe_for_customer: bool = True) -> None:
         super().__init__(message)
         if code not in ERROR_CODES:
-            raise ValueError(f"unknown BaseH error code: {code!r}")
+            raise ValueError(f"unknown baseH error code: {code!r}")
         self.code = code
         self.safe_for_customer = safe_for_customer

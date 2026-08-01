@@ -20,7 +20,7 @@ export const DEFAULT_BLOCKLIST: readonly string[] = [
 const WORD = /^[A-Za-z]{2,32}$/;
 
 function fail(reason: string): never {
-  throw new BasehError("INVALID_PROFILE", `Invalid BaseH profile: ${reason}`, false);
+  throw new BasehError("INVALID_PROFILE", `Invalid baseH profile: ${reason}`, false);
 }
 
 /** Spec 18.2: replacement semantics, then augmentation, uppercased and deduplicated. */

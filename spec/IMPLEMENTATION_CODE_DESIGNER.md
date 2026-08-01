@@ -1,4 +1,4 @@
-# BaseH Code Designer
+# baseH Code Designer
 
 ## 1. Purpose
 
