@@ -139,7 +139,7 @@ function expandableCard(input: DesignerInput): string {
   let samples = "";
   try {
     const h = new Baseh(expandableProfile(d, input, input.permutation));
-    const table = generationTable(d.bodyAlphabet.length, d.checksumLength, d.minLength, 2);
+    const table = generationTable(d.bodyAlphabet.length, d.checksumLength, d.minLength, 2, d.shortChecksumLength, d.shortChecksumUntil);
     const ids = new Set([0n, table[0]!.cumulative - 1n, table[0]!.cumulative]);
     samples = [...ids].map((id) => {
       try {
@@ -160,7 +160,7 @@ function expandableCard(input: DesignerInput): string {
     <div>First generation: <strong title="${fmtFull(d.startCapacity)}">${fmt(d.startCapacity)}</strong> IDs &middot;
       through length ${d.generation}: <strong title="${fmtFull(d.cumulativeAtGeneration)}">${fmt(d.cumulativeAtGeneration)}</strong> IDs</div>
     <div>${d.displayedAtStart} displayed chars at first, ${grows}</div>
-    <div>Alphabet: <code>${d.alphabetId}</code> (${d.bodyAlphabet.length} symbols, no 0/O) &middot; ${d.checksumLength} checksum${d.checksumLength === 1 ? "" : "s"}</div>
+    <div>Alphabet: <code>${d.alphabetId}</code> (${d.bodyAlphabet.length} symbols, no 0/O) &middot; ${d.shortChecksumLength} checksum through length ${d.shortChecksumUntil}, ${d.checksumLength} above</div>
     ${samples ? `<div class="samples">${samples}</div>` : ""}
   </div>`;
 }

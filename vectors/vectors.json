@@ -380,6 +380,8 @@
         "minLength": 4,
         "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
         "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 5,
         "caseSensitive": false,
         "separator": "-",
         "separatorMinLength": 6,
@@ -408,26 +410,26 @@
         {
           "length": 4,
           "base": "0",
-          "capacity": "1156"
-        },
-        {
-          "length": 5,
-          "base": "1156",
           "capacity": "39304"
         },
         {
+          "length": 5,
+          "base": "39304",
+          "capacity": "1336336"
+        },
+        {
           "length": 6,
-          "base": "40460",
+          "base": "1375640",
           "capacity": "1336336"
         },
         {
           "length": 7,
-          "base": "1376796",
+          "base": "2711976",
           "capacity": "45435424"
         },
         {
           "length": 8,
-          "base": "46812220",
+          "base": "48147400",
           "capacity": "1544804416"
         }
       ]
@@ -2215,320 +2217,320 @@
     {
       "profileId": "baseh-expandable-v1",
       "id": "0",
-      "canonicalCode": "W9PF",
-      "rawBody": "W9",
-      "rawChecksum": "PF"
+      "canonicalCode": "R59D",
+      "rawBody": "R59",
+      "rawChecksum": "D"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "231",
-      "canonicalCode": "JWCD",
-      "rawBody": "JW",
-      "rawChecksum": "CD"
+      "id": "9656",
+      "canonicalCode": "6F3H",
+      "rawBody": "6F3",
+      "rawChecksum": "H"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "408",
-      "canonicalCode": "SFKD",
-      "rawBody": "SF",
-      "rawChecksum": "KD"
+      "id": "10878",
+      "canonicalCode": "11XY",
+      "rawBody": "11X",
+      "rawChecksum": "Y"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "474",
-      "canonicalCode": "BV3W",
-      "rawBody": "BV",
-      "rawChecksum": "3W"
+      "id": "17571",
+      "canonicalCode": "K2BK",
+      "rawBody": "K2B",
+      "rawChecksum": "K"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "732",
-      "canonicalCode": "32UM",
-      "rawBody": "32",
-      "rawChecksum": "UM"
+      "id": "22709",
+      "canonicalCode": "TB5U",
+      "rawBody": "TB5",
+      "rawChecksum": "U"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "745",
-      "canonicalCode": "AU2T",
-      "rawBody": "AU",
-      "rawChecksum": "2T"
+      "id": "22919",
+      "canonicalCode": "F3PF",
+      "rawBody": "F3P",
+      "rawChecksum": "F"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "955",
-      "canonicalCode": "7BZ4",
-      "rawBody": "7B",
-      "rawChecksum": "Z4"
+      "id": "30788",
+      "canonicalCode": "S8CR",
+      "rawBody": "S8C",
+      "rawChecksum": "R"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1155",
-      "canonicalCode": "KLD5",
-      "rawBody": "KL",
-      "rawChecksum": "D5"
+      "id": "39303",
+      "canonicalCode": "8JRL",
+      "rawBody": "8JR",
+      "rawChecksum": "L"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1156",
-      "canonicalCode": "RQCQL",
-      "rawBody": "RQC",
-      "rawChecksum": "QL"
+      "id": "39304",
+      "canonicalCode": "KFGEE",
+      "rawBody": "KFGE",
+      "rawChecksum": "E"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "8647",
-      "canonicalCode": "49INC",
-      "rawBody": "49I",
-      "rawChecksum": "NC"
+      "id": "415164",
+      "canonicalCode": "AHLRZ",
+      "rawBody": "AHLR",
+      "rawChecksum": "Z"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "12393",
-      "canonicalCode": "YSFLL",
-      "rawBody": "YSF",
-      "rawChecksum": "LL"
+      "id": "561493",
+      "canonicalCode": "54WU0",
+      "rawBody": "54WU",
+      "rawChecksum": "0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "13866",
-      "canonicalCode": "KMBXQ",
-      "rawBody": "KMB",
-      "rawChecksum": "XQ"
+      "id": "754267",
+      "canonicalCode": "3BQ4A",
+      "rawBody": "3BQ4",
+      "rawChecksum": "A"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "23280",
-      "canonicalCode": "HKBI9",
-      "rawBody": "HKB",
-      "rawChecksum": "I9"
+      "id": "935281",
+      "canonicalCode": "M429N",
+      "rawBody": "M429",
+      "rawChecksum": "N"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "24022",
-      "canonicalCode": "RT6TL",
-      "rawBody": "RT6",
-      "rawChecksum": "TL"
+      "id": "995310",
+      "canonicalCode": "YX9ZH",
+      "rawBody": "YX9Z",
+      "rawChecksum": "H"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "32445",
-      "canonicalCode": "HTSS6",
-      "rawBody": "HTS",
-      "rawChecksum": "S6"
+      "id": "1241290",
+      "canonicalCode": "XH3CK",
+      "rawBody": "XH3C",
+      "rawChecksum": "K"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "40459",
-      "canonicalCode": "NAWXY",
-      "rawBody": "NAW",
-      "rawChecksum": "XY"
+      "id": "1375639",
+      "canonicalCode": "27ZBB",
+      "rawBody": "27ZB",
+      "rawChecksum": "B"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "40460",
+      "id": "1375640",
       "canonicalCode": "1EE-53K",
       "rawBody": "1EE5",
       "rawChecksum": "3K"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "281366",
+      "id": "1616546",
       "canonicalCode": "9DB-CPB",
       "rawBody": "9DBC",
       "rawChecksum": "PB"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "308909",
+      "id": "1644089",
       "canonicalCode": "YSE-CTK",
       "rawBody": "YSEC",
       "rawChecksum": "TK"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "321976",
+      "id": "1657156",
       "canonicalCode": "LNY-LQQ",
       "rawBody": "LNYL",
       "rawChecksum": "QQ"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "578787",
+      "id": "1913967",
       "canonicalCode": "CLD-6QV",
       "rawBody": "CLD6",
       "rawChecksum": "QV"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1110868",
+      "id": "2446048",
       "canonicalCode": "VHS-JZP",
       "rawBody": "VHSJ",
       "rawChecksum": "ZP"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1367319",
+      "id": "2702499",
       "canonicalCode": "RM6-FJ1",
       "rawBody": "RM6F",
       "rawChecksum": "J1"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1376795",
+      "id": "2711975",
       "canonicalCode": "JD8-437",
       "rawBody": "JD84",
       "rawChecksum": "37"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1376796",
+      "id": "2711976",
       "canonicalCode": "BQVG-G49",
       "rawBody": "BQVGG",
       "rawChecksum": "49"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2494977",
+      "id": "3830157",
       "canonicalCode": "7AJ3-4GN",
       "rawBody": "7AJ34",
       "rawChecksum": "GN"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "8981132",
+      "id": "10316312",
       "canonicalCode": "UEC2-RFE",
       "rawBody": "UEC2R",
       "rawChecksum": "FE"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "18748458",
+      "id": "20083638",
       "canonicalCode": "GRD1-TNB",
       "rawBody": "GRD1T",
       "rawChecksum": "NB"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "27474821",
+      "id": "28810001",
       "canonicalCode": "ACHK-68A",
       "rawBody": "ACHK6",
       "rawChecksum": "8A"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "27537054",
+      "id": "28872234",
       "canonicalCode": "LFKG-PQM",
       "rawBody": "LFKGP",
       "rawChecksum": "QM"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "32963579",
+      "id": "34298759",
       "canonicalCode": "7JHV-G7D",
       "rawBody": "7JHVG",
       "rawChecksum": "7D"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "46812219",
+      "id": "48147399",
       "canonicalCode": "DL4C-VEG",
       "rawBody": "DL4CV",
       "rawChecksum": "EG"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "46812220",
+      "id": "48147400",
       "canonicalCode": "LLNZ-CVH2",
       "rawBody": "LLNZCV",
       "rawChecksum": "H2"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "437314463",
+      "id": "438649643",
       "canonicalCode": "TV48-7L5Q",
       "rawBody": "TV487L",
       "rawChecksum": "5Q"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "717095776",
+      "id": "718430956",
       "canonicalCode": "CT1N-62ZL",
       "rawBody": "CT1N62",
       "rawChecksum": "ZL"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "884906313",
+      "id": "886241493",
       "canonicalCode": "97YI-FVGB",
       "rawBody": "97YIFV",
       "rawChecksum": "GB"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1144399828",
+      "id": "1145735008",
       "canonicalCode": "YCAQ-J2GI",
       "rawBody": "YCAQJ2",
       "rawChecksum": "GI"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1273412483",
+      "id": "1274747663",
       "canonicalCode": "45Z5-6IKQ",
       "rawBody": "45Z56I",
       "rawChecksum": "KQ"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1522362290",
+      "id": "1523697470",
       "canonicalCode": "EJWF-KM8M",
       "rawBody": "EJWFKM",
       "rawChecksum": "8M"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1591616635",
+      "id": "1592951815",
       "canonicalCode": "UC9E-747R",
       "rawBody": "UC9E74",
       "rawChecksum": "7R"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "7",
-      "canonicalCode": "P8H0",
-      "rawBody": "P8",
-      "rawChecksum": "H0",
+      "id": "2",
+      "canonicalCode": "DCZ0",
+      "rawBody": "DCZ",
+      "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "68",
-      "canonicalCode": "ET70",
-      "rawBody": "ET",
-      "rawChecksum": "70",
+      "id": "17",
+      "canonicalCode": "UZW0",
+      "rawBody": "UZW",
+      "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "82",
-      "canonicalCode": "8904",
-      "rawBody": "89",
-      "rawChecksum": "04",
+      "id": "32",
+      "canonicalCode": "4DY0",
+      "rawBody": "4DY",
+      "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "110",
-      "canonicalCode": "1JT0",
-      "rawBody": "1J",
-      "rawChecksum": "T0",
+      "id": "35",
+      "canonicalCode": "ZI80",
+      "rawBody": "ZI8",
+      "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "P8HO",
-      "id": "7",
-      "canonicalCode": "P8H0",
+      "input": "DCZO",
+      "id": "2",
+      "canonicalCode": "DCZ0",
       "note": "typed O in checksum position aliases to 0"
     }
   ],
@@ -2615,22 +2617,22 @@
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "09WY",
+      "input": "0HGN",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "O9WY",
+      "input": "OHGN",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "59-WY",
+      "input": "CH-GN",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "59WYA",
+      "input": "CHGNA",
       "error": "INVALID_CHECKSUM"
     }
   ],

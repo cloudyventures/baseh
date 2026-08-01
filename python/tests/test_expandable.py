@@ -19,6 +19,7 @@ from baseh import (  # noqa: E402
     baseh_expandable_p_v1,
     baseh_expandable_v1,
     baseh_medium_v1,
+    effective_checksum_length,
     expandable_grouping,
     generation_base,
     generation_capacity,
@@ -76,12 +77,14 @@ class TestFrozenTierShape(unittest.TestCase):
         self.assertEqual(profile.separator_min_length, 6)
 
     def test_generation_table(self):
+        # Short checksum on (spec 22): one checksum symbol through length 5,
+        # two from 6 up, so generations 5 and 6 have equal capacity.
         expected = [
-            (4, "0", "1156"),
-            (5, "1156", "39304"),
-            (6, "40460", "1336336"),
-            (7, "1376796", "45435424"),
-            (8, "46812220", "1544804416"),
+            (4, "0", "39304"),
+            (5, "39304", "1336336"),
+            (6, "1375640", "1336336"),
+            (7, "2711976", "45435424"),
+            (8, "48147400", "1544804416"),
         ]
         for length, base, cap in expected:
             with self.subTest(length=length):
@@ -122,12 +125,12 @@ class TestBoundaryRoundTrips(unittest.TestCase):
                     self.assertNotEqual(_raw(code)[0], "O")
 
     def test_last_four_char_and_first_five_char(self):
-        self.assertEqual(len(_raw(self.codec.encode(1155))), 4)
-        self.assertEqual(len(_raw(self.codec.encode(1156))), 5)
+        self.assertEqual(len(_raw(self.codec.encode(39303))), 4)
+        self.assertEqual(len(_raw(self.codec.encode(39304))), 5)
 
     def test_exhaustive_generation_four(self):
         issued = 0
-        for id in range(1156):
+        for id in range(39304):
             try:
                 code = self.codec.encode(id)
             except BasehError as err:
@@ -137,7 +140,7 @@ class TestBoundaryRoundTrips(unittest.TestCase):
             self.assertEqual(len(_raw(code)), 4)
             self.assertEqual(self.codec.decode(code).id, id)
             issued += 1
-        self.assertGreater(issued, 1100)
+        self.assertGreater(issued, 38500)
 
     def test_custom_profile_boundaries(self):
         codec = Baseh(_custom_expandable())
@@ -227,20 +230,24 @@ class TestChecksumWithZero(unittest.TestCase):
 
     def test_substitution_and_transposition_detection(self):
         # M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-        # (spec 17.1); the sweep pins it at generations 4, 6 and 8.
+        # at the full two-symbol checksum (spec 17.1). The short-checksum
+        # generations (<= 5, spec 22) run modulus 35 and are excluded; the
+        # sweep pins total detection at generations 6 and 8.
         profile = self.codec.profile
         index = alphabet_index(profile.body_alphabet_norm)
         alphabet = profile.body_alphabet_norm
-        for length in (4, 6, 8):
+        for length in (6, 8):
             base = generation_base(profile, length)
-            body_len = length - profile.checksum_length
+            effective_k = effective_checksum_length(profile, length)
+            self.assertEqual(effective_k, 2)
+            body_len = length - effective_k
             misses = 0
             for id in range(base, base + 50):
                 code = self._encodable(id)
                 if code is None:
                     continue
                 body = _raw(code)[:body_len]
-                before = checksum_value(profile, body, index)
+                before = checksum_value(profile, body, index, effective_k)
                 for pos in range(body_len):
                     cur = index[body[pos]]
                     for delta in (1, 5, 17):
@@ -249,7 +256,7 @@ class TestChecksumWithZero(unittest.TestCase):
                             + alphabet[(cur + delta) % 34]
                             + body[pos + 1 :]
                         )
-                        if checksum_value(profile, candidate, index) == before:
+                        if checksum_value(profile, candidate, index, effective_k) == before:
                             misses += 1
                 for pos in range(body_len - 1):
                     if body[pos] == body[pos + 1]:
@@ -257,7 +264,7 @@ class TestChecksumWithZero(unittest.TestCase):
                     swapped = (
                         body[:pos] + body[pos + 1] + body[pos] + body[pos + 2 :]
                     )
-                    if checksum_value(profile, swapped, index) == before:
+                    if checksum_value(profile, swapped, index, effective_k) == before:
                         misses += 1
             self.assertEqual(misses, 0, f"generation {length} had {misses} misses")
 

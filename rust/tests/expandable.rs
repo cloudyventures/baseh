@@ -23,6 +23,8 @@ fn custom_expandable() -> Profile {
         min_length: 3,
         checksum_alphabet: String::new(),
         checksum_length: 1,
+        short_checksum_length: 0,
+        short_checksum_until: 0,
         case_sensitive: false,
         separator: String::new(),
         separator_min_length: 0,
@@ -64,14 +66,20 @@ fn frozen_tier_shape() {
     assert_eq!(h.profile().mode, Mode::Expandable);
     assert_eq!(h.profile().min_length, 4);
     assert_eq!(h.profile().separator_min_length, 6);
-    // The generation table of spec 17.1 pins the derived alphabets: 34 body
-    // symbols (34^(L-2) per generation) and modulus 35^2 = 1225.
+    // Spec 22.5: the frozen tier ships the short checksum on, one symbol
+    // through total length 5 and two above.
+    assert_eq!(h.profile().checksum_length, 2);
+    assert_eq!(h.profile().short_checksum_length, 1);
+    assert_eq!(h.profile().short_checksum_until, 5);
+    // The generation table of spec 22.3 pins the derived alphabets: 34 body
+    // symbols (34^(L-effectiveK(L)) per generation), modulus 35 at the short
+    // generations and 35^2 = 1225 above.
     let expected: [(usize, u64, u64); 5] = [
-        (4, 0, 1156),
-        (5, 1156, 39304),
-        (6, 40460, 1336336),
-        (7, 1376796, 45435424),
-        (8, 46812220, 1544804416),
+        (4, 0, 39304),
+        (5, 39304, 1336336),
+        (6, 1375640, 1336336),
+        (7, 2711976, 45435424),
+        (8, 48147400, 1544804416),
     ];
     for (l, base, cap) in expected {
         assert_eq!(h.generation_base(l), big(base), "generation base {l}");
@@ -109,15 +117,16 @@ fn boundary_round_trips() {
 #[test]
 fn generation_four_and_five_boundary() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    assert_eq!(raw(&h.encode(&big(1155)).unwrap()).len(), 4);
-    assert_eq!(raw(&h.encode(&big(1156)).unwrap()).len(), 5);
+    // With the short checksum on, generation 4 holds 34^3 = 39,304 ids.
+    assert_eq!(raw(&h.encode(&big(39303)).unwrap()).len(), 4);
+    assert_eq!(raw(&h.encode(&big(39304)).unwrap()).len(), 5);
 }
 
 #[test]
 fn exhaustive_generation_four_round_trip() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let mut issued = 0u32;
-    for id in 0..1156u64 {
+    for id in 0..39304u64 {
         let code = match h.encode(&big(id)) {
             Ok(code) => code,
             Err(err) => {
@@ -130,7 +139,7 @@ fn exhaustive_generation_four_round_trip() {
         assert_eq!(h.decode(&code, &strict()).unwrap().id, big(id));
         issued += 1;
     }
-    assert!(issued > 1100, "expected nearly all 1156 ids issuable, got {issued}");
+    assert!(issued > 39000, "expected nearly all 39304 ids issuable, got {issued}");
 }
 
 #[test]
@@ -218,13 +227,14 @@ fn typed_o_in_checksum_position_aliases_to_zero() {
 
 #[test]
 fn checksum_detects_substitutions_and_transpositions() {
-    // M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-    // (spec 17.1); the sweep pins it at generations 4, 6 and 8.
+    // Detection is provably total at every generation (spec 17.1/22.3: the
+    // modulus 35 or 1225 exceeds 33 and is coprime to 36); the sweep pins it
+    // at generations 4, 6 and 8.
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let alphabet: Vec<char> = EXPANDABLE_BODY.chars().collect();
     for l in [4usize, 6, 8] {
         let base = h.generation_base(l);
-        let body_len = l - h.profile().checksum_length;
+        let body_len = l - h.effective_checksum_length(l);
         let mut misses = 0u32;
         for offset in 0..50u64 {
             let Ok(code) = h.encode(&(&base + big(offset))) else { continue };
@@ -344,7 +354,15 @@ fn wrong_generation_rejection() {
         expect_error(h.decode(&longer, &strict()), outcome.reason.unwrap());
     }
     // A code with a symbol removed fails.
-    let code = raw(&h.encode(&big(40460)).unwrap()); // generation 6
+    let gen6 = h.generation_base(6);
+    let mut code = None;
+    for probe in 0..1000u64 {
+        if let Ok(c) = h.encode(&(&gen6 + big(probe))) {
+            code = Some(raw(&c));
+            break;
+        }
+    }
+    let code = code.expect("an issuable generation-6 id");
     assert!(!h.validate(&code[1..], &strict()).valid);
 }
 

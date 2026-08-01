@@ -494,3 +494,44 @@ as a run of 6. A per-group scan would be slightly more permissive (a run
 straddling the separator would pass), but spec simplicity beats the marginal
 over-ban: one scan rule, no group-aware special case, and implementations
 cannot disagree about where a group boundary fell.
+
+## 26. Short checksum (decided 2026-08)
+
+The settled design is normative in `IMPLEMENTATION_CODEC.md` section 22;
+this note records the trade-offs.
+
+### Why trade a checksum symbol for room at the shortest lengths
+
+The expandable tier's shortest generations are the ones customers type most:
+every namespace starts at four characters, and small namespaces live there
+forever. Two checksum symbols out of four meant half the code was overhead
+and generation 4 held only `34^2 = 1,156` ids — a busy small namespace hit
+five characters almost immediately. Dropping to one checksum symbol through
+five characters makes generation 4 hold `34^3 = 39,304` ids (34x more) and
+generation 5 `34^4 = 1,336,336`, so the four- and five-character eras cover
+the namespaces that actually live in them. The cost is real and deliberately
+accepted: one checksum symbol at modulus 35 catches about 97.1% of single
+substitutions and adjacent-transposition detection is no longer total,
+versus provably total detection with two symbols at modulus 1,225 (spec
+6.3). From six characters up nothing changes.
+
+### Why this is configuration, not an override
+
+The fields live on the profile, ship in the frozen tier definition, and are
+displayed by tooling: an operator who asks for `checksumLength: 2` and
+leaves the short checksum off gets two symbols at every length, exactly as
+before. Presets are configuration helpers, not hidden rules — the frozen
+tier is a starting profile the caller can read and modify, and the short
+checksum is part of what it openly declares, never a silent downgrade of a
+requested checksum length. Validation reinforces this: a
+`shortChecksumLength` equal to or above `checksumLength` is rejected rather
+than ignored, and fixed mode rejects the fields outright.
+
+### Why generations 5 and 6 have equal capacity
+
+With `shortChecksumUntil: 5` and `checksumLength: 2`, generation 6's extra
+symbol buys back the second checksum instead of capacity, so generations 5
+and 6 both hold `34^4` ids. The alternative — extending the window to 6 —
+would push the weaker detection rate into the length where codes start
+carrying separators and heavier use; ending at 5 keeps the trade-off
+confined to the two shortest, most-typed generations.

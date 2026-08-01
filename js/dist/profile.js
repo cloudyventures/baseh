@@ -1,5 +1,16 @@
 import { BasehError } from "./errors.js";
 import { effectiveBlocklist, stripVowels } from "./blocklist.js";
+/**
+ * Spec 22. The checksum length that applies to a generation of the given
+ * total length: `shortChecksumLength` at or below `shortChecksumUntil`,
+ * `checksumLength` above it (and always in fixed mode).
+ */
+export function effectiveChecksumLength(profile, length) {
+    if (profile.mode === "expandable" && profile.shortChecksumLength > 0 && length <= profile.shortChecksumUntil) {
+        return profile.shortChecksumLength;
+    }
+    return profile.checksumLength;
+}
 const ASCII_ONLY = /^[\x20-\x7e]*$/;
 function fail(reason) {
     throw new BasehError("INVALID_PROFILE", `Invalid baseH profile: ${reason}`, false);
@@ -82,6 +93,31 @@ export function prepareProfile(profile) {
         if (!Number.isInteger(separatorMinLength) || separatorMinLength < 0) {
             fail("separatorMinLength must be an integer of at least 0");
         }
+    }
+    // Spec 22. The short checksum is expandable-only; 0 or absent turns it off.
+    const shortChecksumLength = profile.shortChecksumLength ?? 0;
+    const shortChecksumUntil = profile.shortChecksumUntil ?? 0;
+    if (mode === "fixed") {
+        if (shortChecksumLength !== 0 || shortChecksumUntil !== 0) {
+            fail("shortChecksumLength and shortChecksumUntil are expandable-mode only");
+        }
+    }
+    else if (shortChecksumLength !== 0) {
+        if (!Number.isInteger(shortChecksumLength) || shortChecksumLength < 1) {
+            fail("shortChecksumLength must be an integer of at least 1");
+        }
+        if (profile.checksumLength < 1 || shortChecksumLength >= profile.checksumLength) {
+            fail("shortChecksumLength must be less than checksumLength");
+        }
+        if (!Number.isInteger(profile.shortChecksumUntil) || shortChecksumUntil < minLength) {
+            fail("shortChecksumUntil must be an integer of at least minLength");
+        }
+        if (minLength <= shortChecksumLength) {
+            fail("minLength must be greater than shortChecksumLength");
+        }
+    }
+    else if (shortChecksumUntil !== 0) {
+        fail("shortChecksumUntil requires shortChecksumLength");
     }
     const checksumAlphabet = profile.checksumAlphabet ?? "";
     let checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");
@@ -217,7 +253,9 @@ export function prepareProfile(profile) {
         checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
         capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength ?? 0),
         blocklist,
-        maxRepetition
+        maxRepetition,
+        shortChecksumLength,
+        shortChecksumUntil
     };
 }
 function bodySum(grouping) {

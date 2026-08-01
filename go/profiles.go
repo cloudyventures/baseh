@@ -215,36 +215,41 @@ func HeavyPV1(keyBytes []byte, keyID string, rounds int) Profile {
 
 // Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
 // zero ban of section 19.2)". The prose, the generation-capacity table
-// (34^(L-2); 1,156 ids at length 4) and the checksum modulus
-// (35^2 = 1,225) are all consistent only with 34 symbols.
+// (34^(L-effectiveK); 39,304 ids at length 4 with the spec-22.5 short
+// checksum) and the checksum modulus (35^2 = 1,225) are all consistent
+// only with 34 symbols.
 const expandableBodyAlphabet = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
 // buildExpandableTier assembles the frozen expandable tier of spec 17.1:
 // four characters while the namespace is small, gaining one symbol
 // automatically as issuance climbs past each generation's capacity. The
 // checksum alphabet derives as "0" plus the body (35 symbols, modulus
-// 1225). The hyphen appears from six characters up, with the balanced
-// grouping of spec 19.5 (no configurable pattern; grouping stays empty).
+// 1225); per spec 22.5 the short checksum drops to a single symbol
+// (modulus 35) through total length 5. The hyphen appears from six
+// characters up, with the balanced grouping of spec 19.5 (no configurable
+// pattern; grouping stays empty).
 func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
 	id := "baseh-expandable-v1"
 	if pSuffix {
 		id = "baseh-expandable-p-v1"
 	}
 	return Profile{
-		ProfileID:          id,
-		Mode:               "expandable",
-		BodyAlphabet:       expandableBodyAlphabet,
-		MinLength:          4,
-		ChecksumAlphabet:   "0" + expandableBodyAlphabet,
-		ChecksumLength:     2,
-		CaseSensitive:      false,
-		Separator:          "-",
-		SeparatorMinLength: 6,
-		Grouping:           nil,
-		Aliases:            tierAliases("T", "P", "N", "M", "W", "V"),
-		Permutation:        permutation,
-		Profanity:          Profanity{Mode: ProfanityBlocklist},
-		MaxRepetition:      4,
+		ProfileID:           id,
+		Mode:                "expandable",
+		BodyAlphabet:        expandableBodyAlphabet,
+		MinLength:           4,
+		ChecksumAlphabet:    "0" + expandableBodyAlphabet,
+		ChecksumLength:      2,
+		ShortChecksumLength: 1,
+		ShortChecksumUntil:  5,
+		CaseSensitive:       false,
+		Separator:           "-",
+		SeparatorMinLength:  6,
+		Grouping:            nil,
+		Aliases:             tierAliases("T", "P", "N", "M", "W", "V"),
+		Permutation:         permutation,
+		Profanity:           Profanity{Mode: ProfanityBlocklist},
+		MaxRepetition:       4,
 	}
 }
 

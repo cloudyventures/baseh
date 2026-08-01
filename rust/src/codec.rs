@@ -8,7 +8,9 @@ use crate::basen::{decode_base_n, encode_base_n};
 use crate::checksum::calculate_checksum;
 use crate::error::{BasehError, ErrorCode};
 use crate::feistel::{inverse_permute, permute};
-use crate::profile::{prepare_profile, Mode, Permutation, PreparedProfile, Profile};
+use crate::profile::{
+    effective_checksum_length, prepare_profile, Mode, Permutation, PreparedProfile, Profile,
+};
 
 /// Built-in spoken-confusion candidate maps (spec 3.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -249,38 +251,35 @@ pub fn expandable_grouping(length: usize) -> Vec<usize> {
     sizes
 }
 
-/// Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
-/// minLength through L-1.
+/// Spec 19.1/22.3. First id of generation L: the sum of each generation's
+/// capacity A^(k - effectiveK(k)) for k from minLength through L-1. The
+/// effective checksum length is per-generation (spec 22), so the sum is not
+/// a single geometric series when the short checksum is on.
 pub(crate) fn generation_base(profile: &PreparedProfile, length: usize) -> BigUint {
-    let a = BigUint::from(profile.body_alphabet_norm.len() as u64);
-    let k = profile.profile.checksum_length;
     let mut base = BigUint::from(0u64);
-    let mut cap = pow_biguint(a.clone(), profile.min_length - k);
-    for _ in profile.min_length..length {
-        base += &cap;
-        cap *= &a;
+    for l in profile.min_length..length {
+        base += generation_capacity(profile, l);
     }
     base
 }
 
-/// Spec 19.1. Ids held by generation L: A^(L-K).
+/// Spec 19.1/22.3. Ids held by generation L: A^(L - effectiveK(L)).
 pub(crate) fn generation_capacity(profile: &PreparedProfile, length: usize) -> BigUint {
     pow_biguint(
         BigUint::from(profile.body_alphabet_norm.len() as u64),
-        length - profile.profile.checksum_length,
+        length - effective_checksum_length(profile, length),
     )
 }
 
 /// Smallest generation whose range holds id, per spec 19.6.
 pub(crate) fn generation_for_id(profile: &PreparedProfile, id: &BigUint) -> usize {
-    let a = BigUint::from(profile.body_alphabet_norm.len() as u64);
     let mut l = profile.min_length;
     let mut base = BigUint::from(0u64);
     let mut cap = generation_capacity(profile, l);
     while *id >= &base + &cap {
         base += &cap;
-        cap *= &a;
         l += 1;
+        cap = generation_capacity(profile, l);
     }
     l
 }
@@ -372,6 +371,12 @@ impl Baseh {
         generation_for_id(&self.profile, id)
     }
 
+    /// Spec 22. The checksum length that applies to a generation of the
+    /// given total length.
+    pub fn effective_checksum_length(&self, length: usize) -> usize {
+        effective_checksum_length(&self.profile, length)
+    }
+
     /// The validated profile this codec was built from.
     pub fn profile(&self) -> &Profile {
         &self.profile.profile
@@ -401,7 +406,7 @@ impl Baseh {
             )?;
         }
         let body = encode_base_n(&value, &self.profile.body_alphabet_norm, p.body_length);
-        let raw = self.finish_encode(body)?;
+        let raw = self.finish_encode(body, p.checksum_length)?;
         Ok(format_raw(&raw, &self.profile))
     }
 
@@ -430,19 +435,16 @@ impl Baseh {
                 Some(l as u32),
             )?;
         }
-        let body = encode_base_n(
-            &value,
-            &self.profile.body_alphabet_norm,
-            l - p.checksum_length,
-        );
-        let raw = self.finish_encode(body)?;
+        let k = effective_checksum_length(&self.profile, l);
+        let body = encode_base_n(&value, &self.profile.body_alphabet_norm, l - k);
+        let raw = self.finish_encode(body, k)?;
         Ok(format_raw(&raw, &self.profile))
     }
 
     /// Checksum append plus the spec 18.2 blocklist scan over the raw code.
-    fn finish_encode(&self, body: String) -> Result<Vec<char>, BasehError> {
+    fn finish_encode(&self, body: String, checksum_length: usize) -> Result<Vec<char>, BasehError> {
         let body_chars: Vec<char> = body.chars().collect();
-        let checksum = calculate_checksum(&self.profile, &body_chars)?;
+        let checksum = calculate_checksum(&self.profile, &body_chars, checksum_length)?;
         let mut raw = body_chars;
         raw.extend(checksum.chars());
         // Spec 18.2: case-insensitive substring scan over the raw code.
@@ -491,8 +493,14 @@ impl Baseh {
     pub fn decode(&self, input: &str, options: &DecodeOptions) -> Result<DecodeResult, BasehError> {
         let raw = normalize(input, &self.profile, options.accept_spaces)?;
         let p = &self.profile.profile;
+        // Spec 22: the generation is selected by the presented total length,
+        // so the effective checksum length is a deterministic function of it.
+        let effective_k = match p.mode {
+            Mode::Expandable => effective_checksum_length(&self.profile, raw.len()),
+            Mode::Fixed => p.checksum_length,
+        };
         let body_length = match p.mode {
-            Mode::Expandable => raw.len() - p.checksum_length,
+            Mode::Expandable => raw.len() - effective_k,
             Mode::Fixed => p.body_length,
         };
         let mut body: Vec<char> = raw[..body_length].to_vec();
@@ -504,7 +512,8 @@ impl Baseh {
         // calculate_checksum; a checksum position holding a body-only symbol
         // simply mismatches below and fails as INVALID_CHECKSUM. This
         // ordering is pinned by the frozen error vectors.
-        if calculate_checksum(&self.profile, &body)? != supplied_checksum.iter().collect::<String>()
+        if calculate_checksum(&self.profile, &body, effective_k)?
+            != supplied_checksum.iter().collect::<String>()
         {
             if !options.try_correction || options.max_corrections == 0 {
                 return Err(BasehError::customer(
@@ -539,7 +548,7 @@ impl Baseh {
             let candidates = generate_candidates(&body, &filtered_map, options.max_corrections)?;
             let mut valid: HashSet<Vec<char>> = HashSet::new();
             for candidate in candidates {
-                let candidate_checksum = calculate_checksum(&self.profile, &candidate)?;
+                let candidate_checksum = calculate_checksum(&self.profile, &candidate, effective_k)?;
                 if candidate_checksum == supplied_checksum.iter().collect::<String>() {
                     valid.insert(candidate);
                 }

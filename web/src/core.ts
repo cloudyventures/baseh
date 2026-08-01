@@ -71,6 +71,10 @@ export interface CalculatorInput {
   /** Expandable mode only; the separator appears from this total length up. */
   separatorMinLength: number;
   checksumLength: number;
+  /** Spec 22. Expandable mode only; 0 turns the short checksum off. */
+  shortChecksumLength: number;
+  /** Spec 22. The last total length that carries the short checksum. */
+  shortChecksumUntil: number;
   permutation: boolean;
   separator: string;
   /** Spec 21. 0 disables the repetition filter; otherwise at least 3. */
@@ -345,43 +349,52 @@ export function expandableDisplayedLength(totalLen: number, separator: string, s
   return totalLen + expandableGrouping(totalLen).length - 1;
 }
 
-/** Spec 19.1. Ids held by generation `length`: A^(length - checksumLength). */
-export function generationCapacityAt(alphabetSize: number, checksumLength: number, length: number): bigint {
-  return powBigInt(BigInt(alphabetSize), length - checksumLength);
+/** Spec 22. The checksum length that applies at total length `length`:
+ * the short checksum at or below `shortChecksumUntil`, `checksumLength` above it. */
+export function effectiveChecksumLengthAt(checksumLength: number, shortChecksumLength: number, shortChecksumUntil: number, length: number): number {
+  if (shortChecksumLength > 0 && length <= shortChecksumUntil) return shortChecksumLength;
+  return checksumLength;
+}
+
+/** Spec 19.1/22.3. Ids held by generation `length`: A^(length - effective checksum length). */
+export function generationCapacityAt(alphabetSize: number, checksumLength: number, length: number, shortChecksumLength = 0, shortChecksumUntil = 0): bigint {
+  return powBigInt(BigInt(alphabetSize), length - effectiveChecksumLengthAt(checksumLength, shortChecksumLength, shortChecksumUntil, length));
 }
 
 /** Spec 19.1. Total ids held by every generation from minLength through `length`. */
-export function generationCumulative(alphabetSize: number, checksumLength: number, minLength: number, length: number): bigint {
+export function generationCumulative(alphabetSize: number, checksumLength: number, minLength: number, length: number, shortChecksumLength = 0, shortChecksumUntil = 0): bigint {
   let total = 0n;
-  for (let l = minLength; l <= length; l += 1) total += generationCapacityAt(alphabetSize, checksumLength, l);
+  for (let l = minLength; l <= length; l += 1) total += generationCapacityAt(alphabetSize, checksumLength, l, shortChecksumLength, shortChecksumUntil);
   return total;
 }
 
 export interface GenerationRow {
   length: number;
+  /** Spec 22. The checksum length this generation carries. */
+  checksum: number;
   capacity: bigint;
   cumulative: bigint;
 }
 
 /** The per-generation capacity table, from minLength through `rows` generations. */
-export function generationTable(alphabetSize: number, checksumLength: number, minLength: number, rows: number): GenerationRow[] {
+export function generationTable(alphabetSize: number, checksumLength: number, minLength: number, rows: number, shortChecksumLength = 0, shortChecksumUntil = 0): GenerationRow[] {
   const out: GenerationRow[] = [];
   let cumulative = 0n;
   for (let l = minLength; l < minLength + rows; l += 1) {
-    const capacity = generationCapacityAt(alphabetSize, checksumLength, l);
+    const capacity = generationCapacityAt(alphabetSize, checksumLength, l, shortChecksumLength, shortChecksumUntil);
     cumulative += capacity;
-    out.push({ length: l, capacity, cumulative });
+    out.push({ length: l, checksum: effectiveChecksumLengthAt(checksumLength, shortChecksumLength, shortChecksumUntil, l), capacity, cumulative });
   }
   return out;
 }
 
 /** Spec 19.6. The smallest generation whose cumulative range holds `id`. */
-export function generationForDemand(alphabetSize: number, checksumLength: number, minLength: number, id: bigint): number {
+export function generationForDemand(alphabetSize: number, checksumLength: number, minLength: number, id: bigint, shortChecksumLength = 0, shortChecksumUntil = 0): number {
   let l = minLength;
-  let cumulative = generationCapacityAt(alphabetSize, checksumLength, l);
+  let cumulative = generationCapacityAt(alphabetSize, checksumLength, l, shortChecksumLength, shortChecksumUntil);
   while (id >= cumulative) {
     l += 1;
-    cumulative += generationCapacityAt(alphabetSize, checksumLength, l);
+    cumulative += generationCapacityAt(alphabetSize, checksumLength, l, shortChecksumLength, shortChecksumUntil);
   }
   return l;
 }
@@ -438,6 +451,8 @@ export function calculatorProfile(input: CalculatorInput): BasehProfile | null {
       minLength: input.minLength,
       checksumAlphabet: canonical,
       checksumLength: input.checksumLength,
+      shortChecksumLength: input.shortChecksumLength,
+      shortChecksumUntil: input.shortChecksumUntil,
       caseSensitive: false,
       separator: input.separator,
       separatorMinLength: input.separatorMinLength,
@@ -604,6 +619,23 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
   if (!Number.isInteger(input.minLength) || input.minLength < 1) problems.push("Minimum length must be an integer of at least 1.");
   if (input.minLength <= input.checksumLength) problems.push("Minimum length must be greater than the checksum length.");
   if (input.checksumLength < 0 || input.checksumLength > 8) problems.push("Checksum length must be 0 through 8.");
+  // Spec 22.2. The short checksum is expandable-only; 0 turns it off.
+  let shortOk = input.shortChecksumLength === 0;
+  if (input.shortChecksumLength !== 0) {
+    if (!Number.isInteger(input.shortChecksumLength) || input.shortChecksumLength < 1) {
+      problems.push("Short checksum length must be an integer of at least 1.");
+    } else if (input.checksumLength < 1 || input.shortChecksumLength >= input.checksumLength) {
+      problems.push("Short checksum length must be less than the checksum length.");
+    } else if (!Number.isInteger(input.shortChecksumUntil) || input.shortChecksumUntil < input.minLength) {
+      problems.push("Short checksum applies through a length of at least the minimum length.");
+    } else if (input.minLength <= input.shortChecksumLength) {
+      problems.push("Minimum length must be greater than the short checksum length.");
+    } else {
+      shortOk = true;
+    }
+  }
+  const short = shortOk ? input.shortChecksumLength : 0;
+  const shortUntil = shortOk ? input.shortChecksumUntil : 0;
   if (!Number.isInteger(input.separatorMinLength) || input.separatorMinLength < 0) problems.push("Separator minimum length must be an integer of at least 0.");
   for (const ch of input.separator + input.prefix + input.suffix) {
     if (alphabet.includes(ch) || checksumAlphabet.includes(ch)) {
@@ -614,10 +646,10 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
 
   const a = alphabet.length;
   const generations = input.minLength >= 1 && input.minLength > input.checksumLength
-    ? generationTable(Math.max(a, 2), input.checksumLength, input.minLength, 8)
+    ? generationTable(Math.max(a, 2), input.checksumLength, input.minLength, 8, short, shortUntil)
     : [];
   const checksumStates = powBigInt(BigInt(Math.max(checksumAlphabet.length, 1)), input.checksumLength);
-  const bits = ((input.minLength - input.checksumLength) * Math.log2(Math.max(a, 2))).toFixed(1);
+  const bits = ((input.minLength - effectiveChecksumLengthAt(input.checksumLength, short, shortUntil, input.minLength)) * Math.log2(Math.max(a, 2))).toFixed(1);
 
   let required: bigint | null = null;
   if (input.recordsPerDay !== undefined && input.retentionDays !== undefined) {
@@ -634,8 +666,8 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
   let utilization: number | null = null;
   let utilizationStatus: CalculatorResult["utilizationStatus"] = "none";
   if (required !== null && required > 0n && problems.length === 0) {
-    requiredGeneration = generationForDemand(a, input.checksumLength, input.minLength, required - 1n);
-    const cumulative = generationCumulative(a, input.checksumLength, input.minLength, requiredGeneration);
+    requiredGeneration = generationForDemand(a, input.checksumLength, input.minLength, required - 1n, short, shortUntil);
+    const cumulative = generationCumulative(a, input.checksumLength, input.minLength, requiredGeneration, short, shortUntil);
     utilization = Number((required * 10_000n) / cumulative) / 100;
     utilizationStatus = utilization > 80 ? "amber" : "green";
   }
@@ -646,7 +678,7 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
     // generation when no retention period is given); the namespace never
     // runs out, this is when the codes get one character longer.
     const through = requiredGeneration ?? generations[generations.length - 1]!.length;
-    lifetimeDays = generationCumulative(a, input.checksumLength, input.minLength, through) / input.recordsPerDay;
+    lifetimeDays = generationCumulative(a, input.checksumLength, input.minLength, through, short, shortUntil) / input.recordsPerDay;
   }
 
   const displayedLength = expandableDisplayedLength(input.minLength, input.separator, input.separatorMinLength)
@@ -682,7 +714,10 @@ function calculateExpandable(input: CalculatorInput): CalculatorResult {
   }
 
   const falseAcceptance =
-    input.checksumLength === 0 ? "n/a" : `about 1 in ${checksumStates.toString()}`;
+    input.checksumLength === 0 ? "n/a"
+      : short > 0
+        ? `about 1 in ${powBigInt(BigInt(Math.max(checksumAlphabet.length, 1)), short).toString()} through length ${shortUntil}, then 1 in ${checksumStates.toString()}`
+        : `about 1 in ${checksumStates.toString()}`;
 
   return {
     valid: problems.length === 0,
@@ -916,6 +951,9 @@ export interface ExpandableDesign {
   alphabetId: string;
   bodyAlphabet: string;
   checksumLength: number;
+  /** Spec 22. The frozen tier ships the short checksum on: 1 through length 5. */
+  shortChecksumLength: number;
+  shortChecksumUntil: number;
   minLength: number;
   separatorMinLength: number;
   /** Spec 21. 0 disables the repetition filter. */
@@ -946,19 +984,25 @@ export function expandableDesign(input: DesignerInput): ExpandableDesign | null 
     const checksumAlphabet = deriveExpandableChecksumAlphabet(body);
     if (input.separator && (body.includes(input.separator) || checksumAlphabet.includes(input.separator))) continue;
     const checksumLength = Math.min(3, Math.max(input.minimumChecksumLength, 2));
+    // The frozen expandable tier ships the short checksum on (spec 22.5):
+    // one checksum symbol through length 5, the full checksum above it.
+    const shortChecksumLength = 1;
+    const shortChecksumUntil = 5;
     const minLength = 4;
     const separatorMinLength = 6;
-    const generation = generationForDemand(body.length, checksumLength, minLength, required > 1n ? required - 1n : 0n);
+    const generation = generationForDemand(body.length, checksumLength, minLength, required > 1n ? required - 1n : 0n, shortChecksumLength, shortChecksumUntil);
     return {
       alphabetId: `${alpha.id}-exp`,
       bodyAlphabet: body,
       checksumLength,
+      shortChecksumLength,
+      shortChecksumUntil,
       minLength,
       separatorMinLength,
       maxRepetition: input.maxRepetition,
-      startCapacity: generationCapacityAt(body.length, checksumLength, minLength),
+      startCapacity: generationCapacityAt(body.length, checksumLength, minLength, shortChecksumLength, shortChecksumUntil),
       generation,
-      cumulativeAtGeneration: generationCumulative(body.length, checksumLength, minLength, generation),
+      cumulativeAtGeneration: generationCumulative(body.length, checksumLength, minLength, generation, shortChecksumLength, shortChecksumUntil),
       displayedAtStart: expandableDisplayedLength(minLength, input.separator, separatorMinLength),
       displayedAtGeneration: expandableDisplayedLength(generation, input.separator, separatorMinLength)
     };
@@ -976,6 +1020,8 @@ export function expandableProfile(d: ExpandableDesign, input: DesignerInput, per
     minLength: d.minLength,
     checksumAlphabet: canonical,
     checksumLength: d.checksumLength,
+    shortChecksumLength: d.shortChecksumLength,
+    shortChecksumUntil: d.shortChecksumUntil,
     caseSensitive: false,
     separator: input.separator,
     separatorMinLength: d.separatorMinLength,

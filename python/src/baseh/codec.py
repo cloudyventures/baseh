@@ -18,7 +18,7 @@ from .errors import (
     BasehError,
 )
 from .feistel import FeistelKey, inverse_permute, permute
-from .profile import PreparedProfile, prepare_profile
+from .profile import PreparedProfile, effective_checksum_length, prepare_profile
 
 # Built-in spoken-confusion candidate maps, spec 3.3. Body symbols only.
 CONFUSION_MAPS = {
@@ -133,20 +133,21 @@ def expandable_grouping(length: int) -> list:
 
 
 def generation_base(profile: PreparedProfile, length: int) -> int:
-    """Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
-    minLength through L-1."""
-    a = len(profile.body_alphabet_norm)
+    """Spec 19.1/22.3. First id of generation L: the sum of each generation's
+    capacity A^(k - effectiveK(k)) for k from minLength through L-1. The
+    effective checksum length is per-generation (spec 22), so the sum is not
+    a single geometric series when the short checksum is on."""
     base = 0
-    cap = a ** (profile.min_length - profile.checksum_length)
-    for _ in range(profile.min_length, length):
-        base += cap
-        cap *= a
+    for length_k in range(profile.min_length, length):
+        base += generation_capacity(profile, length_k)
     return base
 
 
 def generation_capacity(profile: PreparedProfile, length: int) -> int:
-    """Spec 19.1. Ids held by generation L: A^(L-K)."""
-    return len(profile.body_alphabet_norm) ** (length - profile.checksum_length)
+    """Spec 19.1/22.3. Ids held by generation L: A^(L - effectiveK(L))."""
+    return len(profile.body_alphabet_norm) ** (
+        length - effective_checksum_length(profile, length)
+    )
 
 
 def generation_for_id(profile: PreparedProfile, id: int) -> int:
@@ -156,8 +157,8 @@ def generation_for_id(profile: PreparedProfile, id: int) -> int:
     cap = generation_capacity(profile, length)
     while id >= base + cap:
         base += cap
-        cap *= len(profile.body_alphabet_norm)
         length += 1
+        cap = generation_capacity(profile, length)
     return length
 
 
@@ -267,12 +268,13 @@ class Baseh:
         domain = generation_capacity(self._profile, length)
         if self._profile.permutation.enabled:
             value = permute(value, domain, self._feistel_key(length))
+        effective_k = effective_checksum_length(self._profile, length)
         body = encode_base_n(
             value,
             self._profile.body_alphabet_norm,
-            length - self._profile.checksum_length,
+            length - effective_k,
         )
-        checksum = calculate_checksum(self._profile, body)
+        checksum = calculate_checksum(self._profile, body, effective_k)
         raw = body + checksum
         self._check_blocked(raw)
         return format_raw(raw, self._profile)
@@ -296,8 +298,15 @@ class Baseh:
     ) -> DecodeResult:
         """Spec 9/19.7."""
         raw = normalize(input, self._profile, accept_spaces)
+        # Spec 22: the generation is selected by the presented total length,
+        # so the effective checksum length is a deterministic function of it.
+        effective_k = (
+            effective_checksum_length(self._profile, len(raw))
+            if self._profile.mode == "expandable"
+            else self._profile.checksum_length
+        )
         body_length = (
-            len(raw) - self._profile.checksum_length
+            len(raw) - effective_k
             if self._profile.mode == "expandable"
             else self._profile.body_length
         )
@@ -310,7 +319,7 @@ class Baseh:
         # outside the body alphabet fails in the checksum or base-N work as
         # INVALID_CHARACTER.
 
-        if calculate_checksum(self._profile, body) != supplied_checksum:
+        if calculate_checksum(self._profile, body, effective_k) != supplied_checksum:
             if not try_correction or max_corrections == 0:
                 raise BasehError(
                     INVALID_CHECKSUM, "The reference code did not pass validation"
@@ -337,7 +346,7 @@ class Baseh:
                     confusion_map[source] = kept
             valid: set = set()
             for candidate in generate_candidates(body, confusion_map, max_corrections):
-                if calculate_checksum(self._profile, candidate) == supplied_checksum:
+                if calculate_checksum(self._profile, candidate, effective_k) == supplied_checksum:
                     valid.add(candidate)
             if not valid:
                 raise BasehError(

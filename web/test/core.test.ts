@@ -15,6 +15,8 @@ function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
     minLength: 4,
     separatorMinLength: 6,
     checksumLength: 1,
+    shortChecksumLength: 0,
+    shortChecksumUntil: 0,
     permutation: false,
     separator: "-",
     maxRepetition: 0,
@@ -434,33 +436,43 @@ describe("expandable derivation (spec 19.2/19.3)", async () => {
   });
 });
 
-describe("expandable generation arithmetic (spec 19.1/19.6)", async () => {
+describe("expandable generation arithmetic (spec 19.1/19.6/22.3)", async () => {
   const { generationTable, generationForDemand, generationCumulative } = await import("../src/core.js");
 
-  // The spec 17.1 table for the 34-symbol alphabet, checksum length 2, minLength 4.
+  // The spec 22.3 table for the frozen tier: 34-symbol alphabet, checksum
+  // length 2, minLength 4, short checksum 1 through length 5.
   it("matches the frozen tier's generation table", () => {
-    const rows = generationTable(34, 2, 4, 5);
-    const expected: Array<[number, string, string]> = [
-      [4, "1156", "1156"],
-      [5, "39304", "40460"],
-      [6, "1336336", "1376796"],
-      [7, "45435424", "46812220"],
-      [8, "1544804416", "1591616636"]
+    const rows = generationTable(34, 2, 4, 5, 1, 5);
+    const expected: Array<[number, number, string, string]> = [
+      [4, 1, "39304", "39304"],
+      [5, 1, "1336336", "1375640"],
+      [6, 2, "1336336", "2711976"],
+      [7, 2, "45435424", "48147400"],
+      [8, 2, "1544804416", "1592951816"]
     ];
     for (let i = 0; i < expected.length; i += 1) {
       assert.equal(rows[i]!.length, expected[i]![0]);
-      assert.equal(rows[i]!.capacity.toString(), expected[i]![1]);
-      assert.equal(rows[i]!.cumulative.toString(), expected[i]![2]);
+      assert.equal(rows[i]!.checksum, expected[i]![1]);
+      assert.equal(rows[i]!.capacity.toString(), expected[i]![2]);
+      assert.equal(rows[i]!.cumulative.toString(), expected[i]![3]);
     }
   });
+  it("with the feature off the table is the pre-22 geometric shape", () => {
+    const rows = generationTable(34, 2, 4, 3);
+    assert.equal(rows[0]!.capacity.toString(), "1156");
+    assert.equal(rows[2]!.cumulative.toString(), "1376796");
+    assert.ok(rows.every((r) => r.checksum === 2));
+  });
   it("cumulative equals the sum of the generation capacities", () => {
-    assert.equal(generationCumulative(34, 2, 4, 6).toString(), "1376796");
+    assert.equal(generationCumulative(34, 2, 4, 6, 1, 5).toString(), "2711976");
   });
   it("generationForDemand lands on the boundary generations", () => {
-    assert.equal(generationForDemand(34, 2, 4, 0n), 4);
-    assert.equal(generationForDemand(34, 2, 4, 1155n), 4);
-    assert.equal(generationForDemand(34, 2, 4, 1156n), 5);
-    assert.equal(generationForDemand(34, 2, 4, 40460n), 6);
+    assert.equal(generationForDemand(34, 2, 4, 0n, 1, 5), 4);
+    assert.equal(generationForDemand(34, 2, 4, 39303n, 1, 5), 4);
+    assert.equal(generationForDemand(34, 2, 4, 39304n, 1, 5), 5);
+    // The short/normal boundary: the last gen-5 id stays at 5, the next grows.
+    assert.equal(generationForDemand(34, 2, 4, 1375639n, 1, 5), 5);
+    assert.equal(generationForDemand(34, 2, 4, 1375640n, 1, 5), 6);
   });
 });
 
@@ -540,21 +552,42 @@ describe("expandable calculator mode", async () => {
   const { Baseh } = await import("@cloudyventures/baseh");
 
   const exp = (overrides: Partial<CalculatorInput> = {}) => calcInput({
-    codecMode: "expandable", visualSafety: "none", checksumLength: 2, separator: "-", ...overrides
+    codecMode: "expandable", visualSafety: "none", checksumLength: 2,
+    // The frozen tier ships the short checksum on (spec 22.5): 1 through length 5.
+    shortChecksumLength: 1, shortChecksumUntil: 5, separator: "-", ...overrides
   });
 
   it("reports a generation table instead of a single capacity", () => {
     const r = calculate(exp());
     assert.ok(r.valid);
     assert.ok(r.generations);
-    assert.equal(r.generations![0]!.capacity.toString(), "1156");
+    assert.equal(r.generations![0]!.capacity.toString(), "39304");
+    assert.equal(r.generations![0]!.checksum, 1);
+    assert.equal(r.generations![2]!.checksum, 2);
     assert.equal(r.maxId, null);
     assert.equal(r.displayedLength, 4);
+  });
+  it("reports the weaker short-checksum false acceptance through length 5", () => {
+    const r = calculate(exp());
+    assert.match(r.falseAcceptance, /1 in 35 through length 5/);
+    assert.match(r.falseAcceptance, /then 1 in 1225/);
+    assert.equal(calculate(exp({ shortChecksumLength: 0, shortChecksumUntil: 0 })).falseAcceptance, "about 1 in 1225");
   });
   it("validates minLength against the checksum length", () => {
     assert.ok(!calculate(exp({ minLength: 2 })).valid);
     assert.ok(!calculate(exp({ minLength: 0 })).valid);
     assert.ok(!calculate(exp({ separatorMinLength: -1 })).valid);
+  });
+  it("validates the short checksum window (spec 22.2)", () => {
+    // At or above the full checksum length it changes nothing, so reject.
+    assert.ok(!calculate(exp({ shortChecksumLength: 2 })).valid);
+    assert.ok(!calculate(exp({ checksumLength: 1 })).valid);
+    // The window must reach at least the minimum length.
+    assert.ok(!calculate(exp({ minLength: 6 })).valid);
+    // The smallest generation must keep at least one body symbol.
+    assert.ok(!calculate(exp({ minLength: 1, checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 5 })).valid);
+    // Explicitly off stays valid even with a tiny full checksum.
+    assert.ok(calculate(exp({ checksumLength: 1, shortChecksumLength: 0, shortChecksumUntil: 0 })).valid);
   });
   it("demand analysis names the generation the demand lands in", () => {
     // 1000/day x 3650 days x 1.25 x 2 = 9,125,000 required: generation 7.
@@ -572,10 +605,10 @@ describe("expandable calculator mode", async () => {
     const byId = new Map(r.examples.filter((e) => !e.blocked).map((e) => [e.id, e.code]));
     assert.equal(byId.get("0")!.length, 4);
     assert.ok(!byId.get("0")!.includes("-"));
-    assert.equal(byId.get("1155")!.length, 4);
-    assert.equal(byId.get("1156")!.length, 5);
-    assert.equal(byId.get("40460")!.length, 7);
-    assert.ok(byId.get("40460")!.includes("-"));
+    assert.equal(byId.get("39303")!.length, 4);
+    assert.equal(byId.get("39304")!.length, 5);
+    assert.equal(byId.get("1375640")!.length, 7);
+    assert.ok(byId.get("1375640")!.includes("-"));
     for (const e of r.examples) {
       if (e.blocked) continue;
       assert.equal(h.decode(e.code).id, BigInt(e.id));
@@ -584,8 +617,19 @@ describe("expandable calculator mode", async () => {
       assert.ok(!raw.slice(0, raw.length - 2).includes("0"), e.code);
     }
   });
+  it("decodes a 4-character code against exactly one short checksum symbol", () => {
+    const h = new Baseh(calculatorProfile(exp({ permutation: false }))!);
+    const code = h.encode(0n);
+    assert.equal(code.length, 4);
+    // Flipping the single checksum symbol fails; appending a second symbol
+    // presents a five-character code whose body/checksum split moves.
+    const check = code[3]!;
+    const bad = check === "0" ? "1" : "0";
+    assert.throws(() => h.decode(code.slice(0, 3) + bad));
+    assert.throws(() => h.decode(code + check));
+  });
   it("expandable preview codes never contain 0 or O in body positions, even from custom alphabets", () => {
-    const r = calculate(exp({ alphabetMode: "custom", customAlphabet: "0123456789O", checksumLength: 1, minLength: 3 }));
+    const r = calculate(exp({ alphabetMode: "custom", customAlphabet: "0123456789O", checksumLength: 1, minLength: 3, shortChecksumLength: 0, shortChecksumUntil: 0 }));
     assert.ok(r.valid);
     for (const e of r.examples) {
       if (e.blocked) continue;
@@ -617,10 +661,13 @@ describe("expandable designer outcome", async () => {
     assert.equal(d.bodyAlphabet.length, 34);
     assert.equal(d.minLength, 4);
     assert.equal(d.separatorMinLength, 6);
-    assert.equal(d.startCapacity.toString(), "1156");
-    // 60M ids land in generation 8 (cumulative through 7 is 46,812,220).
+    // Spec 22.5: the tier ships the short checksum on, 1 through length 5.
+    assert.equal(d.shortChecksumLength, 1);
+    assert.equal(d.shortChecksumUntil, 5);
+    assert.equal(d.startCapacity.toString(), "39304");
+    // 60M ids land in generation 8 (cumulative through 7 is 48,147,400).
     assert.equal(d.generation, 8);
-    assert.equal(d.cumulativeAtGeneration.toString(), "1591616636");
+    assert.equal(d.cumulativeAtGeneration.toString(), "1592951816");
   });
   it("respects the minimum checksum length", () => {
     assert.equal(expandableDesign(designInput({ minimumChecksumLength: 3 }))!.checksumLength, 3);
@@ -628,6 +675,131 @@ describe("expandable designer outcome", async () => {
   });
   it("returns null when the delimiter collides with every alphabet", () => {
     assert.equal(expandableDesign(designInput({ separator: "A", allowDigits: false })), null);
+  });
+});
+
+describe("short checksum (spec 22)", async () => {
+  const { calculatorProfile, effectiveChecksumLengthAt, expandableDesign, expandableProfile, generationTable } = await import("../src/core.js");
+  const { Baseh, BasehError, basehExpandableV1, basehExpandablePV1, generationBase } = await import("@cloudyventures/baseh");
+
+  const raw = (code: string) => code.replaceAll("-", "");
+
+  it("the frozen tiers ship the feature on: 1 short checksum through length 5", () => {
+    const h = new Baseh(basehExpandableV1());
+    assert.equal(h.profile.checksumLength, 2);
+    assert.equal(h.profile.shortChecksumLength, 1);
+    assert.equal(h.profile.shortChecksumUntil, 5);
+    const p = new Baseh(basehExpandablePV1({ keyBytes: new TextEncoder().encode("test-only-key-material-0001"), keyId: "test-01" }));
+    assert.equal(p.profile.shortChecksumLength, 1);
+    assert.equal(p.profile.shortChecksumUntil, 5);
+  });
+
+  it("resolves the effective checksum length per generation", () => {
+    assert.equal(effectiveChecksumLengthAt(2, 1, 5, 4), 1);
+    assert.equal(effectiveChecksumLengthAt(2, 1, 5, 5), 1);
+    assert.equal(effectiveChecksumLengthAt(2, 1, 5, 6), 2);
+    assert.equal(effectiveChecksumLengthAt(2, 1, 5, 8), 2);
+    assert.equal(effectiveChecksumLengthAt(2, 0, 0, 4), 2);
+    const rows = generationTable(34, 2, 4, 5, 1, 5);
+    assert.deepEqual(rows.map((r) => r.checksum), [1, 1, 2, 2, 2]);
+  });
+
+  it("round trips the short/normal boundary ids 1,375,639 and 1,375,640", () => {
+    const h = new Baseh(basehExpandableV1());
+    assert.equal(generationBase(h.profile, 6), 1375640n);
+    const lastShort = raw(h.encode(1375639n));
+    assert.equal(lastShort.length, 5);
+    assert.equal(h.decode(lastShort).id, 1375639n);
+    const firstNormal = raw(h.encode(1375640n));
+    assert.equal(firstNormal.length, 6);
+    assert.equal(h.decode(firstNormal).id, 1375640n);
+  });
+
+  it("round trips the first id of generations 4 through 8", () => {
+    const h = new Baseh(basehExpandableV1());
+    for (let l = 4; l <= 8; l += 1) {
+      let id: bigint | null = null;
+      for (let probe = generationBase(h.profile, l); probe < generationBase(h.profile, l) + 5000n; probe += 1n) {
+        try {
+          h.encode(probe);
+          id = probe;
+          break;
+        } catch {
+          continue;
+        }
+      }
+      assert.ok(id !== null, `no issuable id at generation ${l}`);
+      const code = h.encode(id);
+      assert.equal(raw(code).length, l);
+      assert.equal(h.decode(code).id, id);
+    }
+  });
+
+  it("the repetition scan spans body and the single short checksum symbol (spec 22.4)", () => {
+    const probe = new Baseh({ ...basehExpandableV1(), maxRepetition: 0 });
+    let found: bigint | null = null;
+    for (let id = 0n; id < generationBase(probe.profile, 5); id += 1n) {
+      let code: string;
+      try {
+        code = probe.encode(id);
+      } catch {
+        continue;
+      }
+      const r = raw(code);
+      if (r.length === 4 && /(.)\1{3}/.test(r)) {
+        found = id;
+        break;
+      }
+    }
+    assert.ok(found !== null, "expected a gen-4 code with a run of 4");
+    const h = new Baseh(basehExpandableV1());
+    assert.throws(() => h.encode(found), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+  });
+
+  it("the separator threshold is still a function of total length (spec 22.4)", () => {
+    const h = new Baseh(basehExpandableV1());
+    assert.ok(!h.encode(generationBase(h.profile, 5)).includes("-"));
+    assert.match(h.encode(generationBase(h.profile, 6)), /^...-...$/);
+  });
+
+  it("rejects the short-checksum fields in fixed mode and on bad windows (spec 22.2)", () => {
+    const base = basehExpandableV1();
+    const bad = [
+      { ...base, shortChecksumLength: 2, shortChecksumUntil: 5 },
+      { ...base, shortChecksumLength: 1, shortChecksumUntil: 3 },
+      { ...base, minLength: 1, shortChecksumLength: 1, shortChecksumUntil: 5 },
+      { ...base, shortChecksumLength: 0, shortChecksumUntil: 5 },
+      { ...base, shortChecksumLength: 1.5, shortChecksumUntil: 5 }
+    ];
+    for (const profile of bad) {
+      assert.throws(() => new Baseh(profile), (e: unknown) => e instanceof BasehError && e.code === "INVALID_PROFILE");
+    }
+  });
+
+  it("a custom short-checksum window previews and round trips", () => {
+    const input = calcInput({
+      codecMode: "expandable", checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 6,
+      permutation: false, separator: "-"
+    });
+    const h = new Baseh(calculatorProfile(input)!);
+    // Body sizes: 3, 4, 5 through length 6 (K = 1), then L - 2.
+    assert.equal(generationBase(h.profile, 7) - generationBase(h.profile, 6), 34n ** 5n);
+    for (let l = 4; l <= 8; l += 1) {
+      const id = generationBase(h.profile, l) + 7n;
+      const code = h.encode(id);
+      assert.equal(raw(code).length, l);
+      assert.equal(h.decode(code).id, id);
+    }
+  });
+
+  it("the designer's expandable preview profile carries the tier's fields", () => {
+    const input = designInput({ requiredCapacity: 60_000_000n });
+    const d = expandableDesign(input)!;
+    const profile = expandableProfile(d, input, false);
+    assert.equal(profile.shortChecksumLength, 1);
+    assert.equal(profile.shortChecksumUntil, 5);
+    const h = new Baseh(profile);
+    assert.equal(raw(h.encode(0n)).length, 4);
   });
 });
 

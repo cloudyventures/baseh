@@ -53,6 +53,21 @@ class PreparedProfile:
     capacity: int
     blocklist: tuple
     max_repetition: int
+    short_checksum_length: int
+    short_checksum_until: int
+
+
+def effective_checksum_length(profile: PreparedProfile, length: int) -> int:
+    """Spec 22. The checksum length that applies to a generation of the given
+    total length: ``short_checksum_length`` at or below ``short_checksum_until``,
+    ``checksum_length`` above it (and always in fixed mode)."""
+    if (
+        profile.mode == "expandable"
+        and profile.short_checksum_length > 0
+        and length <= profile.short_checksum_until
+    ):
+        return profile.short_checksum_length
+    return profile.checksum_length
 
 
 def _norm(case_sensitive: bool, ch: str) -> str:
@@ -120,6 +135,28 @@ def prepare_profile(profile) -> PreparedProfile:
             _fail("minLength must be greater than checksumLength")
         if not _is_int(separator_min_length) or separator_min_length < 0:
             _fail("separatorMinLength must be an integer of at least 0")
+
+    # Spec 22. The short checksum is expandable-only; 0 or absent turns it off.
+    short_checksum_length = profile.get("shortChecksumLength")
+    if short_checksum_length is None:
+        short_checksum_length = 0
+    short_checksum_until = profile.get("shortChecksumUntil")
+    if short_checksum_until is None:
+        short_checksum_until = 0
+    if mode == "fixed":
+        if short_checksum_length != 0 or short_checksum_until != 0:
+            _fail("shortChecksumLength and shortChecksumUntil are expandable-mode only")
+    elif short_checksum_length != 0:
+        if not _is_int(short_checksum_length) or short_checksum_length < 1:
+            _fail("shortChecksumLength must be an integer of at least 1")
+        if checksum_length < 1 or short_checksum_length >= checksum_length:
+            _fail("shortChecksumLength must be less than checksumLength")
+        if not _is_int(profile.get("shortChecksumUntil")) or short_checksum_until < min_length:
+            _fail("shortChecksumUntil must be an integer of at least minLength")
+        if min_length <= short_checksum_length:
+            _fail("minLength must be greater than shortChecksumLength")
+    elif short_checksum_until != 0:
+        _fail("shortChecksumUntil requires shortChecksumLength")
 
     checksum_alphabet = profile.get("checksumAlphabet") or ""
     if not isinstance(checksum_alphabet, str):
@@ -275,4 +312,6 @@ def prepare_profile(profile) -> PreparedProfile:
         capacity=len(body_norm) ** body_length,
         blocklist=tuple(blocklist),
         max_repetition=max_repetition,
+        short_checksum_length=short_checksum_length,
+        short_checksum_until=short_checksum_until,
     )

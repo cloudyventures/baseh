@@ -18,6 +18,8 @@ const els = {
   profanity: $<HTMLSelectElement>("profanity-mode"),
   minLenRow: $("min-length-row"),
   minLen: $<HTMLInputElement>("min-length"),
+  shortCheckRow: $("short-checksum-row"),
+  shortCheck: $<HTMLSelectElement>("short-checksum"),
   sepMinRow: $("sep-min-length-row"),
   sepMinLen: $<HTMLInputElement>("sep-min-length"),
   bodyRow: $("body-length-row"),
@@ -55,17 +57,19 @@ interface Preset {
   profanity: ProfanityMode;
   bodyLength: number;
   checksumLength: number;
+  /** Spec 22.5: the frozen expandable tier ships 1 short checksum through length 5. */
+  shortChecksumLength: number;
   separator: string;
 }
 
 // The frozen tiers. Every control stays editable after loading one,
 // so a preset is a starting point you modify, not a locked view.
 const PRESETS: Record<string, Preset> = {
-  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, separator: "-" },
-  minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, separator: "-" },
-  light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
-  medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" },
-  heavy: { codecMode: "fixed", mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, separator: "-" }
+  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, shortChecksumLength: 1, separator: "-" },
+  minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, shortChecksumLength: 0, separator: "-" },
+  light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" },
+  medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" },
+  heavy: { codecMode: "fixed", mode: "alnum", visual: "heavy", spoken: "heavy", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, separator: "-" }
 };
 
 function fmt(n: bigint): string {
@@ -87,6 +91,9 @@ function readInput(): CalculatorInput {
     minLength: Number(els.minLen.value),
     separatorMinLength: Number(els.sepMinLen.value),
     checksumLength: Number(els.checksumLen.value),
+    // Spec 22. The UI offers the frozen tier's window: 1 symbol through length 5.
+    shortChecksumLength: Number(els.shortCheck.value),
+    shortChecksumUntil: Number(els.shortCheck.value) > 0 ? 5 : 0,
     maxRepetition: Number(els.maxRep.value),
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -109,6 +116,7 @@ function applyPreset(name: string) {
   els.profanity.value = p.profanity;
   els.bodyLen.value = String(p.bodyLength);
   els.checksumLen.value = String(p.checksumLength);
+  els.shortCheck.value = String(p.shortChecksumLength);
   els.separator.value = p.separator;
   // Every frozen tier ships maxRepetition 4 (spec 21.4).
   els.maxRep.value = "4";
@@ -123,6 +131,7 @@ function render() {
   els.customRow.hidden = input.alphabetMode !== "custom" && input.visualSafety !== "none";
   els.minLenRow.hidden = input.codecMode !== "expandable";
   els.sepMinRow.hidden = input.codecMode !== "expandable";
+  els.shortCheckRow.hidden = input.codecMode !== "expandable";
   els.bodyRow.hidden = input.codecMode === "expandable";
   els.bodyLenOut.textContent = String(input.bodyLength);
   {
@@ -141,14 +150,17 @@ function render() {
     ? `<div class="muted">Repetition filter on: codes with a run of ${input.maxRepetition}+ identical symbols are never issued; the capacity above still counts them (well under 0.5% of ids).</div>`
     : "";
   if (r.generations) {
+    // Spec 22: when the short checksum is on the effective checksum length
+    // varies per generation, so the table states it per row.
+    const showCheck = r.generations.some((g) => g.checksum !== input.checksumLength);
     const rows = r.generations.map((g) =>
-      `<tr><td>${g.length}</td><td>${fmt(g.capacity)}</td><td>${fmt(g.cumulative)}</td></tr>`).join("");
+      `<tr><td>${g.length}</td>${showCheck ? `<td>${g.checksum}</td>` : ""}<td>${fmt(g.capacity)}</td><td>${fmt(g.cumulative)}</td></tr>`).join("");
     els.summary.innerHTML = `
       <div class="big">grows automatically <span class="unit">when a generation fills</span></div>
       <div>${r.displayedLength} displayed characters to start &middot; ${r.bits} bits of capacity at ${input.minLength}</div>
       <div>checksum false acceptance ${r.falseAcceptance}</div>
       <table class="gen-table">
-        <thead><tr><th>Length</th><th>New IDs</th><th>Cumulative</th></tr></thead>
+        <thead><tr><th>Length</th>${showCheck ? "<th>Checksum</th>" : ""}<th>New IDs</th><th>Cumulative</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>${repNote}`;
   } else {
@@ -286,6 +298,9 @@ els.copyJson.addEventListener("click", async () => {
           minLength: input.minLength,
           checksumAlphabet: deriveExpandableChecksumAlphabet(r.alphabet),
           separatorMinLength: input.separatorMinLength,
+          ...(input.shortChecksumLength > 0
+            ? { shortChecksumLength: input.shortChecksumLength, shortChecksumUntil: input.shortChecksumUntil }
+            : {}),
           grouping: []
         }
       : {
@@ -308,6 +323,7 @@ els.copyUrl.addEventListener("click", async () => {
     min: String(input.minLength),
     sepmin: String(input.separatorMinLength),
     check: String(input.checksumLength),
+    short: String(input.shortChecksumLength),
     perm: input.permutation ? "1" : "0"
   });
   await navigator.clipboard.writeText(`${location.origin}${location.pathname}?${params}`);
@@ -318,7 +334,7 @@ els.copyUrl.addEventListener("click", async () => {
 els.reset.addEventListener("click", () => applyPreset(els.preset.value || "expandable"));
 els.preset.addEventListener("change", () => applyPreset(els.preset.value));
 for (const el of [els.namespace, els.codecMode, els.mode, els.customAlpha, els.visual, els.spoken, els.profanity, els.bodyLen,
-  els.minLen, els.sepMinLen, els.checksumLen, els.maxRep, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
+  els.minLen, els.sepMinLen, els.checksumLen, els.shortCheck, els.maxRep, els.permutation, els.separator, els.records, els.retention, els.peak, els.margin,
   els.convId, els.convCode]) {
   el.addEventListener("input", render);
 }
@@ -339,6 +355,7 @@ interface SavedState {
   minLength: string;
   separatorMinLength: string;
   checksumLength: string;
+  shortChecksumLength: string;
   maxRepetition: string;
   permutation: boolean;
   separator: string;
@@ -363,6 +380,7 @@ function readState(): SavedState {
     minLength: els.minLen.value,
     separatorMinLength: els.sepMinLen.value,
     checksumLength: els.checksumLen.value,
+    shortChecksumLength: els.shortCheck.value,
     maxRepetition: els.maxRep.value,
     permutation: els.permutation.checked,
     separator: els.separator.value,
@@ -389,6 +407,8 @@ function applyState(s: SavedState) {
   els.minLen.value = s.minLength ?? els.minLen.value;
   els.sepMinLen.value = s.separatorMinLength ?? els.sepMinLen.value;
   els.checksumLen.value = s.checksumLength;
+  // Older stored states predate the short checksum; keep the control default.
+  els.shortCheck.value = s.shortChecksumLength ?? els.shortCheck.value;
   // Older stored states predate the repetition filter; keep the control default.
   els.maxRep.value = s.maxRepetition ?? els.maxRep.value;
   els.permutation.checked = s.permutation;
@@ -414,6 +434,7 @@ function applyState(s: SavedState) {
     if (q.get("min")) els.minLen.value = q.get("min") as string;
     if (q.get("sepmin")) els.sepMinLen.value = q.get("sepmin") as string;
     if (q.get("check")) els.checksumLen.value = q.get("check") as string;
+    if (q.get("short")) els.shortCheck.value = q.get("short") as string;
     if (q.get("perm")) els.permutation.checked = q.get("perm") === "1";
     render();
   } else {

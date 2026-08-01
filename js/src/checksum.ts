@@ -5,13 +5,19 @@ import { alphabetIndex, encodeBaseN } from "./basen.js";
 /**
  * Spec 6.2. Rolling polynomial checksum over symbol values.
  * Returns the checksum value in [0, modulus).
+ * Spec 22: expandable generations may pass a shorter effective checksum
+ * length; the modulus is then S^length instead of the profile default.
  */
 export function checksumValue(
   profile: PreparedProfile,
   body: string,
-  bodyIndex: Map<string, bigint>
+  bodyIndex: Map<string, bigint>,
+  checksumLength = profile.checksumLength
 ): bigint {
-  const modulus = profile.checksumModulus;
+  const modulus =
+    checksumLength === profile.checksumLength
+      ? profile.checksumModulus
+      : powBigInt(BigInt(profile.checksumAlphabetNorm.length || 1), checksumLength);
   let state = 17n;
   for (let i = 0; i < profile.profileId.length; i += 1) {
     state = (state * 37n + BigInt(profile.profileId.charCodeAt(i)) + 1n) % modulus;
@@ -31,9 +37,19 @@ export function checksumValue(
 }
 
 /** Compute the expected checksum string for a normalized body. */
-export function calculateChecksum(profile: PreparedProfile, body: string): string {
-  if (profile.checksumLength === 0) return "";
+export function calculateChecksum(
+  profile: PreparedProfile,
+  body: string,
+  checksumLength = profile.checksumLength
+): string {
+  if (checksumLength === 0) return "";
   const index = alphabetIndex(profile.bodyAlphabetNorm);
-  const value = checksumValue(profile, body, index);
-  return encodeBaseN(value, profile.checksumAlphabetNorm, profile.checksumLength);
+  const value = checksumValue(profile, body, index, checksumLength);
+  return encodeBaseN(value, profile.checksumAlphabetNorm, checksumLength);
+}
+
+function powBigInt(base: bigint, exp: number): bigint {
+  let result = 1n;
+  for (let i = 0; i < exp; i += 1) result *= base;
+  return result;
 }

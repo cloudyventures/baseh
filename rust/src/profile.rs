@@ -55,6 +55,20 @@ pub struct Profanity {
     pub extra_words: Vec<String>,
 }
 
+/// Spec 22. The checksum length that applies to a generation of the given
+/// total length: `short_checksum_length` at or below `short_checksum_until`,
+/// `checksum_length` above it (and always in fixed mode).
+pub(crate) fn effective_checksum_length(profile: &PreparedProfile, length: usize) -> usize {
+    let p = &profile.profile;
+    if p.mode == Mode::Expandable
+        && p.short_checksum_length > 0
+        && length <= p.short_checksum_until
+    {
+        return p.short_checksum_length;
+    }
+    p.checksum_length
+}
+
 /// Spec 18.2 default list. Deliberately small; applications extend it.
 pub const DEFAULT_BLOCKLIST: [&str; 12] = [
     "CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC", "SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
@@ -80,6 +94,13 @@ pub struct Profile {
     pub min_length: usize,
     pub checksum_alphabet: String,
     pub checksum_length: usize,
+    /// Spec 22. Expandable mode only; `0` (the default) disables the short
+    /// checksum. When set, generations at or below `short_checksum_until`
+    /// use this many checksum symbols instead of `checksum_length`.
+    pub short_checksum_length: usize,
+    /// Spec 22. Required when `short_checksum_length` is set: the last
+    /// generation (total length) that uses the short checksum.
+    pub short_checksum_until: usize,
     pub case_sensitive: bool,
     pub separator: String,
     /// Expandable mode only; `0` (the default) means the separator always
@@ -225,6 +246,31 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
     }
     if mode == Mode::Expandable && min_length <= profile.checksum_length {
         return Err(fail("minLength must be greater than checksumLength"));
+    }
+
+    // Spec 22. The short checksum is expandable-only; 0 turns it off.
+    let short_checksum_length = profile.short_checksum_length;
+    let short_checksum_until = profile.short_checksum_until;
+    if mode == Mode::Fixed {
+        if short_checksum_length != 0 || short_checksum_until != 0 {
+            return Err(fail(
+                "shortChecksumLength and shortChecksumUntil are expandable-mode only",
+            ));
+        }
+    } else if short_checksum_length != 0 {
+        if profile.checksum_length < 1 || short_checksum_length >= profile.checksum_length {
+            return Err(fail("shortChecksumLength must be less than checksumLength"));
+        }
+        if short_checksum_until < min_length {
+            return Err(fail(
+                "shortChecksumUntil must be an integer of at least minLength",
+            ));
+        }
+        if min_length <= short_checksum_length {
+            return Err(fail("minLength must be greater than shortChecksumLength"));
+        }
+    } else if short_checksum_until != 0 {
+        return Err(fail("shortChecksumUntil requires shortChecksumLength"));
     }
 
     if mode == Mode::Fixed && profile.checksum_length > 0 {

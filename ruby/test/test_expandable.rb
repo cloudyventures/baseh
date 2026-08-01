@@ -52,14 +52,15 @@ class TestExpandable < Minitest::Test
     assert_equal 6, profile.separator_min_length
   end
 
-  # Spec 17.1 generation table.
+  # Spec 17.1/22.3 generation table: generations 4 and 5 carry the short
+  # checksum (K = 1); the second checksum symbol applies from length 6.
   def test_generation_table
     expected = [
-      [4, 0, 1_156],
-      [5, 1_156, 39_304],
-      [6, 40_460, 1_336_336],
-      [7, 1_376_796, 45_435_424],
-      [8, 46_812_220, 1_544_804_416]
+      [4, 0, 39_304],
+      [5, 39_304, 1_336_336],
+      [6, 1_375_640, 1_336_336],
+      [7, 2_711_976, 45_435_424],
+      [8, 48_147_400, 1_544_804_416]
     ]
     expected.each do |l, base, cap|
       assert_equal base, expandable.generation_base(l), "generationBase(#{l})"
@@ -92,13 +93,13 @@ class TestExpandable < Minitest::Test
   end
 
   def test_last_four_character_and_first_five_character_ids
-    assert_equal 4, raw(expandable.encode(id: 1_155)).length
-    assert_equal 5, raw(expandable.encode(id: 1_156)).length
+    assert_equal 4, raw(expandable.encode(id: 39_303)).length
+    assert_equal 5, raw(expandable.encode(id: 39_304)).length
   end
 
   def test_exhaustive_round_trip_of_generation_4
     issued = 0
-    1_156.times do |id|
+    39_304.times do |id|
       begin
         code = expandable.encode(id: id)
       rescue Baseh::BasehError => e
@@ -109,7 +110,7 @@ class TestExpandable < Minitest::Test
       assert_equal id, expandable.decode(code).id
       issued += 1
     end
-    assert issued > 1_100, "expected nearly all 1156 ids issuable, got #{issued}"
+    assert issued > 38_500, "expected nearly all 39304 ids issuable, got #{issued}"
   end
 
   def test_boundaries_on_a_custom_expandable_profile
@@ -193,13 +194,17 @@ class TestExpandable < Minitest::Test
     refute result.corrected
   end
 
-  # M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-  # (spec 17.1); the sweep pins it at generations 4, 6 and 8.
+  # M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total at
+  # the full two-symbol checksum (spec 17.1). The short-checksum generations
+  # (<= 5, spec 22) run modulus 35 and are excluded; the sweep pins total
+  # detection at generations 6 and 8.
   def test_detects_single_substitutions_and_transpositions
     alphabet = expandable.profile.body_alphabet
     index = Baseh::BaseN.alphabet_index(alphabet)
-    [4, 6, 8].each do |l|
-      body_len = l - expandable.profile.checksum_length
+    [6, 8].each do |l|
+      k = expandable.profile.effective_checksum_length(l)
+      assert_equal 2, k
+      body_len = l - k
       misses = 0
       expandable.generation_base(l).upto(expandable.generation_base(l) + 49) do |id|
         begin
@@ -208,20 +213,20 @@ class TestExpandable < Minitest::Test
           next
         end
         body = raw(code)[0...body_len]
-        before = Baseh::Checksum.checksum_value(expandable.profile, body, index)
+        before = Baseh::Checksum.checksum_value(expandable.profile, body, index, k)
         body_len.times do |pos|
           cur = index[body[pos]]
           [1, 5, 17].each do |delta|
             nv = (cur + delta) % 34
             candidate = body[0...pos] + alphabet[nv] + body[(pos + 1)..]
-            misses += 1 if Baseh::Checksum.checksum_value(expandable.profile, candidate, index) == before
+            misses += 1 if Baseh::Checksum.checksum_value(expandable.profile, candidate, index, k) == before
           end
         end
         (body_len - 1).times do |pos|
           next if body[pos] == body[pos + 1]
 
           swapped = body[0...pos] + body[pos + 1] + body[pos] + body[(pos + 2)..]
-          misses += 1 if Baseh::Checksum.checksum_value(expandable.profile, swapped, index) == before
+          misses += 1 if Baseh::Checksum.checksum_value(expandable.profile, swapped, index, k) == before
         end
       end
       assert_equal 0, misses, "generation #{l} had #{misses} checksum misses"

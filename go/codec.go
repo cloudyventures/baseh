@@ -106,7 +106,7 @@ func (h *Codec) encodeFixed(id *big.Int) (string, error) {
 		value = permuted
 	}
 	body := encodeBaseN(value, h.prep.bodyNorm, h.prep.profile.BodyLength)
-	checksum, err := calculateChecksum(h.prep, body)
+	checksum, err := calculateChecksum(h.prep, body, h.prep.profile.ChecksumLength)
 	if err != nil {
 		return "", err
 	}
@@ -135,8 +135,9 @@ func (h *Codec) encodeExpandable(id *big.Int) (string, error) {
 		}
 		value = permuted
 	}
-	body := encodeBaseN(value, h.prep.bodyNorm, l-h.prep.profile.ChecksumLength)
-	checksum, err := calculateChecksum(h.prep, body)
+	k := effectiveChecksumLength(h.prep, l)
+	body := encodeBaseN(value, h.prep.bodyNorm, l-k)
+	checksum, err := calculateChecksum(h.prep, body, k)
 	if err != nil {
 		return "", err
 	}
@@ -209,9 +210,13 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 		return nil, err
 	}
 
+	// Spec 22: the generation is selected by the presented total length, so
+	// the effective checksum length is a deterministic function of it.
+	effectiveK := h.prep.profile.ChecksumLength
 	bodyLength := h.prep.profile.BodyLength
 	if h.prep.mode == "expandable" {
-		bodyLength = len(raw) - h.prep.profile.ChecksumLength
+		effectiveK = effectiveChecksumLength(h.prep, len(raw))
+		bodyLength = len(raw) - effectiveK
 	}
 	body := raw[:bodyLength]
 	suppliedChecksum := raw[bodyLength:]
@@ -221,7 +226,7 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 	// checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
 	// outside the body alphabet fails in calculateChecksum or decodeBaseN
 	// as INVALID_CHARACTER. The frozen error vectors fix this precedence.
-	expectedChecksum, err := calculateChecksum(h.prep, body)
+	expectedChecksum, err := calculateChecksum(h.prep, body, effectiveK)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +268,7 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 		valid := make(map[string]struct{})
 		var only string
 		for _, candidate := range candidates {
-			candidateChecksum, err := calculateChecksum(h.prep, candidate)
+			candidateChecksum, err := calculateChecksum(h.prep, candidate, effectiveK)
 			if err != nil {
 				return nil, err
 			}
@@ -443,40 +448,38 @@ func expandableGrouping(length int) []int {
 	return sizes
 }
 
-// generationBase implements spec 19.1: the first id of generation L, the
-// sum of A^(k-K) for k from minLength through L-1.
+// generationBase implements spec 19.1/22.3: the first id of generation L,
+// the sum of each generation's capacity A^(k - effectiveK(k)) for k from
+// minLength through L-1. The effective checksum length is per-generation
+// (spec 22), so the sum is not a single geometric series when the short
+// checksum is on.
 func generationBase(prep *prepared, length int) *big.Int {
-	a := int64(len(prep.bodyNorm))
-	k := prep.profile.ChecksumLength
 	base := new(big.Int)
-	cap := new(big.Int).Exp(big.NewInt(a), big.NewInt(int64(prep.minLength-k)), nil)
 	for l := prep.minLength; l < length; l++ {
-		base.Add(base, cap)
-		cap.Mul(cap, big.NewInt(a))
+		base.Add(base, generationCapacity(prep, l))
 	}
 	return base
 }
 
-// generationCapacity implements spec 19.1: A^(L-K) ids held by
-// generation L.
+// generationCapacity implements spec 19.1/22.3: A^(L - effectiveK(L)) ids
+// held by generation L.
 func generationCapacity(prep *prepared, length int) *big.Int {
 	return new(big.Int).Exp(
 		big.NewInt(int64(len(prep.bodyNorm))),
-		big.NewInt(int64(length-prep.profile.ChecksumLength)), nil)
+		big.NewInt(int64(length-effectiveChecksumLength(prep, length))), nil)
 }
 
 // generationForId returns the smallest generation whose range holds id,
 // per spec 19.6.
 func generationForId(prep *prepared, id *big.Int) int {
-	a := big.NewInt(int64(len(prep.bodyNorm)))
 	l := prep.minLength
 	base := new(big.Int)
 	cap := generationCapacity(prep, l)
 	sum := new(big.Int)
 	for id.Cmp(sum.Add(base, cap)) >= 0 {
 		base.Add(base, cap)
-		cap.Mul(cap, a)
 		l++
+		cap = generationCapacity(prep, l)
 	}
 	return l
 }

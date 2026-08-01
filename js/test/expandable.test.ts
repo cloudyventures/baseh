@@ -4,7 +4,7 @@ import {
   Baseh, BasehError,
   basehExpandableV1, basehExpandablePV1, basehMediumV1,
   generationBase, generationCapacity, generationForId, expandableGrouping,
-  prepareProfile, checksumValue
+  prepareProfile, checksumValue, effectiveChecksumLength
 } from "../src/index.js";
 import { alphabetIndex } from "../src/index.js";
 import type { BasehProfile } from "../src/index.js";
@@ -53,12 +53,14 @@ describe("expandable: frozen tier shape", () => {
   });
 
   it("matches the generation table of spec 17.1", () => {
+    // Short checksum on (spec 22): one checksum symbol through length 5,
+    // two from 6 up, so generations 5 and 6 have equal capacity.
     const expected: Array<[number, string, string]> = [
-      [4, "0", "1156"],
-      [5, "1156", "39304"],
-      [6, "40460", "1336336"],
-      [7, "1376796", "45435424"],
-      [8, "46812220", "1544804416"]
+      [4, "0", "39304"],
+      [5, "39304", "1336336"],
+      [6, "1375640", "1336336"],
+      [7, "2711976", "45435424"],
+      [8, "48147400", "1544804416"]
     ];
     for (const [l, base, cap] of expected) {
       assert.equal(generationBase(h.profile, l).toString(), base);
@@ -93,14 +95,14 @@ describe("expandable: boundary round trips (spec 20.1)", () => {
     }
   }
 
-  it("id 1155 is the last 4-character code, 1156 the first 5-character one", () => {
-    assert.equal(raw(h.encode(1155n)).length, 4);
-    assert.equal(raw(h.encode(1156n)).length, 5);
+  it("id 39303 is the last 4-character code, 39304 the first 5-character one", () => {
+    assert.equal(raw(h.encode(39303n)).length, 4);
+    assert.equal(raw(h.encode(39304n)).length, 5);
   });
 
   it("exhaustively round-trips every issuable id of generation 4", () => {
     let issued = 0;
-    for (let id = 0n; id < 1156n; id += 1n) {
+    for (let id = 0n; id < 39304n; id += 1n) {
       let code: string;
       try {
         code = h.encode(id);
@@ -112,7 +114,7 @@ describe("expandable: boundary round trips (spec 20.1)", () => {
       assert.equal(h.decode(code).id, id);
       issued += 1;
     }
-    assert.ok(issued > 1100, `expected nearly all 1156 ids issuable, got ${issued}`);
+    assert.ok(issued > 38500, `expected nearly all 39304 ids issuable, got ${issued}`);
   });
 
   it("round-trips boundaries on a custom expandable profile", () => {
@@ -212,12 +214,16 @@ describe("expandable: checksum with zero (spec 20.3)", () => {
   });
 
   it("detects every sampled single substitution and adjacent transposition at several generations", () => {
-    // M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-    // (spec 17.1); the sweep pins it at generations 4, 6 and 8.
-    for (const l of [4, 6, 8]) {
+    // M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total at
+    // the full two-symbol checksum (spec 17.1). The short-checksum
+    // generations (<= 5, spec 22) run modulus 35 and are excluded; the sweep
+    // pins total detection at generations 6 and 8.
+    for (const l of [6, 8]) {
       const base = generationBase(h.profile, l);
+      const k = effectiveChecksumLength(h.profile, l);
+      assert.equal(k, 2);
       const index = alphabetIndex(h.profile.bodyAlphabetNorm);
-      const bodyLen = l - h.profile.checksumLength;
+      const bodyLen = l - k;
       const alphabet = h.profile.bodyAlphabetNorm;
       let misses = 0;
       for (let id = base; id < base + 50n; id += 1n) {
@@ -229,19 +235,19 @@ describe("expandable: checksum with zero (spec 20.3)", () => {
         }
         const r = raw(code);
         const body = r.slice(0, bodyLen);
-        const before = checksumValue(h.profile, body, index);
+        const before = checksumValue(h.profile, body, index, k);
         for (let pos = 0; pos < bodyLen; pos += 1) {
           const cur = index.get(body[pos] as string) as bigint;
           for (const delta of [1n, 5n, 17n]) {
             const nv = Number((cur + delta) % 34n);
             const candidate = body.slice(0, pos) + alphabet[nv] + body.slice(pos + 1);
-            if (checksumValue(h.profile, candidate, index) === before) misses += 1;
+            if (checksumValue(h.profile, candidate, index, k) === before) misses += 1;
           }
         }
         for (let pos = 0; pos + 1 < bodyLen; pos += 1) {
           if (body[pos] === body[pos + 1]) continue;
           const swapped = body.slice(0, pos) + body[pos + 1] + body[pos] + body.slice(pos + 2);
-          if (checksumValue(h.profile, swapped, index) === before) misses += 1;
+          if (checksumValue(h.profile, swapped, index, k) === before) misses += 1;
         }
       }
       assert.equal(misses, 0, `generation ${l} had ${misses} checksum misses`);

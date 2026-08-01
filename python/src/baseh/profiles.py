@@ -157,9 +157,11 @@ def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
     namespace is small, gaining one symbol automatically as issuance climbs
     past each generation's capacity. The body alphabet is the full
     alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
-    alphabet derives as "0" plus the body (35 symbols, modulus 1225). The
-    hyphen appears from six characters up, split by the balanced grouping
-    rule of spec 19.5."""
+    alphabet derives as "0" plus the body (35 symbols). The short checksum of
+    spec 22 is on: one checksum symbol through five characters (34^3 = 39,304
+    ids at length 4, 34^4 = 1,336,336 at length 5), two from six characters
+    up. The hyphen appears from six characters up, split by the balanced
+    grouping rule of spec 19.5."""
     return {
         "profileId": "baseh-expandable" + ("-p" if p_suffix else "") + "-v1",
         "mode": "expandable",
@@ -167,6 +169,8 @@ def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
         "minLength": 4,
         "checksumAlphabet": "0" + _EXPANDABLE_BODY,
         "checksumLength": 2,
+        "shortChecksumLength": 1,
+        "shortChecksumUntil": 5,
         "caseSensitive": False,
         "separator": "-",
         "separatorMinLength": 6,

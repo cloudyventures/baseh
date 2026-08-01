@@ -133,8 +133,10 @@ module Baseh
     # namespaces. Four characters while the namespace is small, gaining one
     # symbol automatically as issuance climbs past each generation's
     # capacity. The checksum alphabet derives at preparation as "0" plus the
-    # body (35 symbols, modulus 1225); the hyphen appears from six
-    # characters up, split by the balanced grouping of spec 19.5.
+    # body (35 symbols, modulus 1225); generations 4 and 5 carry the spec 22
+    # short checksum of one symbol (modulus 35), with the full two symbols
+    # from six characters up, where the hyphen also appears, split by the
+    # balanced grouping of spec 19.5.
     def baseh_expandable_v1
       expandable_tier(frozen_permutation, false)
     end
@@ -184,6 +186,8 @@ module Baseh
         min_length: 4,
         checksum_alphabet: ("0" + EXPANDABLE_BODY).dup,
         checksum_length: 2,
+        short_checksum_length: 1,
+        short_checksum_until: 5,
         case_sensitive: false,
         separator: "-",
         separator_min_length: 6,

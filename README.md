@@ -97,6 +97,11 @@ The `baseh-expandable-v1` tier is the recommended starting point:
 - **Checksum keeps the zero**: the checksum alphabet is the body alphabet
   plus `0`, and the `O -> 0` input alias still applies, so a misread `O` in
   a checksum position resolves correctly.
+- **Short checksum on by default**: the shortest, most-typed codes carry one
+  checksum symbol instead of two — one through five characters, two beyond —
+  so generation 4 holds 39,304 ids instead of 1,156 (spec section 22;
+  configurable via `shortChecksumLength`/`shortChecksumUntil`, 0 turns it
+  off).
 - **Permuted per length**: the Feistel permutation runs within each code
   length's range with the length mixed into the key derivation, so codes
   look random at every size even though issuance is sequential.

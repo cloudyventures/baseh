@@ -2,7 +2,7 @@ import { BasehError } from "./errors.js";
 import { decodeBaseN, encodeBaseN, alphabetIndex } from "./basen.js";
 import { calculateChecksum } from "./checksum.js";
 import { inversePermute, permute } from "./feistel.js";
-import { prepareProfile } from "./profile.js";
+import { prepareProfile, effectiveChecksumLength } from "./profile.js";
 /** Built-in spoken-confusion candidate maps. Spec 3.3; pairs apply to body symbols only. */
 export const CONFUSION_MAPS = {
     light: { B: ["D"], D: ["B"], P: ["T"], T: ["P"] },
@@ -105,23 +105,21 @@ export function expandableGrouping(length) {
     ];
 }
 /**
- * Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
- * minLength through L-1.
+ * Spec 19.1/22.3. First id of generation L: the sum of each generation's
+ * capacity A^(k - effectiveK(k)) for k from minLength through L-1. The
+ * effective checksum length is per-generation (spec 22), so the sum is not
+ * a single geometric series when the short checksum is on.
  */
 export function generationBase(profile, length) {
-    const a = BigInt(profile.bodyAlphabetNorm.length);
-    const k = profile.checksumLength;
     let base = 0n;
-    let cap = powBigInt(a, profile.minLength - k);
     for (let l = profile.minLength; l < length; l += 1) {
-        base += cap;
-        cap *= a;
+        base += generationCapacity(profile, l);
     }
     return base;
 }
-/** Spec 19.1. Ids held by generation L: A^(L-K). */
+/** Spec 19.1/22.3. Ids held by generation L: A^(L - effectiveK(L)). */
 export function generationCapacity(profile, length) {
-    return powBigInt(BigInt(profile.bodyAlphabetNorm.length), length - profile.checksumLength);
+    return powBigInt(BigInt(profile.bodyAlphabetNorm.length), length - effectiveChecksumLength(profile, length));
 }
 /** Smallest generation whose range holds id, per spec 19.6. */
 export function generationForId(profile, id) {
@@ -130,8 +128,8 @@ export function generationForId(profile, id) {
     let cap = generationCapacity(profile, l);
     while (id >= base + cap) {
         base += cap;
-        cap *= BigInt(profile.bodyAlphabetNorm.length);
         l += 1;
+        cap = generationCapacity(profile, l);
     }
     return l;
 }
@@ -229,8 +227,9 @@ export class Baseh {
         if (perm.enabled) {
             value = permute(value, domain, this.permKey(l));
         }
-        const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, l - this.profile.checksumLength);
-        const raw = body + calculateChecksum(this.profile, body);
+        const k = effectiveChecksumLength(this.profile, l);
+        const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, l - k);
+        const raw = body + calculateChecksum(this.profile, body, k);
         this.checkBlocked(raw);
         return formatRaw(raw, this.profile);
     }
@@ -242,8 +241,13 @@ export class Baseh {
     /** Spec 9/19.7. */
     decode(input, options = {}) {
         const raw = normalize(input, this.profile, options.acceptSpaces === true);
+        // Spec 22: the generation is selected by the presented total length, so
+        // the effective checksum length is a deterministic function of it.
+        const effectiveK = this.profile.mode === "expandable"
+            ? effectiveChecksumLength(this.profile, raw.length)
+            : this.profile.checksumLength;
         const bodyLength = this.profile.mode === "expandable"
-            ? raw.length - this.profile.checksumLength
+            ? raw.length - effectiveK
             : this.profile.bodyLength;
         let body = raw.slice(0, bodyLength);
         const suppliedChecksum = raw.slice(bodyLength);
@@ -251,7 +255,7 @@ export class Baseh {
         // per-region membership check: a checksum-region symbol outside the
         // checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
         // outside the body alphabet fails later in decodeBaseN as INVALID_CHARACTER.
-        if (calculateChecksum(this.profile, body) !== suppliedChecksum) {
+        if (calculateChecksum(this.profile, body, effectiveK) !== suppliedChecksum) {
             if (!options.tryCorrection || (options.maxCorrections ?? 1) === 0) {
                 throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
             }
@@ -272,7 +276,7 @@ export class Baseh {
             }
             const valid = new Set();
             for (const candidate of generateCandidates(body, map, options.maxCorrections ?? 1)) {
-                if (calculateChecksum(this.profile, candidate) === suppliedChecksum) {
+                if (calculateChecksum(this.profile, candidate, effectiveK) === suppliedChecksum) {
                     valid.add(candidate);
                 }
             }

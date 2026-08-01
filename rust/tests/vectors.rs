@@ -89,6 +89,8 @@ fn profile_from_definition(def: &Value) -> Profile {
         min_length: def["minLength"].as_u64().unwrap_or(0) as usize,
         checksum_alphabet: def["checksumAlphabet"].as_str().unwrap().to_string(),
         checksum_length: def["checksumLength"].as_u64().unwrap() as usize,
+        short_checksum_length: def["shortChecksumLength"].as_u64().unwrap_or(0) as usize,
+        short_checksum_until: def["shortChecksumUntil"].as_u64().unwrap_or(0) as usize,
         case_sensitive: def["caseSensitive"].as_bool().unwrap(),
         separator: def["separator"].as_str().unwrap().to_string(),
         separator_min_length: def["separatorMinLength"].as_u64().unwrap_or(0) as usize,

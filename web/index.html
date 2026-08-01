@@ -85,6 +85,13 @@
         <label for="sep-min-length">Separator from length<span class="tip" tabindex="0" aria-label="Separator minimum length details"><span class="i">i</span><span class="tip-body">Expandable codes are shown bare below this total length and grouped by the separator from this length up, so short codes stay uncluttered. The frozen expandable tier hyphenates from 6 characters.</span></span></label>
         <input id="sep-min-length" type="number" min="0" max="20" value="6" />
       </div>
+      <div class="field" id="short-checksum-row">
+        <label for="short-checksum">Short checksum<span class="tip" tabindex="0" aria-label="Short checksum details"><span class="i">i</span><span class="tip-body">Expandable mode can carry fewer checksum symbols on its shortest, most-typed generations: codes through total length 5 validate against 1 checksum symbol, longer codes use the full checksum length. The opening generation holds 34 times as many identifiers in exchange for weaker typo detection there (about 1 in 35 random matches instead of 1 in 1,225). The frozen expandable tier ships this on; Off keeps the full checksum on every generation.</span></span></label>
+        <select id="short-checksum">
+          <option value="0">Off</option>
+          <option value="1" selected>1 symbol through length 5 (frozen tier)</option>
+        </select>
+      </div>
       <div class="field" id="body-length-row">
         <label for="body-length">Body length <output id="body-length-out">6</output></label>
         <input id="body-length" type="range" min="1" max="10" value="6" />
