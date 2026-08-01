@@ -736,15 +736,15 @@ describe("short checksum (spec 22)", async () => {
     assert.deepEqual(rows.map((r) => r.checksum), [1, 1, 2, 2, 2]);
   });
 
-  it("round trips the short/normal boundary ids 1,375,639 and 1,375,640", () => {
+  it("round trips the short/normal boundary ids 551,123 and 551,124", () => {
     const h = new Baseh(basehExpandableV1());
-    assert.equal(generationBase(h.profile, 6), 1375640n);
-    const lastShort = raw(h.encode(1375639n));
+    assert.equal(generationBase(h.profile, 6), 551124n);
+    const lastShort = raw(h.encode(551123n));
     assert.equal(lastShort.length, 5);
-    assert.equal(h.decode(lastShort).id, 1375639n);
-    const firstNormal = raw(h.encode(1375640n));
+    assert.equal(h.decode(lastShort).id, 551123n);
+    const firstNormal = raw(h.encode(551124n));
     assert.equal(firstNormal.length, 6);
-    assert.equal(h.decode(firstNormal).id, 1375640n);
+    assert.equal(h.decode(firstNormal).id, 551124n);
   });
 
   it("round trips the first id of generations 4 through 8", () => {
@@ -768,24 +768,35 @@ describe("short checksum (spec 22)", async () => {
   });
 
   it("the repetition scan spans body and the single short checksum symbol (spec 22.4)", () => {
-    const probe = new Baseh({ ...basehExpandableV1(), maxRepetition: 0 });
+    // The scan rule is profile-independent, so use a small permutation-free
+    // profile where a run of 4 spanning body and the checksum is guaranteed.
+    const shape = {
+      profileId: "short-rep-test",
+      mode: "expandable" as const,
+      bodyAlphabet: "AB",
+      minLength: 4,
+      checksumAlphabet: "0AB",
+      checksumLength: 2,
+      shortChecksumLength: 1,
+      shortChecksumUntil: 5,
+      caseSensitive: false,
+      separator: "",
+      separatorMinLength: 0,
+      grouping: [],
+      aliases: {},
+      permutation: { enabled: false } as const,
+      profanity: { mode: "none" as const },
+      maxRepetition: 0
+    };
+    const probe = new Baseh(shape);
     let found: bigint | null = null;
-    for (let id = 0n; id < generationBase(probe.profile, 5); id += 1n) {
-      let code: string;
-      try {
-        code = probe.encode(id);
-      } catch {
-        continue;
-      }
-      const r = raw(code);
-      if (r.length === 4 && /(.)\1{3}/.test(r)) {
-        found = id;
-        break;
-      }
+    for (let id = 0n; id < 2000n && found === null; id += 1n) {
+      const r = raw(probe.encode(id));
+      if (r.length >= 4 && /(.)\1{3}$/.test(r)) found = id;
     }
-    assert.ok(found !== null, "expected a gen-4 code with a run of 4");
-    const h = new Baseh(basehExpandableV1());
-    assert.throws(() => h.encode(found), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
+    assert.ok(found !== null, "expected a code ending in a run of 4");
+    const blocked = new Baseh({ ...shape, maxRepetition: 4 });
+    assert.throws(() => blocked.encode(found), (e: unknown) => e instanceof BasehError && e.code === "BLOCKED_CODE");
   });
 
   it("the separator threshold is still a function of total length (spec 22.4)", () => {
@@ -874,9 +885,9 @@ describe("short checksum: zero-checksum window (spec 22 amendment)", async () =>
   it("window generations are all body: capacity is A^L", () => {
     assert.equal(generationCapacityAt(34, 2, 4, 0, 5).toString(), (34n ** 4n).toString());
     assert.equal(generationCapacityAt(34, 2, 5, 0, 5).toString(), (34n ** 5n).toString());
-    assert.equal(generationCapacity(h.profile, 4), 34n ** 4n);
+    assert.equal(generationCapacity(h.profile, 4), 27n ** 4n);
     // Above the window the full checksum still reserves its symbols.
-    assert.equal(generationCapacity(h.profile, 6), 34n ** 4n);
+    assert.equal(generationCapacity(h.profile, 6), 27n ** 4n);
   });
 
   it("round trips generations 4-6 with an empty checksum inside the window", () => {

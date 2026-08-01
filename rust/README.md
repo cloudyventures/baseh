@@ -27,10 +27,11 @@ assert_eq!(result.id, BigUint::from(48_284_291u64));
 # Ok::<(), baseh::BasehError>(())
 ```
 
-The expandable body alphabet never contains `0` or `O` (34 symbols by
-default; any `0`/`O` in a custom alphabet are silently removed during profile
-preparation). The checksum alphabet adds `0` back (35 symbols), and the
-existing `O -> 0` input alias still repairs a misread checksum character.
+The expandable body alphabet applies the medium visual and spoken safety
+strips and the `0`/`O` zero ban (27 symbols by default; any `0`/`O` in a
+custom alphabet are silently removed during profile preparation). The
+checksum alphabet adds `0` back (28 symbols), and the existing `O -> 0`
+input alias still repairs a misread checksum character.
 There is no left-padding, the Feistel permutation stays on (applied per code
 length, so codes within each length look random even though issuance is
 sequential), and separators only appear once codes reach

@@ -87,12 +87,13 @@ Expandable properties:
   each length's capacity, codes simply become one character longer —
   transparently, with no migration or re-issue. Old shorter codes keep
   decoding forever; the code's length selects the generation at decode.
-- The body alphabet never contains `0` or `O` — the default expandable
-  alphabet is the 34 remaining alphanumeric symbols. A custom alphabet
+- The default expandable body alphabet is the 27 symbols left after the
+  medium visual and spoken safety strips and the `0`/`O` zero ban, so an
+  issued code never emits a visual or spoken confusable. A custom alphabet
   containing `0`/`O` has those symbols silently removed during profile
   preparation. This composes unchanged with the existing visual/spoken
   safety levels, profanity modes and blocklists.
-- The checksum alphabet is the body alphabet plus `0` (35 symbols for the
+- The checksum alphabet is the body alphabet plus `0` (28 symbols for the
   default). The existing input alias `O -> 0` remains, so a typed or
   misread `O` in a checksum position resolves to `0`.
 - There is no left-padding in expandable mode (fixed mode keeps its

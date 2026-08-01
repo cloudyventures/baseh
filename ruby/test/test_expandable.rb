@@ -42,11 +42,11 @@ class TestExpandable < Minitest::Test
   # Spec 17.1/19.3: prepared alphabets and derived values.
   def test_frozen_tier_shape
     profile = expandable.profile
-    assert_equal "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ", profile.body_alphabet
-    assert_equal 34, profile.body_alphabet.length
-    assert_equal "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ", profile.checksum_alphabet
-    assert_equal 35, profile.checksum_alphabet.length
-    assert_equal 1225, profile.checksum_modulus
+    assert_equal "123456789ACDEFGHJKMPQRUVXYZ", profile.body_alphabet
+    assert_equal 27, profile.body_alphabet.length
+    assert_equal "0123456789ACDEFGHJKMPQRUVXYZ", profile.checksum_alphabet
+    assert_equal 28, profile.checksum_alphabet.length
+    assert_equal 784, profile.checksum_modulus
     assert_equal "expandable", profile.mode
     assert_equal 4, profile.min_length
     assert_equal 6, profile.separator_min_length
@@ -56,11 +56,11 @@ class TestExpandable < Minitest::Test
   # checksum (K = 1); the second checksum symbol applies from length 6.
   def test_generation_table
     expected = [
-      [4, 0, 39_304],
-      [5, 39_304, 1_336_336],
-      [6, 1_375_640, 1_336_336],
-      [7, 2_711_976, 45_435_424],
-      [8, 48_147_400, 1_544_804_416]
+      [4, 0, 19_683],
+      [5, 19_683, 531_441],
+      [6, 551_124, 531_441],
+      [7, 1_082_565, 14_348_907],
+      [8, 15_431_472, 387_420_489]
     ]
     expected.each do |l, base, cap|
       assert_equal base, expandable.generation_base(l), "generationBase(#{l})"
@@ -93,13 +93,13 @@ class TestExpandable < Minitest::Test
   end
 
   def test_last_four_character_and_first_five_character_ids
-    assert_equal 4, raw(expandable.encode(id: 39_303)).length
-    assert_equal 5, raw(expandable.encode(id: 39_304)).length
+    assert_equal 4, raw(expandable.encode(id: 19_682)).length
+    assert_equal 5, raw(expandable.encode(id: 19_683)).length
   end
 
   def test_exhaustive_round_trip_of_generation_4
     issued = 0
-    39_304.times do |id|
+    19_683.times do |id|
       begin
         code = expandable.encode(id: id)
       rescue Baseh::BasehError => e
@@ -110,7 +110,7 @@ class TestExpandable < Minitest::Test
       assert_equal id, expandable.decode(code).id
       issued += 1
     end
-    assert issued > 38_500, "expected nearly all 39304 ids issuable, got #{issued}"
+    assert issued > 19_000, "expected nearly all 19683 ids issuable, got #{issued}"
   end
 
   def test_boundaries_on_a_custom_expandable_profile
@@ -194,9 +194,10 @@ class TestExpandable < Minitest::Test
     refute result.corrected
   end
 
-  # M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total at
+  # M = 784 > 26 and gcd(36, 784) = 4, so a transposition escapes only when
+  # 196 | (a-b), impossible for |a-b| <= 26: detection is provably total at
   # the full two-symbol checksum (spec 17.1). The short-checksum generations
-  # (<= 5, spec 22) run modulus 35 and are excluded; the sweep pins total
+  # (<= 5, spec 22) run modulus 28 and are excluded; the sweep pins total
   # detection at generations 6 and 8.
   def test_detects_single_substitutions_and_transpositions
     alphabet = expandable.profile.body_alphabet
@@ -217,7 +218,7 @@ class TestExpandable < Minitest::Test
         body_len.times do |pos|
           cur = index[body[pos]]
           [1, 5, 17].each do |delta|
-            nv = (cur + delta) % 34
+            nv = (cur + delta) % 27
             candidate = body[0...pos] + alphabet[nv] + body[(pos + 1)..]
             misses += 1 if Baseh::Checksum.checksum_value(expandable.profile, candidate, index, k) == before
           end
@@ -329,27 +330,40 @@ class TestExpandable < Minitest::Test
   end
 
   def test_removed_symbol_fails
-    code = raw(expandable.encode(id: 40_460)) # generation 6
+    code = raw(expandable.encode(id: 40_460)) # generation 5
     refute expandable.validate(code[1..]).valid
   end
 
   def test_correction_never_crosses_generations
-    code = expandable.encode(id: 123_456_789) # generation 8
-    r = raw(code)
-    pairs = { "B" => "D", "D" => "B", "P" => "T", "T" => "P",
-              "M" => "N", "N" => "M", "V" => "W", "W" => "V" }
-    typo = nil
-    (r.length - 2).times do |pos|
-      replacement = pairs[r[pos]]
-      next unless replacement
+    # With medium safety the spoken-confusable twins T, N, W are alias
+    # sources (they alias to P, M, V), so a typed twin decodes back at the
+    # same length rather than via a cross-length candidate. Find a
+    # generation-8 code that carries P, M or V so a typo is constructible.
+    pairs = { "P" => "T", "M" => "N", "V" => "W" }
+    found = nil
+    id = 123_456_789
+    while found.nil?
+      begin
+        code = expandable.encode(id: id)
+      rescue Baseh::BasehError
+        id += 1
+        next
+      end
+      r = raw(code)
+      (r.length - 2).times do |pos|
+        replacement = pairs[r[pos]]
+        next unless replacement
 
-      typo = r[0...pos] + replacement + r[(pos + 1)..]
-      break
+        found = [id, code, r[0...pos] + replacement + r[(pos + 1)..]]
+        break
+      end
+      id += 1
     end
-    refute_nil typo, "expected a confusable body symbol in the sample code"
+    refute_nil found, "expected a code with a P/M/V body symbol"
+    found_id, code, typo = found
     result = expandable.decode(typo, try_correction: true, confusion_profile: :medium)
-    assert_equal r.length, raw(result.canonical_code).length
-    assert_equal 123_456_789, result.id
+    assert_equal raw(code).length, raw(result.canonical_code).length
+    assert_equal found_id, result.id
   end
 
   # The keyed -p tier round trips across generations with caller key material.

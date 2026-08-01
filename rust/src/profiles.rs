@@ -159,23 +159,20 @@ fn frozen() -> Permutation {
     keyed(FROZEN_KEY_BYTES, FROZEN_KEY_ID, DEFAULT_ROUNDS)
 }
 
-// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the zero
-// ban of section 19.2)". The JSON bodyAlphabet string printed in section
-// 17.1 lists only 32 symbols (it also drops I and L), but the prose, the
-// generation-capacity table (34^(L-2); 1,156 ids at length 4) and the
-// checksum modulus (35^2 = 1,225) are all consistent only with 34, and the
-// zero ban removes exactly 0 and O. The 34-symbol alphabet is the one that
-// satisfies the normative numbers.
-const EXPANDABLE_BODY: &str = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+// Spec 17.1: the medium-safety body (27 symbols) -- the full alphanumeric
+// set with the visual and spoken medium drops (B, S, I, L, O, T, N, W) plus
+// the 0/O zero ban of section 19.2. The zero ban strips 0 and O silently at
+// preparation; neither appears in the literal, so it is a no-op here.
+const EXPANDABLE_BODY: &str = "123456789ACDEFGHJKMPQRUVXYZ";
 
 /// Spec 17.1. The frozen expandable tier: four characters while the
 /// namespace is small, gaining one symbol automatically as issuance climbs
-/// past each generation's capacity. The body alphabet is the full
-/// alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
-/// alphabet derives as "0" plus the body (35 symbols, modulus 1225). The
-/// hyphen appears from six characters up, split by the balanced grouping
-/// rule (6 -> XXX-XXX, 7 -> XXXX-XXX, and so on per the pinned table of
-/// spec 19.5).
+/// past each generation's capacity. The body alphabet is the medium-safety
+/// 27-symbol set (visual + spoken medium drops plus the zero ban, spec 19.2);
+/// the checksum alphabet derives as "0" plus the body (28 symbols, modulus
+/// 784). The hyphen appears from six characters up, split by the balanced
+/// grouping rule (6 -> XXX-XXX, 7 -> XXXX-XXX, and so on per the pinned table
+/// of spec 19.5).
 fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
     Profile {
         profile_id: format!("baseh-expandable{}-v1", if p_suffix { "-p" } else { "" }),
@@ -196,6 +193,8 @@ fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
             ('O', '0'),
             ('I', '1'),
             ('L', '1'),
+            ('B', '8'),
+            ('S', '5'),
             ('T', 'P'),
             ('N', 'M'),
             ('W', 'V'),

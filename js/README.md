@@ -39,16 +39,17 @@ result.id;                          // 123456n
 
 Expandable mode differs from the fixed tiers as follows:
 
-- The body alphabet never contains `0` or `O`; the default body alphabet is
-  the 34 remaining alphanumeric symbols. A custom alphabet that includes
+- The default body alphabet is the 27 symbols left after the medium visual
+  and spoken safety strips and the `0`/`O` zero ban, so an issued code
+  never emits a visual or spoken confusable. A custom alphabet that includes
   `0`/`O` has those symbols silently removed during profile preparation.
-- The checksum alphabet is the body alphabet plus `0` (35 symbols by
+- The checksum alphabet is the body alphabet plus `0` (28 symbols by
   default). The `O -> 0` input alias remains, so a misread `O` in a checksum
   position resolves to `0`; a `0` or `O` in a body position is simply an
   invalid character.
 - The short checksum is on by default (codec spec 22): one checksum symbol
-  through 5 characters, two beyond — generation 4 holds 39,304 ids (3 body +
-  1 checksum) instead of 1,156. Configure with `shortChecksumLength` and
+  through 5 characters, two beyond; generation 4 holds 19,683 ids (3 body +
+  1 checksum) instead of 729. Configure with `shortChecksumLength` and
   `shortChecksumUntil`; `shortChecksumUntil: 0` turns it off.
 - There is no left-padding; codes use exactly the length of the current
   generation.

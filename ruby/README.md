@@ -45,14 +45,16 @@ How expandable differs from fixed:
   (`min_length`, default 4). When the id sequence climbs past a length's
   capacity, codes simply become one character longer — transparently, no
   migration, no re-issue. Old shorter codes keep decoding forever.
-- **No `0` or `O` in the body.** The default expandable alphabet is the 34
-  remaining alphanumeric symbols. A custom alphabet containing `0`/`O` has
-  those symbols silently removed during profile preparation (the derived
-  alphabet is always displayed in tooling). This applies on top of whatever
-  visual/spoken safety levels, profanity modes, or blocklists are configured
-  — every existing profile option composes with expandable unchanged.
+- **Medium safety plus the zero ban.** The default expandable body alphabet
+  is the 27 symbols left after the medium visual and spoken safety strips
+  and the `0`/`O` zero ban, so an issued code never emits a visual or spoken
+  confusable. A custom alphabet containing `0`/`O` has those symbols silently
+  removed during profile preparation (the derived alphabet is always
+  displayed in tooling). This applies on top of whatever visual/spoken
+  safety levels, profanity modes, or blocklists are configured; every
+  existing profile option composes with expandable unchanged.
 - **Checksum alphabet gains `0`.** The checksum alphabet is the body
-  alphabet plus `0` (35 symbols for the default). The existing input alias
+  alphabet plus `0` (28 symbols for the default). The existing input alias
   `O -> 0` remains, so a typed or misread `O` in a checksum position
   resolves to `0`. There is no left-padding in expandable mode; a `0` or
   `O` in a body position of presented input is simply an invalid character.

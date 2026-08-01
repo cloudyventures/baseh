@@ -54,19 +54,19 @@ func encodeOrSkip(t *testing.T, h *Codec, id *big.Int) (string, bool) {
 
 func TestExpandableFrozenTierShape(t *testing.T) {
 	h := mustNew(t, ExpandableV1())
-	if h.prep.bodyNorm != "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ" {
+	if h.prep.bodyNorm != "123456789ACDEFGHJKMPQRUVXYZ" {
 		t.Errorf("body alphabet = %q", h.prep.bodyNorm)
 	}
-	if len(h.prep.bodyNorm) != 34 {
+	if len(h.prep.bodyNorm) != 27 {
 		t.Errorf("body alphabet length = %d", len(h.prep.bodyNorm))
 	}
-	if h.prep.checksumNorm != "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ" {
+	if h.prep.checksumNorm != "0123456789ACDEFGHJKMPQRUVXYZ" {
 		t.Errorf("checksum alphabet = %q", h.prep.checksumNorm)
 	}
-	if len(h.prep.checksumNorm) != 35 {
+	if len(h.prep.checksumNorm) != 28 {
 		t.Errorf("checksum alphabet length = %d", len(h.prep.checksumNorm))
 	}
-	if h.prep.checksumModulus.String() != "1225" {
+	if h.prep.checksumModulus.String() != "784" {
 		t.Errorf("checksum modulus = %s", h.prep.checksumModulus)
 	}
 	if h.prep.mode != "expandable" || h.prep.minLength != 4 || h.prep.separatorMinLength != 6 {
@@ -82,11 +82,11 @@ func TestExpandableFrozenTierShape(t *testing.T) {
 		base     string
 		capacity string
 	}{
-		{4, "0", "39304"},
-		{5, "39304", "1336336"},
-		{6, "1375640", "1336336"},
-		{7, "2711976", "45435424"},
-		{8, "48147400", "1544804416"},
+		{4, "0", "19683"},
+		{5, "19683", "531441"},
+		{6, "551124", "531441"},
+		{7, "1082565", "14348907"},
+		{8, "15431472", "387420489"},
 	}
 	for _, e := range expected {
 		if got := generationBase(h.prep, e.length).String(); got != e.base {
@@ -133,16 +133,16 @@ func TestExpandableBoundaryRoundTrips(t *testing.T) {
 		}
 	}
 
-	if got := len(rawCode(mustEncode(t, h, 39303))); got != 4 {
-		t.Errorf("id 39303 length = %d, want 4", got)
+	if got := len(rawCode(mustEncode(t, h, 19682))); got != 4 {
+		t.Errorf("id 19682 length = %d, want 4", got)
 	}
-	if got := len(rawCode(mustEncode(t, h, 39304))); got != 5 {
-		t.Errorf("id 39304 length = %d, want 5", got)
+	if got := len(rawCode(mustEncode(t, h, 19683))); got != 5 {
+		t.Errorf("id 19683 length = %d, want 5", got)
 	}
 
 	// Exhaustively round-trip every issuable id of generation 4.
 	issued := 0
-	for id := int64(0); id < 39304; id++ {
+	for id := int64(0); id < 19683; id++ {
 		code, ok := encodeOrSkip(t, h, big.NewInt(id))
 		if !ok {
 			continue
@@ -156,8 +156,8 @@ func TestExpandableBoundaryRoundTrips(t *testing.T) {
 		}
 		issued++
 	}
-	if issued <= 37000 {
-		t.Errorf("expected nearly all 39304 ids issuable, got %d", issued)
+	if issued <= 19000 {
+		t.Errorf("expected nearly all 19683 ids issuable, got %d", issued)
 	}
 }
 
@@ -285,15 +285,21 @@ func TestExpandableChecksumWithZero(t *testing.T) {
 }
 
 func TestExpandableChecksumDetection(t *testing.T) {
-	// At each generation M = S^effectiveK > 33 and gcd(36, M) = 1 (35 at
-	// generations 4-5, 1225 above), so detection is provably total (spec
-	// 17.1/22.4); the sweep pins it at generations 4, 6 and 8.
+	// At each generation M = S^effectiveK. Single-substitution detection is
+	// total at every generation: 37 is coprime to both 28 and 784, so a
+	// non-zero delta can never leave the checksum unchanged. Transposition
+	// detection is total only at M=784 (gen 6+): gcd(36,784)=4, but the
+	// escape needs 196|(a-b), impossible for |a-b|<=26. At gen 4-5 (M=28)
+	// adjacent values differing by a multiple of 7 can escape, so the
+	// transposition sweep is pinned at generations 6 and 8 only (spec
+	// 17.1/22.4).
 	h := mustNew(t, ExpandableV1())
 	for _, l := range []int{4, 6, 8} {
 		k := effectiveChecksumLength(h.prep, l)
 		base := generationBase(h.prep, l)
 		bodyLen := l - k
-		misses := 0
+		subMisses := 0
+		transMisses := 0
 		for i := int64(0); i < 50; i++ {
 			code, ok := encodeOrSkip(t, h, new(big.Int).Add(base, big.NewInt(i)))
 			if !ok {
@@ -314,26 +320,31 @@ func TestExpandableChecksumDetection(t *testing.T) {
 						t.Fatalf("checksumValue: %v", err)
 					}
 					if got.Cmp(before) == 0 {
-						misses++
+						subMisses++
 					}
 				}
 			}
-			for pos := 0; pos+1 < bodyLen; pos++ {
-				if body[pos] == body[pos+1] {
-					continue
-				}
-				swapped := body[:pos] + string(body[pos+1]) + string(body[pos]) + body[pos+2:]
-				got, err := checksumValue(h.prep, swapped, k)
-				if err != nil {
-					t.Fatalf("checksumValue: %v", err)
-				}
-				if got.Cmp(before) == 0 {
-					misses++
+			if l >= 6 {
+				for pos := 0; pos+1 < bodyLen; pos++ {
+					if body[pos] == body[pos+1] {
+						continue
+					}
+					swapped := body[:pos] + string(body[pos+1]) + string(body[pos]) + body[pos+2:]
+					got, err := checksumValue(h.prep, swapped, k)
+					if err != nil {
+						t.Fatalf("checksumValue: %v", err)
+					}
+					if got.Cmp(before) == 0 {
+						transMisses++
+					}
 				}
 			}
 		}
-		if misses != 0 {
-			t.Errorf("generation %d had %d checksum misses", l, misses)
+		if subMisses != 0 {
+			t.Errorf("generation %d had %d single-substitution misses", l, subMisses)
+		}
+		if l >= 6 && transMisses != 0 {
+			t.Errorf("generation %d had %d transposition misses", l, transMisses)
 		}
 	}
 }
@@ -355,7 +366,7 @@ func TestExpandableNoLeftPadding(t *testing.T) {
 	}
 
 	// canonicalCode always has exactly the presented length.
-	for _, id := range []int64{0, 39303, 39304, 1375640, 123456789} {
+	for _, id := range []int64{0, 19682, 19683, 551124, 123456789} {
 		code := mustEncode(t, h, id)
 		res, err := h.Decode(code, nil)
 		if err != nil {
@@ -373,7 +384,7 @@ func TestExpandableSeparatorThreshold(t *testing.T) {
 	if strings.Contains(mustEncode(t, h, 0), "-") {
 		t.Errorf("length-4 code contains a separator")
 	}
-	if strings.Contains(mustEncode(t, h, 39304), "-") {
+	if strings.Contains(mustEncode(t, h, 19683), "-") {
 		t.Errorf("length-5 code contains a separator")
 	}
 
@@ -466,15 +477,38 @@ func TestExpandableWrongGenerationRejection(t *testing.T) {
 		}
 	}
 
-	gen6 := rawCode(mustEncode(t, h, 1375640))
+	gen6 := rawCode(mustEncode(t, h, 551124))
 	if result := h.Validate(gen6[1:], nil); result.Valid {
 		t.Errorf("validate %q succeeded", gen6[1:])
 	}
 
-	// Correction never returns a candidate at a different length.
-	code8 := mustEncode(t, h, 123456789)
+	// Correction never returns a candidate at a different length. C and G
+	// are confusable under the heavy map and both survive in the 27-symbol
+	// body alphabet; find a code containing one in the body.
+	var code8 string
+	var foundID int64
+	for probe := int64(0); probe < 5000000; probe++ {
+		c, ok := encodeOrSkip(t, h, big.NewInt(probe))
+		if !ok {
+			continue
+		}
+		r := rawCode(c)
+		for pos := 0; pos < len(r)-2; pos++ {
+			if r[pos] == 'C' || r[pos] == 'G' {
+				code8 = c
+				foundID = probe
+				break
+			}
+		}
+		if code8 != "" {
+			break
+		}
+	}
+	if code8 == "" {
+		t.Skip("no C/G body symbol in range")
+	}
 	r := rawCode(code8)
-	pairs := map[byte]byte{'B': 'D', 'D': 'B', 'P': 'T', 'T': 'P', 'M': 'N', 'N': 'M', 'V': 'W', 'W': 'V'}
+	pairs := map[byte]byte{'C': 'G', 'G': 'C'}
 	typo := ""
 	for pos := 0; pos < len(r)-2 && typo == ""; pos++ {
 		if repl, ok := pairs[r[pos]]; ok {
@@ -484,12 +518,12 @@ func TestExpandableWrongGenerationRejection(t *testing.T) {
 	if typo == "" {
 		t.Fatalf("expected a confusable body symbol in %q", r)
 	}
-	res, err := h.Decode(typo, &DecodeOptions{TryCorrection: true, ConfusionProfile: "medium"})
+	res, err := h.Decode(typo, &DecodeOptions{TryCorrection: true, ConfusionProfile: "heavy"})
 	if err != nil {
 		t.Fatalf("decode %q: %v", typo, err)
 	}
-	if len(rawCode(res.CanonicalCode)) != len(r) || res.ID.Int64() != 123456789 {
-		t.Errorf("correction = %+v, want id 123456789 at length %d", res, len(r))
+	if len(rawCode(res.CanonicalCode)) != len(r) || res.ID.Int64() != foundID {
+		t.Errorf("correction = %+v, want id %d at length %d", res, foundID, len(r))
 	}
 }
 
@@ -499,8 +533,8 @@ func TestExpandableKeyedTier(t *testing.T) {
 		t.Errorf("profile id = %q", p.prep.profile.ProfileID)
 	}
 	ids := []*big.Int{
-		big.NewInt(0), big.NewInt(1), big.NewInt(1155), big.NewInt(1156),
-		big.NewInt(40460), big.NewInt(123456789), generationBase(p.prep, 9),
+		big.NewInt(0), big.NewInt(1), big.NewInt(728), big.NewInt(729),
+		big.NewInt(20412), big.NewInt(123456789), generationBase(p.prep, 9),
 	}
 	for _, id := range ids {
 		code, ok := encodeOrSkip(t, p, id)
@@ -628,16 +662,39 @@ func TestEncodeHugeIDOutOfRangeFast(t *testing.T) {
 // other value is rejected at the boundary.
 func TestMaxCorrectionsBoundary(t *testing.T) {
 	h := mustNew(t, ExpandableV1())
-	code, ok := encodeOrSkip(t, h, big.NewInt(123456789))
-	if !ok {
-		t.Skip("test id blocklisted")
+	// C and G are confusable under the heavy map and both survive in the
+	// 27-symbol body alphabet; find a code containing one in the body.
+	var code string
+	var raw string
+	for probe := int64(0); probe < 5000000; probe++ {
+		c, ok := encodeOrSkip(t, h, big.NewInt(probe))
+		if !ok {
+			continue
+		}
+		r := rawCode(c)
+		for pos := 0; pos < len(r)-2; pos++ {
+			if r[pos] == 'C' || r[pos] == 'G' {
+				code = c
+				raw = r
+				break
+			}
+		}
+		if code != "" {
+			break
+		}
 	}
-	raw := rawCode(code)
-	// B is confusable with D under the medium map; find a B in the body.
+	if code == "" {
+		t.Skip("no C/G body symbol in range")
+	}
+	// Create a typo by swapping C<->G at the first occurrence.
 	typo := ""
 	for pos := 0; pos < len(raw)-2; pos++ {
-		if raw[pos] == 'B' {
-			typo = raw[:pos] + "D" + raw[pos+1:]
+		if raw[pos] == 'C' {
+			typo = raw[:pos] + "G" + raw[pos+1:]
+			break
+		}
+		if raw[pos] == 'G' {
+			typo = raw[:pos] + "C" + raw[pos+1:]
 			break
 		}
 	}
@@ -648,7 +705,7 @@ func TestMaxCorrectionsBoundary(t *testing.T) {
 	zero, two := 0, 2
 	// An explicit 0 disables correction: the typo fails INVALID_CHECKSUM.
 	if _, err := h.Decode(typo, &DecodeOptions{
-		TryCorrection: true, ConfusionProfile: "medium", MaxCorrections: &zero,
+		TryCorrection: true, ConfusionProfile: "heavy", MaxCorrections: &zero,
 	}); err == nil {
 		t.Errorf("MaxCorrections 0 corrected %q anyway", typo)
 	} else {
@@ -656,13 +713,13 @@ func TestMaxCorrectionsBoundary(t *testing.T) {
 	}
 	// The nil default still corrects.
 	if _, err := h.Decode(typo, &DecodeOptions{
-		TryCorrection: true, ConfusionProfile: "medium",
+		TryCorrection: true, ConfusionProfile: "heavy",
 	}); err != nil {
 		t.Errorf("nil MaxCorrections failed to correct %q: %v", typo, err)
 	}
 	// Out-of-spec values are rejected, not clamped.
 	if _, err := h.Decode(typo, &DecodeOptions{
-		TryCorrection: true, ConfusionProfile: "medium", MaxCorrections: &two,
+		TryCorrection: true, ConfusionProfile: "heavy", MaxCorrections: &two,
 	}); err == nil {
 		t.Errorf("MaxCorrections 2 accepted")
 	} else {

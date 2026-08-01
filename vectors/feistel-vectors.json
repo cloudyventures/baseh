@@ -292,362 +292,362 @@
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
       "input": "0",
-      "permuted": "29044"
+      "permuted": "6162"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
       "input": "1",
-      "permuted": "7115"
+      "permuted": "14182"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "19406",
-      "permuted": "32420"
+      "input": "524",
+      "permuted": "6706"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "20199",
-      "permuted": "19424"
+      "input": "3303",
+      "permuted": "6395"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "35035",
-      "permuted": "23052"
+      "input": "10844",
+      "permuted": "2132"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "36477",
-      "permuted": "16482"
+      "input": "12586",
+      "permuted": "13791"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "38360",
-      "permuted": "12823"
+      "input": "17936",
+      "permuted": "3113"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "39304",
+      "capacity": "19683",
       "rounds": 8,
       "length": 4,
-      "input": "39303",
-      "permuted": "8729"
+      "input": "19682",
+      "permuted": "13528"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
       "input": "0",
-      "permuted": "763483"
+      "permuted": "161702"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
       "input": "1",
-      "permuted": "40240"
+      "permuted": "138120"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "62049",
-      "permuted": "62886"
+      "input": "29370",
+      "permuted": "461980"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "251144",
-      "permuted": "229454"
+      "input": "170730",
+      "permuted": "68568"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "847383",
-      "permuted": "1213899"
+      "input": "174982",
+      "permuted": "363234"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "1016122",
-      "permuted": "784317"
+      "input": "203262",
+      "permuted": "262238"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "1203036",
-      "permuted": "769817"
+      "input": "516442",
+      "permuted": "111994"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 5,
-      "input": "1336335",
-      "permuted": "47372"
+      "input": "531440",
+      "permuted": "297002"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
       "input": "0",
-      "permuted": "15474"
+      "permuted": "85788"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
       "input": "1",
-      "permuted": "386853"
+      "permuted": "496429"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "348832",
-      "permuted": "167199"
+      "input": "176314",
+      "permuted": "221382"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "398453",
-      "permuted": "131716"
+      "input": "292662",
+      "permuted": "166236"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "518082",
-      "permuted": "972343"
+      "input": "387293",
+      "permuted": "107010"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "620127",
-      "permuted": "137370"
+      "input": "426053",
+      "permuted": "446329"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "1000425",
-      "permuted": "565591"
+      "input": "452469",
+      "permuted": "29696"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1336336",
+      "capacity": "531441",
       "rounds": 8,
       "length": 6,
-      "input": "1336335",
-      "permuted": "721585"
+      "input": "531440",
+      "permuted": "82900"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
       "input": "0",
-      "permuted": "14340705"
+      "permuted": "4972375"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
       "input": "1",
-      "permuted": "8540847"
+      "permuted": "6739695"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "1560468",
-      "permuted": "13032085"
+      "input": "3598988",
+      "permuted": "11556576"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "1593702",
-      "permuted": "44540951"
+      "input": "6846446",
+      "permuted": "1077184"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "7655795",
-      "permuted": "26673898"
+      "input": "11598095",
+      "permuted": "472210"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "28453785",
-      "permuted": "36265366"
+      "input": "13386622",
+      "permuted": "13991197"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "29149266",
-      "permuted": "12602079"
+      "input": "13609283",
+      "permuted": "5556351"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "45435424",
+      "capacity": "14348907",
       "rounds": 8,
       "length": 7,
-      "input": "45435423",
-      "permuted": "16825983"
+      "input": "14348906",
+      "permuted": "5789546"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
       "input": "0",
-      "permuted": "936338439"
+      "permuted": "195122190"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
       "input": "1",
-      "permuted": "832449582"
+      "permuted": "6133380"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "465099683",
-      "permuted": "336053825"
+      "input": "35988883",
+      "permuted": "256575586"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "673950975",
-      "permuted": "1482217104"
+      "input": "119039365",
+      "permuted": "331183746"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "793611721",
-      "permuted": "494608117"
+      "input": "133330452",
+      "permuted": "46963657"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "864703204",
-      "permuted": "344782679"
+      "input": "144571526",
+      "permuted": "254862560"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "915282338",
-      "permuted": "456385634"
+      "input": "288388467",
+      "permuted": "28212272"
     },
     {
       "profileId": "baseh-expandable-v1",
       "keyBytesHex": "62617365682d66726f7a656e2d6b65792d7631",
-      "capacity": "1544804416",
+      "capacity": "387420489",
       "rounds": 8,
       "length": 8,
-      "input": "1544804415",
-      "permuted": "1287221235"
+      "input": "387420488",
+      "permuted": "139682218"
     }
   ]
 }

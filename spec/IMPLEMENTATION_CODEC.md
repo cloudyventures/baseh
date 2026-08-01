@@ -738,6 +738,8 @@ Version 2 shapes: all four tiers permute with the frozen published key (section 
     "O": "0",
     "I": "1",
     "L": "1",
+    "B": "8",
+    "S": "5",
     "T": "P",
     "N": "M",
     "W": "V"
@@ -772,9 +774,9 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
 {
   "profileId": "baseh-expandable-v1",
   "mode": "expandable",
-  "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+  "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
   "minLength": 4,
-  "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+  "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
   "checksumLength": 2,
   "shortChecksumLength": 1,
   "shortChecksumUntil": 5,
@@ -786,6 +788,8 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
     "O": "0",
     "I": "1",
     "L": "1",
+    "B": "8",
+    "S": "5",
     "T": "P",
     "N": "M",
     "W": "V"
@@ -804,17 +808,17 @@ One expandable-mode tier ships frozen, `baseh-expandable-v1`, and is the recomme
 }
 ```
 
-The body alphabet is the full alphanumeric set minus `0` and `O` (34 symbols; the zero ban of section 19.2). The checksum alphabet is `"0"` followed by the body alphabet in order (35 symbols, section 19.3). The tier ships the short checksum of section 22 on: one checksum symbol (modulus `35^1 = 35`) at total lengths 4 and 5, two symbols (modulus `35^2 = 1225`) from length 6 up. With two symbols, `1225` exceeds the maximum body-symbol value delta of 33 and `gcd(37, 1225) = 1`, so single-substitution detection is provably total; since `gcd(36, 1225) = 1`, adjacent-transposition detection is provably total as well — but only at lengths 6 and above (section 6.3). At lengths 4 and 5 the single checksum symbol catches about 97.1% of single substitutions and transposition detection is no longer total; this trade-off is explicit, shipped configuration (section 22.3), displayed by tooling. The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, and at or above six the balanced grouping rule of section 19.5 splits the length — 6 renders `XXX-XXX`, 7 `XXXX-XXX`, 8 `XXXX-XXXX`, 9 `XXXXX-XXXX`, 10 `XXXXX-XXXXX`, and so on per the pinned table.
+The body alphabet applies the medium visual strips (O, I, L, B, S) and the medium spoken strips (T, N, W), then the zero ban of section 19.2 removes `0` (and `O`, already stripped), leaving 27 symbols. The checksum alphabet is `"0"` followed by the body alphabet in order (28 symbols, section 19.3). The tier ships the short checksum of section 22 on: one checksum symbol (modulus `28^1 = 28`) at total lengths 4 and 5, two symbols (modulus `28^2 = 784`) from length 6 up. With two symbols, `784` exceeds the maximum body-symbol value delta of 26 and `gcd(37, 784) = 1`, so single-substitution detection is provably total; since `gcd(36, 784) = 4` a transposition escapes only when `196` divides the value difference, impossible for `|a - b| <= 26`, so adjacent-transposition detection is provably total as well, but only at lengths 6 and above (section 6.3). At lengths 4 and 5 the single checksum symbol catches about 96.4% of single substitutions and transposition detection is no longer total; this trade-off is explicit, shipped configuration (section 22.3), displayed by tooling. The alias set matches `baseh-medium-v1`; note that `O -> 0` can only ever resolve in a checksum position, because `0` and `O` can never appear in a body (section 19.2). Permutation is the frozen published key of section 7.5, applied per generation with the length mixed into the key derivation (section 19.4). The hyphen appears from six characters up: lengths 4 and 5 render bare, and at or above six the balanced grouping rule of section 19.5 splits the length: 6 renders `XXX-XXX`, 7 `XXXX-XXX`, 8 `XXXX-XXXX`, 9 `XXXXX-XXXX`, 10 `XXXXX-XXXXX`, and so on per the pinned table.
 
-Generation capacities (body alphabet 34, effective checksum length of section 22 — one symbol at lengths 4 and 5, two from 6 up — so generation `L` holds `34^(L - effectiveChecksumLength(L))` ids; sections 19.1 and 22.3):
+Generation capacities (body alphabet 27, effective checksum length of section 22, one symbol at lengths 4 and 5, two from 6 up, so generation `L` holds `27^(L - effectiveChecksumLength(L))` ids; sections 19.1 and 22.3):
 
 | Total length | Body symbols | Generation capacity | Cumulative ids |
 |---:|---:|---:|---:|
-| 4 | 3 | 39,304 | 39,304 |
-| 5 | 4 | 1,336,336 | 1,375,640 |
-| 6 | 4 | 1,336,336 | 2,711,976 |
-| 7 | 5 | 45,435,424 | 48,147,400 |
-| 8 | 6 | 1,544,804,416 | 1,592,951,816 |
+| 4 | 3 | 19,683 | 19,683 |
+| 5 | 4 | 531,441 | 551,124 |
+| 6 | 4 | 531,441 | 1,082,565 |
+| 7 | 5 | 14,348,907 | 15,431,472 |
+| 8 | 6 | 387,420,489 | 402,851,961 |
 
 Generations 5 and 6 have equal capacity: the sixth symbol buys the second checksum instead of more room.
 

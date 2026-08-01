@@ -10,8 +10,8 @@ use baseh::{
 use num_bigint::BigUint;
 
 const KEY: &[u8] = b"test-only-key-material-0001";
-/// The frozen expandable body alphabet (spec 17.1), 34 symbols.
-const EXPANDABLE_BODY: &str = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+/// The frozen expandable body alphabet (spec 17.1), 27 symbols.
+const EXPANDABLE_BODY: &str = "123456789ACDEFGHJKMPQRUVXYZ";
 
 /// A custom expandable profile with no permutation and no blocklist.
 fn custom_expandable() -> Profile {
@@ -71,15 +71,15 @@ fn frozen_tier_shape() {
     assert_eq!(h.profile().checksum_length, 2);
     assert_eq!(h.profile().short_checksum_length, 1);
     assert_eq!(h.profile().short_checksum_until, 5);
-    // The generation table of spec 22.3 pins the derived alphabets: 34 body
-    // symbols (34^(L-effectiveK(L)) per generation), modulus 35 at the short
-    // generations and 35^2 = 1225 above.
+    // The generation table of spec 22.3 pins the derived alphabets: 27 body
+    // symbols (27^(L-effectiveK(L)) per generation), modulus 28 at the short
+    // generations and 28^2 = 784 above.
     let expected: [(usize, u64, u64); 5] = [
-        (4, 0, 39304),
-        (5, 39304, 1336336),
-        (6, 1375640, 1336336),
-        (7, 2711976, 45435424),
-        (8, 48147400, 1544804416),
+        (4, 0, 19683),
+        (5, 19683, 531441),
+        (6, 551124, 531441),
+        (7, 1082565, 14348907),
+        (8, 15431472, 387420489),
     ];
     for (l, base, cap) in expected {
         assert_eq!(h.generation_base(l), big(base), "generation base {l}");
@@ -149,16 +149,16 @@ fn boundary_round_trips() {
 #[test]
 fn generation_four_and_five_boundary() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    // With the short checksum on, generation 4 holds 34^3 = 39,304 ids.
-    assert_eq!(raw(&h.encode(&big(39303)).unwrap()).len(), 4);
-    assert_eq!(raw(&h.encode(&big(39304)).unwrap()).len(), 5);
+    // With the short checksum on, generation 4 holds 27^3 = 19,683 ids.
+    assert_eq!(raw(&h.encode(&big(19682)).unwrap()).len(), 4);
+    assert_eq!(raw(&h.encode(&big(19683)).unwrap()).len(), 5);
 }
 
 #[test]
 fn exhaustive_generation_four_round_trip() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let mut issued = 0u32;
-    for id in 0..39304u64 {
+    for id in 0..19683u64 {
         let code = match h.encode(&big(id)) {
             Ok(code) => code,
             Err(err) => {
@@ -172,8 +172,8 @@ fn exhaustive_generation_four_round_trip() {
         issued += 1;
     }
     assert!(
-        issued > 39000,
-        "expected nearly all 39304 ids issuable, got {issued}"
+        issued > 19000,
+        "expected nearly all 19683 ids issuable, got {issued}"
     );
 }
 
@@ -269,15 +269,21 @@ fn typed_o_in_checksum_position_aliases_to_zero() {
 
 #[test]
 fn checksum_detects_substitutions_and_transpositions() {
-    // Detection is provably total at every generation (spec 17.1/22.3: the
-    // modulus 35 or 1225 exceeds 33 and is coprime to 36); the sweep pins it
-    // at generations 4, 6 and 8.
+    // Substitution detection is provably total at every generation (spec
+    // 17.1/22.3: the modulus 28 or 784 exceeds 26 and 37 is coprime to both,
+    // so no single-symbol delta in 1..26 cancels). Transposition detection is
+    // total for the full checksum (modulus 784: gcd(36,784)=4, so escape needs
+    // 196 | (a-b), impossible for |a-b| <= 26) but NOT for the short checksum
+    // (modulus 28: gcd(36,28)=4, so escape needs 7 | (a-b), which can happen
+    // for adjacent body symbols differing by 7, 14 or 21). The sweep pins
+    // substitution at generations 4, 6, 8 and transposition at 6 and 8.
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let alphabet: Vec<char> = EXPANDABLE_BODY.chars().collect();
     for l in [4usize, 6, 8] {
         let base = h.generation_base(l);
         let body_len = l - h.effective_checksum_length(l);
-        let mut misses = 0u32;
+        let mut sub_misses = 0u32;
+        let mut trans_misses = 0u32;
         for offset in 0..50u64 {
             let Ok(code) = h.encode(&(&base + big(offset))) else {
                 continue;
@@ -287,10 +293,10 @@ fn checksum_detects_substitutions_and_transpositions() {
                 let cur = alphabet.iter().position(|c| *c == r[pos]).unwrap();
                 for delta in [1usize, 5, 17] {
                     let mut candidate = r.clone();
-                    candidate[pos] = alphabet[(cur + delta) % 34];
+                    candidate[pos] = alphabet[(cur + delta) % 27];
                     let candidate: String = candidate.into_iter().collect();
                     if h.decode(&candidate, &strict()).is_ok() {
-                        misses += 1;
+                        sub_misses += 1;
                     }
                 }
             }
@@ -302,11 +308,17 @@ fn checksum_detects_substitutions_and_transpositions() {
                 swapped.swap(pos, pos + 1);
                 let swapped: String = swapped.into_iter().collect();
                 if h.decode(&swapped, &strict()).is_ok() {
-                    misses += 1;
+                    trans_misses += 1;
                 }
             }
         }
-        assert_eq!(misses, 0, "generation {l} had {misses} checksum misses");
+        assert_eq!(sub_misses, 0, "generation {l} had {sub_misses} substitution misses");
+        // The short checksum (modulus 28) cannot detect all transpositions;
+        // only assert total transposition detection for the full checksum.
+        let k = h.effective_checksum_length(l);
+        if k == h.profile().checksum_length {
+            assert_eq!(trans_misses, 0, "generation {l} had {trans_misses} transposition misses");
+        }
     }
 }
 
@@ -418,33 +430,41 @@ fn wrong_generation_rejection() {
 
 #[test]
 fn correction_stays_within_the_presented_generation() {
+    // The medium-safety body drops B, S, T, N, W (and I, L, O), so the
+    // Medium confusion pairs (B/D, P/T, M/N, V/W) can no longer fire: their
+    // replacements normalize to alias targets that the correction map does
+    // not list as sources. C and G both survive in the body, so the Heavy
+    // profile's C/G pair is the one spoken-confusion correction that still
+    // works against the frozen tier.
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    let id = big(123456789u64); // generation 8
-    let code = h.encode(&id).unwrap();
-    let r: Vec<char> = raw(&code).chars().collect();
-    let pairs = [
-        ('B', 'D'),
-        ('D', 'B'),
-        ('P', 'T'),
-        ('T', 'P'),
-        ('M', 'N'),
-        ('N', 'M'),
-        ('V', 'W'),
-        ('W', 'V'),
-    ];
-    let mut typo: Option<String> = None;
-    for (pos, ch) in r.iter().enumerate().take(r.len() - 2) {
-        if let Some((_, replacement)) = pairs.iter().find(|(source, _)| source == ch) {
-            let mut t = r.clone();
-            t[pos] = *replacement;
-            typo = Some(t.into_iter().collect());
+    // Search for a generation-8 id whose code contains C or G in the body.
+    let gen8 = h.generation_base(8);
+    let mut found: Option<(BigUint, Vec<char>, String)> = None;
+    for probe in 0..500_000u64 {
+        let id = &gen8 + big(probe);
+        let Ok(code) = h.encode(&id) else { continue };
+        let r: Vec<char> = raw(&code).chars().collect();
+        if r.len() != 8 {
+            continue;
+        }
+        for (pos, ch) in r.iter().enumerate().take(r.len() - 2) {
+            if *ch == 'C' || *ch == 'G' {
+                let replacement = if *ch == 'C' { 'G' } else { 'C' };
+                let mut t = r.clone();
+                t[pos] = replacement;
+                let typo: String = t.into_iter().collect();
+                found = Some((id, r.clone(), typo));
+                break;
+            }
+        }
+        if found.is_some() {
             break;
         }
     }
-    let typo = typo.expect("expected a confusable body symbol in the sample code");
+    let (id, r, typo) = found.expect("expected a gen-8 code with C or G in the body");
     let options = DecodeOptions {
         try_correction: true,
-        confusion_profile: ConfusionProfile::Medium,
+        confusion_profile: ConfusionProfile::Heavy,
         max_corrections: 1,
         ..strict()
     };

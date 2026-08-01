@@ -61,14 +61,14 @@ class TestFrozenTierShape(unittest.TestCase):
     def test_derived_alphabets(self):
         profile = self.codec.profile
         self.assertEqual(
-            profile.body_alphabet_norm, "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+            profile.body_alphabet_norm, "123456789ACDEFGHJKMPQRUVXYZ"
         )
-        self.assertEqual(len(profile.body_alphabet_norm), 34)
+        self.assertEqual(len(profile.body_alphabet_norm), 27)
         self.assertEqual(
-            profile.checksum_alphabet_norm, "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+            profile.checksum_alphabet_norm, "0123456789ACDEFGHJKMPQRUVXYZ"
         )
-        self.assertEqual(len(profile.checksum_alphabet_norm), 35)
-        self.assertEqual(profile.checksum_modulus, 1225)
+        self.assertEqual(len(profile.checksum_alphabet_norm), 28)
+        self.assertEqual(profile.checksum_modulus, 784)
         self.assertEqual(profile.mode, "expandable")
         self.assertEqual(profile.min_length, 4)
         self.assertEqual(profile.separator_min_length, 6)
@@ -77,11 +77,11 @@ class TestFrozenTierShape(unittest.TestCase):
         # Short checksum on (spec 22): one checksum symbol through length 5,
         # two from 6 up, so generations 5 and 6 have equal capacity.
         expected = [
-            (4, "0", "39304"),
-            (5, "39304", "1336336"),
-            (6, "1375640", "1336336"),
-            (7, "2711976", "45435424"),
-            (8, "48147400", "1544804416"),
+            (4, "0", "19683"),
+            (5, "19683", "531441"),
+            (6, "551124", "531441"),
+            (7, "1082565", "14348907"),
+            (8, "15431472", "387420489"),
         ]
         for length, base, cap in expected:
             with self.subTest(length=length):
@@ -122,12 +122,12 @@ class TestBoundaryRoundTrips(unittest.TestCase):
                     self.assertNotEqual(_raw(code)[0], "O")
 
     def test_last_four_char_and_first_five_char(self):
-        self.assertEqual(len(_raw(self.codec.encode(39303))), 4)
-        self.assertEqual(len(_raw(self.codec.encode(39304))), 5)
+        self.assertEqual(len(_raw(self.codec.encode(19682))), 4)
+        self.assertEqual(len(_raw(self.codec.encode(19683))), 5)
 
     def test_exhaustive_generation_four(self):
         issued = 0
-        for id in range(39304):
+        for id in range(19683):
             try:
                 code = self.codec.encode(id)
             except BasehError as err:
@@ -137,7 +137,7 @@ class TestBoundaryRoundTrips(unittest.TestCase):
             self.assertEqual(len(_raw(code)), 4)
             self.assertEqual(self.codec.decode(code).id, id)
             issued += 1
-        self.assertGreater(issued, 38500)
+        self.assertGreater(issued, 19000)
 
     def test_custom_profile_boundaries(self):
         codec = Baseh(_custom_expandable())
@@ -226,10 +226,11 @@ class TestChecksumWithZero(unittest.TestCase):
         self.assertFalse(result.corrected)
 
     def test_substitution_and_transposition_detection(self):
-        # M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total
-        # at the full two-symbol checksum (spec 17.1). The short-checksum
-        # generations (<= 5, spec 22) run modulus 35 and are excluded; the
-        # sweep pins total detection at generations 6 and 8.
+        # M = 784 > 26 and gcd(36, 784) = 4, so a transposition escapes only
+        # when 196 divides (a-b), impossible for |a-b| <= 26: detection is
+        # provably total at the full two-symbol checksum (spec 17.1). The
+        # short-checksum generations (<= 5, spec 22) run modulus 28 and are
+        # excluded; the sweep pins total detection at generations 6 and 8.
         profile = self.codec.profile
         index = alphabet_index(profile.body_alphabet_norm)
         alphabet = profile.body_alphabet_norm
@@ -250,7 +251,7 @@ class TestChecksumWithZero(unittest.TestCase):
                     for delta in (1, 5, 17):
                         candidate = (
                             body[:pos]
-                            + alphabet[(cur + delta) % 34]
+                            + alphabet[(cur + delta) % 27]
                             + body[pos + 1 :]
                         )
                         if checksum_value(profile, candidate, index, effective_k) == before:
@@ -373,32 +374,42 @@ class TestWrongGenerationRejection(unittest.TestCase):
                 self.assertEqual(ctx.exception.code, result["reason"])
 
     def test_removed_symbol_fails(self):
-        code = _raw(self.codec.encode(40460))  # generation 6
+        code = _raw(self.codec.encode(40460))  # generation 5
         result = self.codec.validate(code[1:])
         self.assertFalse(result["valid"])
 
     def test_correction_never_crosses_generations(self):
-        code = self.codec.encode(123456789)  # generation 8
-        raw = _raw(code)
-        pairs = {
-            "B": "D", "D": "B", "P": "T", "T": "P",
-            "M": "N", "N": "M", "V": "W", "W": "V",
-        }
-        typo = None
-        for pos in range(len(raw) - 2):
-            ch = raw[pos]
-            if ch in pairs:
-                typo = raw[:pos] + pairs[ch] + raw[pos + 1 :]
-                break
-        self.assertIsNotNone(typo, "expected a confusable body symbol")
+        # With medium safety the spoken-confusable twins T, N, W are alias
+        # sources (they alias to P, M, V), so a typed twin decodes back at
+        # the same length rather than via a cross-length candidate. Find a
+        # generation-8 code that carries P, M or V so a typo is constructible.
+        pairs = {"P": "T", "M": "N", "V": "W"}
+        found = None
+        id = 123456789
+        while found is None:
+            try:
+                code = self.codec.encode(id)
+            except BasehError:
+                id += 1
+                continue
+            raw = _raw(code)
+            for pos in range(len(raw) - 2):
+                ch = raw[pos]
+                if ch in pairs:
+                    found = (id, code, raw[:pos] + pairs[ch] + raw[pos + 1:])
+                    break
+            if found is None:
+                id += 1
+        self.assertIsNotNone(found, "expected a code with a P/M/V body symbol")
+        found_id, code, typo = found
         result = self.codec.decode(
             typo,
             try_correction=True,
             confusion_profile="medium",
             max_corrections=1,
         )
-        self.assertEqual(len(_raw(result.canonical_code)), len(raw))
-        self.assertEqual(result.id, 123456789)
+        self.assertEqual(len(_raw(result.canonical_code)), len(_raw(code)))
+        self.assertEqual(result.id, found_id)
 
 
 class TestKeyedTier(unittest.TestCase):

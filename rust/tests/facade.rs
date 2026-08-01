@@ -12,7 +12,7 @@ fn encode_returns_a_string() {
 
 #[test]
 fn round_trips_a_range_of_ids() {
-    for value in [0u64, 1, 7, 42, 999, 1_156, 4_567_890, u64::MAX] {
+    for value in [0u64, 1, 7, 42, 999, 1_156, 4_567_891, u64::MAX] {
         let id = BigUint::from(value);
         let code = baseh::encode(&id).unwrap();
         let result = baseh::decode(&code).unwrap();

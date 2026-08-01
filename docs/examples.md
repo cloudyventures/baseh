@@ -70,14 +70,14 @@ import { encode, decode, validate } from "@cloudyventures/baseh";
 
 // Backed by the expandable v1 default profile: codes start at 4 characters
 // and grow with the id sequence, so there is no practical capacity limit.
-encode(123456789n);           // "KUQU-ANMD"   (bigint or number)
-encode(123456789);            // "KUQU-ANMD"
-decode("KUQU-ANMD").id;       // 123456789n   (full DecodeResult: { id, canonicalCode, corrected })
+encode(123456789n);           // "FGJM-M736"   (bigint or number)
+encode(123456789);            // "FGJM-M736"
+decode("FGJM-M736").id;       // 123456789n   (full DecodeResult: { id, canonicalCode, corrected })
 decode("kuqu-anmd").id;       // 123456789n   (lowercase accepted; spaces via { acceptSpaces: true })
 
-decode("KUQU-ANMX");          // throws BasehError [INVALID_CHECKSUM]
+decode("FGJM-M73X");          // throws BasehError [INVALID_CHECKSUM]
 encode(-1);                   // throws BasehError [OUT_OF_RANGE]: negative id
-validate("KUQU-ANMD");        // { valid: true, canonicalCode: "KUQU-ANMD" }
+validate("FGJM-M736");        // { valid: true, canonicalCode: "FGJM-M736" }
 ```
 
 ### Frozen preset
@@ -191,11 +191,11 @@ from baseh import encode, decode
 
 # Backed by the expandable v1 default profile: codes start at 4 characters
 # and grow with the id sequence, so there is no practical capacity limit.
-encode(123456789)             # "KUQU-ANMD"
-decode("KUQU-ANMD").id        # 123456789   (full DecodeResult: id, canonical_code, corrected)
+encode(123456789)             # "FGJM-M736"
+decode("FGJM-M736").id        # 123456789   (full DecodeResult: id, canonical_code, corrected)
 decode("kuqu-anmd").id        # 123456789   (lowercase accepted; spaces via accept_spaces=True)
 
-decode("KUQU-ANMX")           # raises BasehError [INVALID_CHECKSUM]
+decode("FGJM-M73X")           # raises BasehError [INVALID_CHECKSUM]
 encode(-1)                    # raises BasehError [OUT_OF_RANGE]: negative id
 ```
 
@@ -296,14 +296,14 @@ result.ID  // 123456789 (round trip)
 ```go
 // Backed by the expandable v1 default profile: codes start at 4 characters
 // and grow with the id sequence, so there is no practical capacity limit.
-baseh.Encode(big.NewInt(123456789))   // "KUQU-ANMD", nil
+baseh.Encode(big.NewInt(123456789))   // "FGJM-M736", nil
 
-result, err := baseh.Decode("KUQU-ANMD", nil)
+result, err := baseh.Decode("FGJM-M736", nil)
 result.ID                             // 123456789 (DecodeResult: ID, CanonicalCode, Corrected)
 baseh.Decode("kuqu-anmd", nil)        // id 123456789 (lowercase accepted)
 
-baseh.Decode("KUQU-ANMX", nil)        // nil, *Error [INVALID_CHECKSUM]
-baseh.Validate("KUQU-ANMD", nil)      // ValidateResult{Valid: true, ...}
+baseh.Decode("FGJM-M73X", nil)        // nil, *Error [INVALID_CHECKSUM]
+baseh.Validate("FGJM-M736", nil)      // ValidateResult{Valid: true, ...}
 baseh.Default()                       // the shared default codec behind Encode/Decode
 ```
 
@@ -421,11 +421,11 @@ use num_bigint::BigUint;
 
 // Backed by the expandable v1 default profile: codes start at 4 characters
 // and grow with the id sequence, so there is no practical capacity limit.
-encode(&BigUint::from(123456789u64))  // Ok("KUQU-ANMD")
-decode("KUQU-ANMD")?.id;              // 123456789 (DecodeResult: id, canonical_code, corrected)
+encode(&BigUint::from(123456789u64))  // Ok("FGJM-M736")
+decode("FGJM-M736")?.id;              // 123456789 (DecodeResult: id, canonical_code, corrected)
 decode("kuqu-anmd")?.id;              // 123456789 (lowercase accepted)
 
-decode("KUQU-ANMX")                   // Err(BasehError { code: InvalidChecksum, .. })
+decode("FGJM-M73X")                   // Err(BasehError { code: InvalidChecksum, .. })
 ```
 
 ### Frozen preset
@@ -509,11 +509,11 @@ require "baseh"
 
 # Backed by the expandable v1 default profile: codes start at 4 characters
 # and grow with the id sequence, so there is no practical capacity limit.
-Baseh.encode(123456789)       # "KUQU-ANMD"
-Baseh.decode("KUQU-ANMD").id  # 123456789   (DecodeResult: id, canonical_code, corrected)
+Baseh.encode(123456789)       # "FGJM-M736"
+Baseh.decode("FGJM-M736").id  # 123456789   (DecodeResult: id, canonical_code, corrected)
 Baseh.decode("kuqu-anmd").id  # 123456789   (lowercase accepted; spaces via accept_spaces: true)
 
-Baseh.decode("KUQU-ANMX")     # raises BasehError [INVALID_CHECKSUM]
+Baseh.decode("FGJM-M73X")     # raises BasehError [INVALID_CHECKSUM]
 Baseh.default                 # the shared codec behind Baseh.encode/decode
 ```
 

@@ -42,11 +42,11 @@ describe("expandable: frozen tier shape", () => {
   const h = new Baseh(basehExpandableV1());
 
   it("derives the prepared alphabets per spec 17.1/19.3", () => {
-    assert.equal(h.profile.bodyAlphabetNorm, "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ");
-    assert.equal(h.profile.bodyAlphabetNorm.length, 34);
-    assert.equal(h.profile.checksumAlphabetNorm, "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ");
-    assert.equal(h.profile.checksumAlphabetNorm.length, 35);
-    assert.equal(h.profile.checksumModulus, 1225n);
+    assert.equal(h.profile.bodyAlphabetNorm, "123456789ACDEFGHJKMPQRUVXYZ");
+    assert.equal(h.profile.bodyAlphabetNorm.length, 27);
+    assert.equal(h.profile.checksumAlphabetNorm, "0123456789ACDEFGHJKMPQRUVXYZ");
+    assert.equal(h.profile.checksumAlphabetNorm.length, 28);
+    assert.equal(h.profile.checksumModulus, 784n);
     assert.equal(h.profile.mode, "expandable");
     assert.equal(h.profile.minLength, 4);
     assert.equal(h.profile.separatorMinLength, 6);
@@ -56,11 +56,11 @@ describe("expandable: frozen tier shape", () => {
     // Short checksum on (spec 22): one checksum symbol through length 5,
     // two from 6 up, so generations 5 and 6 have equal capacity.
     const expected: Array<[number, string, string]> = [
-      [4, "0", "39304"],
-      [5, "39304", "1336336"],
-      [6, "1375640", "1336336"],
-      [7, "2711976", "45435424"],
-      [8, "48147400", "1544804416"]
+      [4, "0", "19683"],
+      [5, "19683", "531441"],
+      [6, "551124", "531441"],
+      [7, "1082565", "14348907"],
+      [8, "15431472", "387420489"]
     ];
     for (const [l, base, cap] of expected) {
       assert.equal(generationBase(h.profile, l).toString(), base);
@@ -95,14 +95,14 @@ describe("expandable: boundary round trips (spec 20.1)", () => {
     }
   }
 
-  it("id 39303 is the last 4-character code, 39304 the first 5-character one", () => {
-    assert.equal(raw(h.encode(39303n)).length, 4);
-    assert.equal(raw(h.encode(39304n)).length, 5);
+  it("id 19682 is the last 4-character code, 19683 the first 5-character one", () => {
+    assert.equal(raw(h.encode(19682n)).length, 4);
+    assert.equal(raw(h.encode(19683n)).length, 5);
   });
 
   it("exhaustively round-trips every issuable id of generation 4", () => {
     let issued = 0;
-    for (let id = 0n; id < 39304n; id += 1n) {
+    for (let id = 0n; id < 19683n; id += 1n) {
       let code: string;
       try {
         code = h.encode(id);
@@ -114,7 +114,7 @@ describe("expandable: boundary round trips (spec 20.1)", () => {
       assert.equal(h.decode(code).id, id);
       issued += 1;
     }
-    assert.ok(issued > 38500, `expected nearly all 39304 ids issuable, got ${issued}`);
+    assert.ok(issued > 19000, `expected nearly all 19683 ids issuable, got ${issued}`);
   });
 
   it("round-trips boundaries on a custom expandable profile", () => {
@@ -233,9 +233,10 @@ describe("expandable: checksum with zero (spec 20.3)", () => {
   });
 
   it("detects every sampled single substitution and adjacent transposition at several generations", () => {
-    // M = 1225 > 33 and gcd(36, 1225) = 1, so detection is provably total at
+    // M = 784 > 26 and gcd(36, 784) = 4, so a transposition escapes only when
+    // 196 | (a-b), impossible for |a-b| <= 26: detection is provably total at
     // the full two-symbol checksum (spec 17.1). The short-checksum
-    // generations (<= 5, spec 22) run modulus 35 and are excluded; the sweep
+    // generations (<= 5, spec 22) run modulus 28 and are excluded; the sweep
     // pins total detection at generations 6 and 8.
     for (const l of [6, 8]) {
       const base = generationBase(h.profile, l);
@@ -258,7 +259,7 @@ describe("expandable: checksum with zero (spec 20.3)", () => {
         for (let pos = 0; pos < bodyLen; pos += 1) {
           const cur = index.get(body[pos] as string) as bigint;
           for (const delta of [1n, 5n, 17n]) {
-            const nv = Number((cur + delta) % 34n);
+            const nv = Number((cur + delta) % 27n);
             const candidate = body.slice(0, pos) + alphabet[nv] + body.slice(pos + 1);
             if (checksumValue(h.profile, candidate, index, k) === before) misses += 1;
           }
@@ -378,25 +379,39 @@ describe("expandable: wrong-generation rejection (spec 20.6)", () => {
   });
 
   it("a code with a symbol removed fails", () => {
-    const code = raw(h.encode(40460n)); // generation 6
+    const code = raw(h.encode(40460n)); // generation 5
     const shorter = code.slice(1);
     const result = h.validate(shorter);
     assert.equal(result.valid, false);
   });
 
   it("correction never returns a candidate at a different length", () => {
-    const code = h.encode(123456789n); // generation 8
-    const r = raw(code);
-    const pairs: Record<string, string> = { B: "D", D: "B", P: "T", T: "P", M: "N", N: "M", V: "W", W: "V" };
-    let typo: string | null = null;
-    for (let pos = 0; pos < r.length - 2 && typo === null; pos += 1) {
-      const ch = r[pos] as string;
-      if (ch in pairs) typo = r.slice(0, pos) + pairs[ch] + r.slice(pos + 1);
+    // With medium safety the spoken-confusable twins T, N, W are alias
+    // sources (they alias to P, M, V), so a typed twin decodes back at the
+    // same length rather than via a cross-length candidate. Find a
+    // generation-8 code that carries P, M or V so a typo is constructible.
+    const pairs: Record<string, string> = { P: "T", M: "N", V: "W" };
+    let found: { id: bigint; code: string; typo: string } | null = null;
+    for (let id = 123456789n; found === null; id += 1n) {
+      let code: string;
+      try {
+        code = h.encode(id);
+      } catch {
+        continue;
+      }
+      const r = raw(code);
+      for (let pos = 0; pos < r.length - 2; pos += 1) {
+        const ch = r[pos] as string;
+        if (ch in pairs) {
+          found = { id, code, typo: r.slice(0, pos) + pairs[ch] + r.slice(pos + 1) };
+          break;
+        }
+      }
     }
-    assert.ok(typo !== null, "expected a confusable body symbol in the sample code");
-    const d = h.decode(typo, { tryCorrection: true, confusionProfile: "medium", maxCorrections: 1 });
-    assert.equal(raw(d.canonicalCode).length, r.length);
-    assert.equal(d.id, 123456789n);
+    assert.ok(found, "expected a code with a P/M/V body symbol");
+    const d = h.decode(found.typo, { tryCorrection: true, confusionProfile: "medium", maxCorrections: 1 });
+    assert.equal(raw(d.canonicalCode).length, raw(found.code).length);
+    assert.equal(d.id, found.id);
   });
 });
 
