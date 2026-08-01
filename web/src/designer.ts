@@ -1,4 +1,4 @@
-import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, expandableDesign, expandableProfile, exportDesign, friendlyError, generationTable, parseIdentifier, parseRequired, powBigInt, sampleCodes, spokenDropsExplainer, trySuggestions, visualDropsExplainer } from "./core.js";
+import { candidateProfile, design, deriveAlphabet, deriveChecksumAlphabet, escapeHtml, expandableDesign, expandableProfile, exportDesign, friendlyError, generationTable, parseIdentifier, parseRequired, powBigInt, sampleCodes, spokenDropsExplainer, trySuggestions, visualDropsExplainer } from "./core.js";
 import { renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 import type { DesignerInput, ProfanityMode, SafetyLevel, Candidate } from "./core.js";
@@ -100,7 +100,7 @@ function sampleLine(s: { id: string; code: string; blocked?: boolean }): string 
   }
   const rendered = s.blocked
     ? `<span class="muted" title="This identifier is never issued (profanity or a repetition run).">blocked</span>`
-    : `<code>${s.code}</code>`;
+    : `<code>${escapeHtml(s.code)}</code>`;
   return `<span class="sample" title="${title}">${marker} ${rendered}</span>`;
 }
 
@@ -143,7 +143,7 @@ function expandableCard(input: DesignerInput): string {
     const ids = new Set([0n, table[0]!.cumulative - 1n, table[0]!.cumulative]);
     samples = [...ids].map((id) => {
       try {
-        return `<span class="sample" title="Identifier ${id}"><code>${h.encode(id)}</code></span>`;
+        return `<span class="sample" title="Identifier ${id}"><code>${escapeHtml(h.encode(id))}</code></span>`;
       } catch {
         return "";
       }
@@ -192,7 +192,7 @@ function render() {
   els.recommended.innerHTML = result.recommended
     ? card(result.recommended, input.permutation, "Recommended")
     : "";
-  els.repair.innerHTML = result.repair ? `<p>${result.repair}</p>` : "";
+  els.repair.innerHTML = result.repair ? `<p>${escapeHtml(result.repair)}</p>` : "";
   els.alternatives.innerHTML = result.alternatives.map((a) => card(a.candidate, input.permutation, a.label)).join("")
     || (result.recommended ? "" : "");
   els.tbody.innerHTML = result.feasible.slice(0, 25).map((c) => `
@@ -203,7 +203,7 @@ function render() {
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
       <td>${collisionRate(c, input)}</td>
-      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation, c.maxRepetition).find((s) => s.id === "0")?.code ?? ""}</code></td>
+      <td><code>${escapeHtml(sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity, input.permutation, c.maxRepetition).find((s) => s.id === "0")?.code ?? "")}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");
   els.exportBtn.onclick = async () => {

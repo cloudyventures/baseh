@@ -1,4 +1,5 @@
 import { BasehError } from "./errors.js";
+import { powBigInt } from "./basen.js";
 import { effectiveBlocklist, stripVowels, type BasehProfanity } from "./blocklist.js";
 
 export type BasehPermutation =
@@ -106,12 +107,6 @@ function isAsciiChar(ch: string): boolean {
 
 function norm(profile: Pick<BasehProfile, "caseSensitive">, ch: string): string {
   return profile.caseSensitive ? ch : ch.toUpperCase();
-}
-
-function powBigInt(base: bigint, exp: number): bigint {
-  let result = 1n;
-  for (let i = 0; i < exp; i += 1) result *= base;
-  return result;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculate, design, minimumLength, parseIdentifier, parseRequired, powBigInt, sampleCodes, type CalculatorInput, type DesignerInput } from "../src/core.js";
+import { calculate, design, escapeHtml, minimumLength, parseIdentifier, parseRequired, powBigInt, sampleCodes, type CalculatorInput, type DesignerInput } from "../src/core.js";
 
 function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
   return {
@@ -1068,5 +1068,35 @@ describe("repetition filter (spec 21)", async () => {
         assert.ok(e instanceof BasehError, String(e));
       }
     }
+  });
+});
+
+describe("HTML escaping (XSS regression)", () => {
+  it("escapes every markup-active character", () => {
+    assert.equal(escapeHtml(`<>&"'`), "&lt;&gt;&amp;&quot;&#39;");
+  });
+
+  it("leaves ordinary code symbols untouched", () => {
+    assert.equal(escapeHtml("C8XP-8J49"), "C8XP-8J49");
+  });
+
+  it("a hostile custom alphabet cannot inject markup through example codes", () => {
+    const r = calculate(calcInput({ alphabetMode: "custom", customAlphabet: `<>&"'a`, codecMode: "fixed", bodyLength: 4, checksumLength: 1, separator: "", maxRepetition: 0, profanity: "none", visualSafety: "none", spokenSafety: "none" }));
+    for (const e of r.examples) {
+      assert.ok(!/[<>"']/.test(escapeHtml(e.code)), escapeHtml(e.code));
+    }
+  });
+
+  it("a hostile separator is escaped out of problems and repair text", () => {
+    // The separator reaches the problem text only when it collides with an
+    // alphabet, so the custom alphabet must contain it.
+    const r = calculate(calcInput({ alphabetMode: "custom", customAlphabet: "<>ab", separator: "<", codecMode: "fixed" }));
+    assert.ok(r.problems.some((p) => p.includes("<")), "the raw separator reaches the problem text");
+    for (const p of r.problems) assert.ok(!escapeHtml(p).includes("<"), p);
+    // Designer alphabets hold only digits and uppercase, so a digit separator
+    // is the one that exercises the repair path; escaping is applied the same.
+    const d = design(designInput({ separator: "0" }));
+    assert.ok(d.repair !== null && d.repair.includes('"0"'), String(d.repair));
+    assert.ok(!/[<>"']/.test(escapeHtml(d.repair)));
   });
 });

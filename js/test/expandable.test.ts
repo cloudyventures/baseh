@@ -131,6 +131,25 @@ describe("expandable: boundary round trips (spec 20.1)", () => {
   });
 });
 
+describe("expandable: 32-symbol ceiling (spec 19.6)", () => {
+  const h = new Baseh(basehExpandableV1());
+
+  it("rejects ids at or beyond generation 33", () => {
+    expectError(() => h.encode(generationBase(h.profile, 33)), "OUT_OF_RANGE");
+    expectError(() => h.encode(generationBase(h.profile, 33) + 1n), "OUT_OF_RANGE");
+    expectError(() => generationForId(h.profile, generationBase(h.profile, 33)), "OUT_OF_RANGE");
+    // The last id of generation 32 still encodes.
+    assert.equal(raw(h.encode(generationBase(h.profile, 33) - 1n)).length, 32);
+  });
+
+  it("fails fast on an adversarial huge id instead of spinning the loop", () => {
+    const huge = 10n ** 100000n;
+    const start = performance.now();
+    expectError(() => h.encode(huge), "OUT_OF_RANGE");
+    assert.ok(performance.now() - start < 50, "encode of a huge id must fail in under 50ms");
+  });
+});
+
 describe("expandable: zero ban (spec 20.2)", () => {
   const h = new Baseh(basehExpandableV1());
 

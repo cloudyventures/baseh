@@ -12,14 +12,22 @@ pub(crate) fn encode_base_n(value: &BigUint, alphabet: &[char], length: usize) -
     let mut out = vec!['0'; length];
     let mut v = value.clone();
     for pos in (0..length).rev() {
-        let digit = (&v % &base)
+        let digit: u64 = (&v % &base)
             .try_into()
-            .map(|d: u64| d as usize)
-            .unwrap_or(0);
-        out[pos] = alphabet[digit];
+            .expect("a remainder below the alphabet length fits u64");
+        out[pos] = alphabet[digit as usize];
         v /= &base;
     }
     out.into_iter().collect()
+}
+
+/// Integer power for BigUint exponents too small to be worth float math.
+pub(crate) fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
+    let mut result = BigUint::from(1u64);
+    for _ in 0..exp {
+        result *= &base;
+    }
+    result
 }
 
 /// Spec 5.2.

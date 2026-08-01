@@ -251,7 +251,7 @@ func TestConformanceCorrection(t *testing.T) {
 			if confusion == "" {
 				confusion = "light"
 			}
-			opts := &DecodeOptions{TryCorrection: true, ConfusionProfile: confusion, MaxCorrections: 1}
+			opts := &DecodeOptions{TryCorrection: true, ConfusionProfile: confusion}
 			res, err := codecs[c.ProfileID].Decode(c.Input, opts)
 			if c.Error != "" {
 				if err == nil {

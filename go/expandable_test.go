@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // customExpandable returns an expandable profile with no permutation and
@@ -483,7 +484,7 @@ func TestExpandableWrongGenerationRejection(t *testing.T) {
 	if typo == "" {
 		t.Fatalf("expected a confusable body symbol in %q", r)
 	}
-	res, err := h.Decode(typo, &DecodeOptions{TryCorrection: true, ConfusionProfile: "medium", MaxCorrections: 1})
+	res, err := h.Decode(typo, &DecodeOptions{TryCorrection: true, ConfusionProfile: "medium"})
 	if err != nil {
 		t.Fatalf("decode %q: %v", typo, err)
 	}
@@ -597,6 +598,73 @@ func TestExpandableMixedModeInterop(t *testing.T) {
 	// minLength must exceed checksumLength.
 	if _, err := New(customExpandable(func(p *Profile) { p.MinLength = 1 })); err == nil {
 		t.Errorf("minLength <= checksumLength accepted")
+	} else {
+		assertCode(t, err, INVALID_PROFILE)
+	}
+}
+
+// TestEncodeHugeIDOutOfRangeFast guards the algorithmic-DoS fix: an
+// adversarial id must be rejected before generationForId loops over
+// big-integer multiplications with no ceiling.
+func TestEncodeHugeIDOutOfRangeFast(t *testing.T) {
+	h := mustNew(t, ExpandableV1())
+	huge, ok := new(big.Int).SetString("1"+strings.Repeat("0", 100000), 10)
+	if !ok {
+		t.Fatal("failed to build the huge test id")
+	}
+	start := time.Now()
+	_, err := h.Encode(huge)
+	if err == nil {
+		t.Fatal("huge id encoded")
+	}
+	assertCode(t, err, OUT_OF_RANGE)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("huge id rejection took %v, want a fast failure", elapsed)
+	}
+}
+
+// TestMaxCorrectionsBoundary pins the spec-10 budget semantics: nil selects
+// the default of 1, an explicit 0 disables candidate generation, and any
+// other value is rejected at the boundary.
+func TestMaxCorrectionsBoundary(t *testing.T) {
+	h := mustNew(t, ExpandableV1())
+	code, ok := encodeOrSkip(t, h, big.NewInt(123456789))
+	if !ok {
+		t.Skip("test id blocklisted")
+	}
+	raw := rawCode(code)
+	// B is confusable with D under the medium map; find a B in the body.
+	typo := ""
+	for pos := 0; pos < len(raw)-2; pos++ {
+		if raw[pos] == 'B' {
+			typo = raw[:pos] + "D" + raw[pos+1:]
+			break
+		}
+	}
+	if typo == "" {
+		t.Skip("no confusable body symbol in the test code")
+	}
+
+	zero, two := 0, 2
+	// An explicit 0 disables correction: the typo fails INVALID_CHECKSUM.
+	if _, err := h.Decode(typo, &DecodeOptions{
+		TryCorrection: true, ConfusionProfile: "medium", MaxCorrections: &zero,
+	}); err == nil {
+		t.Errorf("MaxCorrections 0 corrected %q anyway", typo)
+	} else {
+		assertCode(t, err, INVALID_CHECKSUM)
+	}
+	// The nil default still corrects.
+	if _, err := h.Decode(typo, &DecodeOptions{
+		TryCorrection: true, ConfusionProfile: "medium",
+	}); err != nil {
+		t.Errorf("nil MaxCorrections failed to correct %q: %v", typo, err)
+	}
+	// Out-of-spec values are rejected, not clamped.
+	if _, err := h.Decode(typo, &DecodeOptions{
+		TryCorrection: true, ConfusionProfile: "medium", MaxCorrections: &two,
+	}); err == nil {
+		t.Errorf("MaxCorrections 2 accepted")
 	} else {
 		assertCode(t, err, INVALID_PROFILE)
 	}

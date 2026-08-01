@@ -1,6 +1,6 @@
 import type { PreparedProfile } from "./profile.js";
 import { BasehError } from "./errors.js";
-import { alphabetIndex, encodeBaseN } from "./basen.js";
+import { alphabetIndex, encodeBaseN, powBigInt } from "./basen.js";
 
 /**
  * Spec 6.2. Rolling polynomial checksum over symbol values.
@@ -40,16 +40,13 @@ export function checksumValue(
 export function calculateChecksum(
   profile: PreparedProfile,
   body: string,
-  checksumLength = profile.checksumLength
+  checksumLength = profile.checksumLength,
+  bodyIndex?: Map<string, bigint>
 ): string {
   if (checksumLength === 0) return "";
-  const index = alphabetIndex(profile.bodyAlphabetNorm);
+  // Correction loops call this up to 64 times; callers with a prepared index
+  // pass it in rather than rebuilding one per call.
+  const index = bodyIndex ?? alphabetIndex(profile.bodyAlphabetNorm);
   const value = checksumValue(profile, body, index, checksumLength);
   return encodeBaseN(value, profile.checksumAlphabetNorm, checksumLength);
-}
-
-function powBigInt(base: bigint, exp: number): bigint {
-  let result = 1n;
-  for (let i = 0; i < exp; i += 1) result *= base;
-  return result;
 }

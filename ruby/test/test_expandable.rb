@@ -244,6 +244,14 @@ class TestExpandable < Minitest::Test
     assert_error("INVALID_LENGTH") { expandable.decode("A" * 33) }
   end
 
+  # An adversarial id must fail fast: generationForId is capped at the
+  # 32-symbol code limit instead of looping big-integer multiplication on
+  # exponentially growing values.
+  def test_huge_id_fails_fast_with_out_of_range
+    assert_error("OUT_OF_RANGE") { expandable.encode(id: 10**100_000) }
+    assert_error("OUT_OF_RANGE") { expandable.generation_for_id(10**100_000) }
+  end
+
   def test_canonical_code_always_has_the_presented_length
     [0, 1_155, 1_156, 40_460, 123_456_789].each do |id|
       code = expandable.encode(id: id)

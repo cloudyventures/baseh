@@ -50,13 +50,16 @@ fn main() {
     println!("== zero config ==");
     show_str("encode(&id)", encode(&id));
     let zero_code = encode(&id).expect("in range");
+    show_id("decode(...) round trip", decode(&zero_code).map(|r| r.id));
     show_id(
-        "decode(...) round trip",
-        decode(&zero_code).map(|r| r.id),
+        "decode(...) lowercase",
+        decode(&zero_code.to_lowercase()).map(|r| r.id),
     );
-    show_id("decode(...) lowercase", decode(&zero_code.to_lowercase()).map(|r| r.id));
     show_str("encode(813) (blocked word)", encode(&BigUint::from(813u64)));
-    show_id("decode(\"!!!!\") (bogus code)", decode("!!!!").map(|r| r.id));
+    show_id(
+        "decode(\"!!!!\") (bogus code)",
+        decode("!!!!").map(|r| r.id),
+    );
 
     // 3. A frozen preset: load baseh-medium-v1 and use the full codec.
     println!("== preset ==");
@@ -97,7 +100,7 @@ fn main() {
             e.code, e.message
         ),
     }
-    println!("capacity -> {}", medium.capacity());
+    println!("capacity -> {}", medium.capacity().unwrap());
 
     // 4. Customized: load a preset and extend the body length.
     println!("== customized ==");
@@ -116,7 +119,7 @@ fn main() {
         "decode(\"ZC8VR-EMJ0\") (bad check)",
         orders.decode("ZC8VR-EMJ0", &strict).map(|r| r.id),
     );
-    println!("capacity -> {}", orders.capacity());
+    println!("capacity -> {}", orders.capacity().unwrap());
 
     // Expandable profiles customize the same way: `mode` is "expandable",
     // `min_length` sets the shortest codes (default 4) and
@@ -124,7 +127,7 @@ fn main() {
     // shipped tier uses 6 — shorter codes carry no separator).
     let mut growing = baseh_expandable_v1();
     growing.profile_id = "invoices-v1".to_string();
-    growing.min_length = 5;
+    growing.min_length = Some(5);
     growing.separator_min_length = 7;
     let invoices = Baseh::new(growing).expect("valid profile");
     show_str("encode(123456789)", invoices.encode(&id));

@@ -360,7 +360,7 @@ Normative algorithm. All integer-to-byte conversions are unsigned big-endian unl
    where `message_i` is exactly this byte sequence:
 
    ```text
-   "BASEH-FEISTEL-V1" (14 ASCII bytes)
+   "BASEH-FEISTEL-V1" (16 ASCII bytes)
    0x00
    ASCII(profileId)
    0x00
@@ -375,7 +375,7 @@ Normative algorithm. All integer-to-byte conversions are unsigned big-endian unl
    exactly this byte sequence:
 
    ```text
-   "BASEH-FEISTEL-V1" (14 ASCII bytes)
+   "BASEH-FEISTEL-V1" (16 ASCII bytes)
    0x00
    ASCII(profileId)
    0x00
@@ -582,7 +582,7 @@ Formatted:
 7KM-4Q2H
 ```
 
-The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
+The decoder accepts the configured separator at expected positions. Decoding is lenient by default: normalization removes the configured separator wherever it appears (section 3.1, step 2), so double separators, separators at unexpected positions and entirely unseparated input all decode identically. There is no strict separator mode and none is planned. Any remaining symbol that is not a separator, body or checksum symbol still fails `INVALID_CHARACTER` at normalization step 6.
 
 In expandable mode the separator applies only at or above `separatorMinLength`: when the presented or emitted total length `L` is below `separatorMinLength`, the code renders bare and the decoder accepts (and expects) no separators, regardless of the configured `separator`. At or above the threshold the configured separator applies and the balanced grouping rule of section 19.5 splits that length.
 

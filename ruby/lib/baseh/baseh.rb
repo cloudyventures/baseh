@@ -72,12 +72,21 @@ module Baseh
       @profile.body_alphabet.length**(length - @profile.effective_checksum_length(length))
     end
 
-    # Smallest generation whose range holds id, per spec 19.6.
+    # Smallest generation whose range holds id, per spec 19.6. The loop is
+    # capped at the 32-symbol code limit (33 - minLength iterations) so an
+    # adversarial id fails fast with OUT_OF_RANGE instead of running big-integer
+    # multiplication on exponentially growing values.
     def generation_for_id(id)
       l = @profile.min_length
       base = 0
       cap = generation_capacity(l)
       while id >= base + cap
+        if l >= 32
+          raise BasehError.new(
+            "OUT_OF_RANGE",
+            "ID requires a code longer than 32 symbols"
+          )
+        end
         base += cap
         l += 1
         cap = generation_capacity(l)
@@ -272,7 +281,10 @@ module Baseh
     def normalize(input, accept_spaces)
       s = input.gsub(ASCII_WS, "")
       had_separator = !@profile.separator.empty? && s.include?(@profile.separator)
-      s = s.delete(@profile.separator) unless @profile.separator.empty?
+      # Literal-substring removal (gsub with a string pattern), matching the
+      # JS split-join reference: String#delete would treat the separator as a
+      # character class and corrupt multi-character separators like "..".
+      s = s.gsub(@profile.separator, "") unless @profile.separator.empty?
       s = s.delete(" ") if accept_spaces
       s = s.upcase unless @profile.case_sensitive
       # Spec 3.2: an alias never maps two distinct canonical symbols into one
@@ -411,12 +423,6 @@ module Baseh
         raise BasehError.new("OUT_OF_RANGE", "ID #{id} is negative")
       end
       l = generation_for_id(id)
-      if l > 32
-        raise BasehError.new(
-          "OUT_OF_RANGE",
-          "ID #{id} requires a code longer than 32 symbols"
-        )
-      end
       value = id - generation_base(l)
       domain = generation_capacity(l)
       perm = @profile.permutation
@@ -463,7 +469,7 @@ module Baseh
     def canonical_raw(canonical_code)
       return canonical_code if @profile.separator.empty?
 
-      canonical_code.delete(@profile.separator)
+      canonical_code.gsub(@profile.separator, "")
     end
   end
 end

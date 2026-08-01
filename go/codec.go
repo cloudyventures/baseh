@@ -9,9 +9,10 @@ import (
 
 const maxCandidates = 64
 
-// ConfusionMaps holds the built-in spoken-confusion candidate maps of spec
-// 3.3. Pairs apply to body symbols only.
-var ConfusionMaps = map[string]map[string][]string{
+// confusionMaps holds the built-in spoken-confusion candidate maps of spec
+// 3.3. Pairs apply to body symbols only. Unexported so no caller can mutate
+// the shared tables; ConfusionMaps returns a deep copy.
+var confusionMaps = map[string]map[string][]string{
 	"light": {"B": {"D"}, "D": {"B"}, "P": {"T"}, "T": {"P"}},
 	"medium": {
 		"B": {"D"}, "D": {"B"}, "P": {"T"}, "T": {"P"},
@@ -24,6 +25,21 @@ var ConfusionMaps = map[string]map[string][]string{
 	},
 }
 
+// ConfusionMaps returns a deep copy of the built-in spoken-confusion
+// candidate maps of spec 3.3 ("light", "medium", "heavy"). Callers may
+// mutate the result freely; the shared tables are never aliased.
+func ConfusionMaps() map[string]map[string][]string {
+	out := make(map[string]map[string][]string, len(confusionMaps))
+	for name, m := range confusionMaps {
+		inner := make(map[string][]string, len(m))
+		for source, replacements := range m {
+			inner[source] = append([]string(nil), replacements...)
+		}
+		out[name] = inner
+	}
+	return out
+}
+
 // DecodeOptions controls Decode and Validate.
 type DecodeOptions struct {
 	AcceptSpaces  bool
@@ -31,9 +47,11 @@ type DecodeOptions struct {
 	// ConfusionProfile is "none", "light", "medium" or "heavy".
 	// The zero value selects "none", the reference default.
 	ConfusionProfile string
-	// MaxCorrections is 0 or 1 per the spec. The zero value selects 1,
-	// the spec default.
-	MaxCorrections int
+	// MaxCorrections is the spec 10 correction budget, 0 or 1. A nil
+	// pointer selects 1, the spec default; an explicit 0 disables
+	// candidate generation. Any other value is rejected with
+	// INVALID_PROFILE.
+	MaxCorrections *int
 }
 
 // DecodeResult is the successful outcome of Decode.
@@ -122,6 +140,12 @@ func (h *Codec) encodeExpandable(id *big.Int) (string, error) {
 	if id == nil || id.Sign() < 0 {
 		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v is negative", id), true)
 	}
+	// Pre-check against generationBase(33) so an adversarial huge id is
+	// rejected before generationForId loops over big-integer multiplications
+	// with no ceiling (the l > 32 guard below only runs after the loop).
+	if id.Cmp(generationBase(h.prep, 33)) >= 0 {
+		return "", newError(OUT_OF_RANGE, "the ID requires a code longer than 32 symbols", true)
+	}
 	l := generationForId(h.prep, id)
 	if l > 32 {
 		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v requires a code longer than 32 symbols", id), true)
@@ -190,18 +214,21 @@ func (h *Codec) checkBlocklist(raw string) error {
 
 // Decode implements spec 9. All returned errors are *Error.
 func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
-	o := DecodeOptions{ConfusionProfile: "none", MaxCorrections: 1}
+	o := DecodeOptions{ConfusionProfile: "none"}
+	maxCorrections := 1
 	if opts != nil {
 		o = *opts
 		if o.ConfusionProfile == "" {
 			o.ConfusionProfile = "none"
 		}
-		// The spec budget is 0 or 1. With a plain int the zero value cannot
-		// be distinguished from an explicit 0, so 0 selects the spec default
-		// of 1; out-of-range values clamp to 1. Callers disable correction
-		// by leaving TryCorrection false.
-		if o.MaxCorrections != 1 {
-			o.MaxCorrections = 1
+		// The spec budget is 0 or 1. An explicit 0 disables candidate
+		// generation entirely; anything else is a caller bug rejected at
+		// the boundary.
+		if o.MaxCorrections != nil {
+			if *o.MaxCorrections != 0 && *o.MaxCorrections != 1 {
+				return nil, newError(INVALID_PROFILE, fmt.Sprintf("MaxCorrections must be 0 or 1, got %d", *o.MaxCorrections), false)
+			}
+			maxCorrections = *o.MaxCorrections
 		}
 	}
 
@@ -261,7 +288,7 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 				filtered[source] = kept
 			}
 		}
-		candidates, err := generateCandidates(body, filtered, o.MaxCorrections)
+		candidates, err := generateCandidates(body, filtered, maxCorrections)
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +515,7 @@ func resolveConfusionMap(name string) (map[string][]string, error) {
 	if name == "none" {
 		return map[string][]string{}, nil
 	}
-	m, ok := ConfusionMaps[name]
+	m, ok := confusionMaps[name]
 	if !ok {
 		return nil, newError(INVALID_PROFILE, fmt.Sprintf("unknown confusion profile %q", name), false)
 	}

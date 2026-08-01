@@ -71,15 +71,20 @@ Test:
 - Empty body fails.
 - Lowercase input succeeds only when configured.
 
-## 5. Default profile boundary tests
+## 5. Boundary tests (synthetic 32-symbol profile)
 
-Default body alphabet size:
+These tests use a synthetic 32-symbol, length-6 fixed profile (the
+`baseh32-*` test profiles in the shared vector file). No shipped frozen tier
+has this shape; it exists only to exercise boundary arithmetic on a round
+power-of-two capacity.
+
+Body alphabet size:
 
 ```text
 32
 ```
 
-Default length:
+Length:
 
 ```text
 6
@@ -172,8 +177,9 @@ For grouping `[3, 4]`:
 
 - Encoder emits separators at exact positions.
 - Decoder accepts canonical separators.
-- Decoder rejects double separators in strict mode.
-- Decoder rejects wrong separator in strict mode.
+- Decoder accepts double separators, separators at unexpected positions and
+  unseparated input identically (lenient by default; the configured
+  separator is stripped wherever it appears, codec spec section 11).
 - Lenient caller can remove ASCII spaces.
 - Leading or trailing whitespace is trimmed.
 - Internal whitespace fails unless enabled.
@@ -303,6 +309,10 @@ Invariants:
 - Error category is stable.
 - Runtime is bounded by input length and candidate cap.
 
+Property, fuzz and benchmark coverage varies by port; the round-trip soak
+suite (`IMPLEMENTATION_SOAK_TESTS.md`) provides the dense round-trip
+backstop across all five implementations.
+
 ## 13. Cross-language vectors
 
 Use a shared JSON file:
@@ -412,12 +422,18 @@ A profile may be frozen only when:
 
 - Normative vectors are approved.
 - All implementations pass the same vectors.
-- Exhaustive small-domain permutation tests pass.
-- Single-substitution checksum performance is measured.
-- Fuzzing runs for at least 24 cumulative CPU hours without a crash.
-- Security review is complete.
+- Small-domain permutation tests pass, with bijection verified exhaustively
+  for capacities up to 100,000 (section 10).
+- Single-substitution checksum performance is measured (the
+  100,000-sampled-body sweep of section 6, run in every port).
 - Documentation matches implementation.
 - Profile ID and key ID are immutable.
+
+The following are required before a release but are verified manually
+rather than enforced as CI gates:
+
+- Fuzzing has run for at least 24 cumulative CPU hours without a crash.
+- Security review is complete.
 
 ## 20. Expandable mode tests
 

@@ -21,9 +21,9 @@
 //! `BASEH_SOAK_PROFILE` runs only profiles whose id contains the substring.
 
 use baseh::{
-    baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1,
-    baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1, baseh_medium_v1, baseh_minimum_p_v1,
-    baseh_minimum_v1, Baseh, DecodeOptions, ErrorCode, Mode, Permutation, Profile,
+    baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1,
+    baseh_light_v1, baseh_medium_p_v1, baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1,
+    Baseh, DecodeOptions, ErrorCode, Mode, Permutation, Profile,
 };
 use num_bigint::BigUint;
 use std::time::Instant;
@@ -121,7 +121,7 @@ struct Variant {
 fn full_sweep_bound(h: &Baseh, profile: &Profile) -> u64 {
     match profile.mode {
         Mode::Fixed => {
-            let capacity: u64 = h.capacity().try_into().expect("capacity fits u64");
+            let capacity: u64 = h.capacity().unwrap().try_into().expect("capacity fits u64");
             capacity.min(SWEEP_ABSOLUTE_CAP)
         }
         Mode::Expandable => SWEEP_ABSOLUTE_CAP,

@@ -2,13 +2,9 @@
 manually-constructed Baseh on the frozen expandable v1 tier, round trip ids
 including 0 and large values, and surface errors like the instance API."""
 
-import sys
-import os
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
+from baseh import (
     Baseh,
     BasehError,
     DecodeResult,

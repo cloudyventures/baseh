@@ -1,12 +1,8 @@
 """Repetition filter tests, spec section 21. Mirrors js/test/repetition.test.ts."""
 
-import os
-import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
+from baseh import (
     BLOCKED_CODE,
     INVALID_PROFILE,
     Baseh,
@@ -22,8 +18,8 @@ from baseh import (  # noqa: E402
     baseh_minimum_p_v1,
     baseh_minimum_v1,
 )
-from baseh.checksum import calculate_checksum  # noqa: E402
-from baseh.profile import prepare_profile  # noqa: E402
+from baseh.checksum import calculate_checksum
+from baseh.profile import prepare_profile
 
 _TEST_KEY = b"test-only-key-material-0001"
 _ALPHA32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

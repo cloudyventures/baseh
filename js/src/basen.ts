@@ -34,3 +34,10 @@ export function alphabetIndex(alphabet: string): Map<string, bigint> {
   [...alphabet].forEach((ch, i) => m.set(ch, BigInt(i)));
   return m;
 }
+
+/** Integer power for bigint bases; shared by profile, codec and checksum. */
+export function powBigInt(base: bigint, exp: number): bigint {
+  let result = 1n;
+  for (let i = 0; i < exp; i += 1) result *= base;
+  return result;
+}

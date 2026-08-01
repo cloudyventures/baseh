@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
 
+use crate::basen::pow_biguint;
 use crate::error::{BasehError, ErrorCode};
 
 /// Reversible permutation configuration for a profile.
@@ -62,9 +63,7 @@ pub struct Profanity {
 /// of 0 then means the window's generations carry no checksum symbols at all.
 pub(crate) fn effective_checksum_length(profile: &PreparedProfile, length: usize) -> usize {
     let p = &profile.profile;
-    if p.mode == Mode::Expandable
-        && p.short_checksum_until > 0
-        && length <= p.short_checksum_until
+    if p.mode == Mode::Expandable && p.short_checksum_until > 0 && length <= p.short_checksum_until
     {
         return p.short_checksum_length;
     }
@@ -91,9 +90,9 @@ pub struct Profile {
     pub body_alphabet: String,
     /// Fixed mode only; ignored in expandable mode.
     pub body_length: usize,
-    /// Expandable mode only; `0` selects the default of 4. Must exceed
-    /// `checksum_length`.
-    pub min_length: usize,
+    /// Expandable mode only; `None` selects the default of 4. When set it
+    /// must be a positive integer exceeding `checksum_length`.
+    pub min_length: Option<usize>,
     pub checksum_alphabet: String,
     pub checksum_length: usize,
     /// Spec 22. Expandable mode only. The checksum width used by generations
@@ -155,14 +154,6 @@ fn norm_char(case_sensitive: bool, c: char) -> char {
     } else {
         c.to_ascii_uppercase()
     }
-}
-
-fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
-    let mut result = BigUint::from(1u64);
-    for _ in 0..exp {
-        result *= &base;
-    }
-    result
 }
 
 /// Spec 18.2: replacement semantics first, then augmentation, uppercased
@@ -237,10 +228,11 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
     if mode == Mode::Fixed && (profile.body_length == 0 || profile.body_length > 32) {
         return Err(fail("bodyLength must be an integer from 1 through 32"));
     }
-    let min_length = if profile.min_length == 0 {
-        4
-    } else {
-        profile.min_length
+    let min_length = match profile.min_length {
+        // JS parity: an explicit 0 is rejected, not coerced to the default.
+        Some(0) => return Err(fail("minLength must be a positive integer")),
+        Some(value) => value,
+        None => 4,
     };
     let separator_min_length = profile.separator_min_length;
     if mode == Mode::Fixed && separator_min_length != 0 {
@@ -344,7 +336,9 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         // Derived after every body strip (zero ban, no-vowels) so all
         // downstream rules — modulus, separator collision, alias targets —
         // see the final alphabets.
-        checksum_norm = std::iter::once('0').chain(body_norm.iter().copied()).collect();
+        checksum_norm = std::iter::once('0')
+            .chain(body_norm.iter().copied())
+            .collect();
     }
     if body_norm.len() < 2 {
         return Err(fail(
@@ -359,7 +353,9 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
     // Spec 21: 0 disables the filter; an active filter needs a floor of 3 —
     // banning pairs (2) would destroy roughly 9% of every generation.
     if profile.max_repetition == 1 || profile.max_repetition == 2 {
-        return Err(fail("maxRepetition must be 0 (off) or an integer of at least 3"));
+        return Err(fail(
+            "maxRepetition must be 0 (off) or an integer of at least 3",
+        ));
     }
 
     for ch in profile.separator.chars() {

@@ -69,7 +69,10 @@ describe("profile validation", () => {
     }],
     ["odd rounds", {
       permutation: { enabled: true, algorithm: "feistel-v1", keyId: "k", keyBytes: TEST_KEY, rounds: 7 }
-    }]
+    }],
+    // JS `$` matches before a trailing newline; Ruby's \A...\z does not.
+    ["blocklist word with trailing newline", { profanity: { mode: "blocklist", words: ["ABC\n"] } }],
+    ["blocklist extra word with trailing newline", { profanity: { mode: "blocklist", extraWords: ["ABC\r"] } }]
   ];
   for (const [name, over] of bad) {
     it(`rejects ${name}`, () => {
@@ -329,6 +332,12 @@ describe("correction", () => {
     const check = calculateChecksum(prepared, "0000PB");
     assert.throws(() => h.decode("0000TB" + check, { tryCorrection: true, maxCorrections: 0 }),
       (e: unknown) => e instanceof BasehError && e.code === "INVALID_CHECKSUM");
+  });
+  it("rejects a maxCorrections outside 0|1", () => {
+    const check = calculateChecksum(prepared, "0000PB");
+    assert.throws(() => h.decode("0000TB" + check, { tryCorrection: true, maxCorrections: 2 as 0 | 1 }),
+      (e: unknown) => e instanceof BasehError && e.code === "INVALID_PROFILE");
+    assert.equal(h.validate("0000TB" + check, { maxCorrections: -1 as 0 | 1 }).valid, false);
   });
   it("ignores map replacements the profile alphabet cannot contain", () => {
     // baseh-medium drops B, S and T. A P in the body under confusion light

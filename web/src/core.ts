@@ -52,6 +52,16 @@ export function parseIdentifier(raw: string): bigint | null {
   return value === null || value < 0n ? null : value;
 }
 
+/**
+ * Escape text before interpolating it into an innerHTML template. Custom
+ * alphabets and separators accept any printable ASCII, so `<`, `>`, `&`,
+ * `"` and `'` can otherwise reach the DOM as markup.
+ */
+export function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+}
+
 export const SAFE_BODY = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const SAFE_CHECKSUM = "234679ACDEFGHJKMNPQRTUVWXY";
 const DIGITS = "0123456789";
@@ -173,7 +183,7 @@ export function applyProfanity(alphabet: string, profanity: ProfanityMode): stri
  */
 export function baseAliases(alphabet: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"], ["B", "8"], ["S", "5"], ["U", "V"]]) {
+  for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"], ["B", "8"], ["S", "5"], ["U", "V"]] as Array<[string, string]>) {
     if (alphabet.includes(tgt) && !alphabet.includes(src)) out[src] = tgt;
   }
   return out;

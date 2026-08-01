@@ -178,7 +178,7 @@ func TestShippedProfilesAccepted(t *testing.T) {
 		if !perm.Enabled || perm.Algorithm != "feistel-v1" || perm.KeyID != "frozen" || perm.Rounds != 8 {
 			t.Errorf("%s: permutation = %+v, want frozen defaults", id, perm)
 		}
-		if !bytes.Equal(perm.KeyBytes, FrozenKeyBytes) {
+		if !bytes.Equal(perm.KeyBytes, FrozenKeyBytes()) {
 			t.Errorf("%s: permutation key diverges from FrozenKeyBytes", id)
 		}
 		if _, err := New(p); err != nil {
@@ -224,7 +224,7 @@ func TestHelpersReturnFreshProfiles(t *testing.T) {
 	}
 	f := LightV1()
 	f.Permutation.KeyBytes[0] ^= 0xff
-	if got := LightV1().Permutation.KeyBytes[0]; got != FrozenKeyBytes[0] {
+	if got := LightV1().Permutation.KeyBytes[0]; got != FrozenKeyBytes()[0] {
 		t.Errorf("frozen key mutation leaked into a fresh profile")
 	}
 }
@@ -677,9 +677,27 @@ func TestConfusionMapsExact(t *testing.T) {
 	for name, want := range map[string]map[string][]string{
 		"light": wantLight, "medium": wantMedium, "heavy": wantHeavy,
 	} {
-		if !reflect.DeepEqual(ConfusionMaps[name], want) {
-			t.Errorf("%s map = %v, want %v", name, ConfusionMaps[name], want)
+		if !reflect.DeepEqual(ConfusionMaps()[name], want) {
+			t.Errorf("%s map = %v, want %v", name, ConfusionMaps()[name], want)
 		}
+	}
+}
+
+func TestSharedGlobalsImperviousToMutation(t *testing.T) {
+	maps := ConfusionMaps()
+	maps["light"]["B"][0] = "Z"
+	if got := ConfusionMaps()["light"]["B"][0]; got != "D" {
+		t.Errorf("ConfusionMaps mutation leaked into the shared table: %q", got)
+	}
+	list := DefaultBlocklist()
+	list[0] = "MUTATED"
+	if got := DefaultBlocklist()[0]; got != "CRAP" {
+		t.Errorf("DefaultBlocklist mutation leaked into the shared list: %q", got)
+	}
+	key := FrozenKeyBytes()
+	key[0] ^= 0xff
+	if got := FrozenKeyBytes()[0]; got != 'b' {
+		t.Errorf("FrozenKeyBytes mutation leaked into the shared key: %q", got)
 	}
 }
 
@@ -688,8 +706,8 @@ func TestDefaultBlocklistExact(t *testing.T) {
 		"CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC",
 		"SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
 	}
-	if !reflect.DeepEqual(DefaultBlocklist, want) {
-		t.Errorf("DefaultBlocklist = %v", DefaultBlocklist)
+	if !reflect.DeepEqual(DefaultBlocklist(), want) {
+		t.Errorf("DefaultBlocklist = %v", DefaultBlocklist())
 	}
 }
 

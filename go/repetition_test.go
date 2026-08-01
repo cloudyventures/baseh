@@ -207,7 +207,6 @@ func TestRepetitionDecode(t *testing.T) {
 		_, err = h.Decode("00DBBB"+check, &DecodeOptions{
 			TryCorrection:    true,
 			ConfusionProfile: "light",
-			MaxCorrections:   1,
 		})
 		assertBlocked(t, err)
 	})

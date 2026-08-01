@@ -3,19 +3,16 @@ frozen tier shape, boundary round trips, zero ban, checksum zero handling,
 no left padding, separator threshold shapes, wrong-generation rejection,
 keyed -p tier and mixed-mode interop."""
 
-import sys
-import os
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
+from baseh import (
     Baseh,
     BasehError,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
     INVALID_PROFILE,
+    OUT_OF_RANGE,
     baseh_expandable_p_v1,
     baseh_expandable_v1,
     baseh_medium_v1,
@@ -25,9 +22,9 @@ from baseh import (  # noqa: E402
     generation_capacity,
     generation_for_id,
 )
-from baseh.basen import alphabet_index  # noqa: E402
-from baseh.checksum import checksum_value  # noqa: E402
-from baseh.profile import prepare_profile  # noqa: E402
+from baseh.basen import alphabet_index
+from baseh.checksum import checksum_value
+from baseh.profile import prepare_profile
 
 _TEST_KEY = b"test-only-key-material-0001"
 
@@ -484,6 +481,37 @@ class TestMixedModeInterop(unittest.TestCase):
         with self.assertRaises(BasehError) as ctx:
             Baseh(_custom_expandable(minLength=1))
         self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+        # JS parity: an explicit minLength of 0 is rejected, as is a non-int.
+        with self.assertRaises(BasehError) as ctx:
+            Baseh(_custom_expandable(minLength=0))
+        self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+        with self.assertRaises(BasehError) as ctx:
+            Baseh(_custom_expandable(minLength="4"))
+        self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+
+
+class TestHugeIdFailsFast(unittest.TestCase):
+    """generation_for_id is range-checked before its loop, so an adversarial
+    bignum id cannot force an unbounded walk (and the error never embeds the
+    raw id, which would trip Python's int-to-str digit limit)."""
+
+    def setUp(self):
+        self.codec = Baseh(baseh_expandable_v1())
+
+    def test_huge_id_out_of_range(self):
+        with self.assertRaises(BasehError) as ctx:
+            self.codec.encode(10**100000)
+        self.assertEqual(ctx.exception.code, OUT_OF_RANGE)
+
+    def test_generation_for_id_out_of_range(self):
+        with self.assertRaises(BasehError) as ctx:
+            generation_for_id(self.codec.profile, generation_base(self.codec.profile, 33))
+        self.assertEqual(ctx.exception.code, OUT_OF_RANGE)
+
+    def test_largest_supported_id_still_encodes(self):
+        codec = Baseh(_custom_expandable(permutation={"enabled": False}))
+        id = generation_base(codec.profile, 33) - 1
+        self.assertEqual(codec.decode(codec.encode(id)).id, id)
 
 
 if __name__ == "__main__":

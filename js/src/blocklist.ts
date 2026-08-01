@@ -18,6 +18,9 @@ export const DEFAULT_BLOCKLIST: readonly string[] = [
 ];
 
 const WORD = /^[A-Za-z]{2,32}$/;
+// JS `$` also matches before a trailing newline, so the charset test alone
+// accepts "abc\n"; an explicit newline check restores Ruby's \A...\z strictness.
+const NEWLINE = /[\r\n]/;
 
 function fail(reason: string): never {
   throw new BasehError("INVALID_PROFILE", `Invalid baseH profile: ${reason}`, false);
@@ -29,7 +32,7 @@ export function effectiveBlocklist(profanity: BasehProfanity): string[] {
   const list = [...base, ...(profanity.extraWords ?? [])];
   const out: string[] = [];
   for (const word of list) {
-    if (typeof word !== "string" || !WORD.test(word)) {
+    if (typeof word !== "string" || !WORD.test(word) || NEWLINE.test(word)) {
       fail("blocklist entries must be 2 through 32 ASCII letters");
     }
     const upper = word.toUpperCase();

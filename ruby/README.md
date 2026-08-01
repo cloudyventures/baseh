@@ -180,3 +180,19 @@ The vector tests load `../vectors/vectors.json` and
 `../vectors/feistel-vectors.json` from the monorepo root and assert every
 entry. Running the suite from a different directory layout requires those
 files at that relative path.
+
+The full 100,000-body single-substitution checksum sweep of the test-suite
+spec (section 6) runs under `BASEH_SOAK=1` alongside the soak suite:
+
+```sh
+BASEH_SOAK=1 rake test          # full soak + 100k checksum sweep per tier
+BASEH_SOAK=1 BASEH_SOAK_BODIES=1_000 rake test   # smoke the sweep
+```
+
+## Linting
+
+No RuboCop config ships in this gem: RuboCop is not part of the bundle, and
+adding a lint dependency was judged not worth it for a zero-dependency,
+~500-line library whose conformance is enforced by the shared cross-language
+vectors. The codebase follows the standard Ruby style (two-space indent,
+frozen string literals) by convention instead.

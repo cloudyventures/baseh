@@ -43,6 +43,7 @@ An baseH is a reference alias. Access control must not depend on its secrecy.
 | `IMPLEMENTATION_CAPACITY_CALCULATOR.md` | Interactive forward Capacity Calculator |
 | `IMPLEMENTATION_CODE_DESIGNER.md` | Reverse designer driven by required capacity |
 | `IMPLEMENTATION_TEST_SUITE.md` | Unit, property, compatibility, fuzz and performance testing |
+| `IMPLEMENTATION_SOAK_TESTS.md` | Long-running soak tests: full checksum sweeps and random round trips |
 | `PATENT_AND_PRIOR_ART_RESEARCH.md` | Prior art, patent-risk framing and implementation recommendations |
 | `DESIGN_NOTES.md` | Decisions, alternatives and future extensions |
 

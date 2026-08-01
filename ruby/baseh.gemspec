@@ -6,6 +6,8 @@ Gem::Specification.new do |spec|
   spec.name          = "baseh"
   spec.version       = Baseh::VERSION
   spec.authors       = ["cloudyventures"]
+  spec.email         = ["mat@cloudyventures.com"]
+  spec.homepage      = "https://github.com/cloudyventures/baseh"
   spec.summary       = "baseH (Human Reference Code) codec, Ruby port of the frozen spec"
   spec.description   = "Encodes and decodes human reference codes per the baseH codec " \
                        "specification: fixed-length base-N bodies, rolling polynomial " \
@@ -18,6 +20,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", "~> 13.0"
   # Zero runtime dependencies. openssl, json and minitest are stdlib.
   spec.metadata = {
-    "rubygems_mfa_required" => "true"
+    "rubygems_mfa_required" => "true",
+    "source_code_uri" => "https://github.com/cloudyventures/baseh",
+    "bug_tracker_uri" => "https://github.com/cloudyventures/baseh/issues"
   }
 end

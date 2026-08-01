@@ -9,6 +9,7 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@cloudyventures/baseh": "file:../js",
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {

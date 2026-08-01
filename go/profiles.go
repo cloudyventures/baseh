@@ -103,12 +103,19 @@ func tierAliases(pairs ...string) map[string]string {
 	return m
 }
 
-// FrozenKeyBytes is the frozen published permutation key. Public by design:
+// frozenKeyBytes is the frozen published permutation key. Public by design:
 // it makes issued codes look non-sequential but offers no secrecy, since
 // anyone can read it here. Never swap it on a live namespace; codes only
 // decode with the key they were issued under. Use the -p variants to supply
-// private key material.
-var FrozenKeyBytes = []byte("baseh-frozen-key-v1")
+// private key material. Unexported so no caller can mutate the shared key;
+// FrozenKeyBytes returns a copy.
+var frozenKeyBytes = []byte("baseh-frozen-key-v1")
+
+// FrozenKeyBytes returns a copy of the frozen published permutation key.
+// Callers may mutate the result freely; the shared key is never aliased.
+func FrozenKeyBytes() []byte {
+	return append([]byte(nil), frozenKeyBytes...)
+}
 
 // keyedPermutation builds the feistel-v1 permutation block for the -p
 // variants. keyID defaults to "default" and rounds to 8 when zero. Key
@@ -135,8 +142,8 @@ func keyedPermutation(keyBytes []byte, keyID string, rounds int) Permutation {
 // the frozen published key. The key bytes are copied so a caller mutating
 // the returned profile cannot corrupt the shared constant.
 func frozenPermutation() Permutation {
-	key := make([]byte, len(FrozenKeyBytes))
-	copy(key, FrozenKeyBytes)
+	key := make([]byte, len(frozenKeyBytes))
+	copy(key, frozenKeyBytes)
 	return keyedPermutation(key, "frozen", 8)
 }
 

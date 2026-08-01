@@ -187,6 +187,22 @@ fn walk(
     ))
 }
 
+/// The round index is mixed into the HMAC message as a single byte, so a
+/// rounds value above 255 would alias earlier rounds and silently weaken
+/// the permutation. Profile validation already enforces the even 4..=16
+/// range; this public entry point mirrors it so direct callers get a
+/// catchable error instead of a corrupted permutation.
+fn check_rounds(rounds: u32) -> Result<(), BasehError> {
+    if !(4..=16).contains(&rounds) || !rounds.is_multiple_of(2) {
+        return Err(BasehError::new(
+            ErrorCode::InvalidProfile,
+            "Feistel rounds must be an even integer from 4 through 16",
+            false,
+        ));
+    }
+    Ok(())
+}
+
 /// Spec 7.3 forward permutation with cycle walking. `length` is expandable
 /// mode only (spec 19.4): the generation's total code length, mixed into the
 /// round-message key derivation. Pass `None` in fixed mode.
@@ -198,6 +214,7 @@ pub fn permute(
     rounds: u32,
     length: Option<u32>,
 ) -> Result<BigUint, BasehError> {
+    check_rounds(rounds)?;
     walk(
         value,
         capacity,
@@ -221,6 +238,7 @@ pub fn inverse_permute(
     rounds: u32,
     length: Option<u32>,
 ) -> Result<BigUint, BasehError> {
+    check_rounds(rounds)?;
     walk(
         value,
         capacity,

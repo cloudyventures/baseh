@@ -40,7 +40,9 @@ def _low_bits(digest: bytes, n: int) -> int:
     return value & ((1 << n) - 1)
 
 
-def _round_message(profile_id: str, round_number: int, right: int, wr: int, length: int | None = None) -> bytes:
+def _round_message(
+    profile_id: str, round_number: int, right: int, wr: int, length: int | None = None
+) -> bytes:
     pid_bytes = profile_id.encode("ascii")
     right_bytes = right.to_bytes((wr + 7) // 8, "big")
     length_bytes = b""

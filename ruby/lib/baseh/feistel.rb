@@ -120,5 +120,12 @@ module Baseh
         safe_for_customer: false
       )
     end
+
+    # Only permute and inverse_permute are public; the round machinery is
+    # internal to the spec 7.3 permutation.
+    class << self
+      private :bit_length, :low_bits, :to_be, :round_message, :hmac,
+              :run_rounds, :run_inverse, :walk
+    end
   end
 end

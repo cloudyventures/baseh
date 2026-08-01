@@ -122,7 +122,7 @@ fn tier(shape: &TierShape, permutation: Permutation, p_suffix: bool) -> Profile 
         mode: Mode::Fixed,
         body_alphabet: shape.body_alphabet.to_string(),
         body_length: 6,
-        min_length: 0,
+        min_length: None,
         checksum_alphabet: shape.checksum_alphabet.to_string(),
         checksum_length: shape.checksum_length,
         short_checksum_length: 0,
@@ -182,7 +182,7 @@ fn expandable_tier(permutation: Permutation, p_suffix: bool) -> Profile {
         mode: Mode::Expandable,
         body_alphabet: EXPANDABLE_BODY.to_string(),
         body_length: 0,
-        min_length: 4,
+        min_length: Some(4),
         checksum_alphabet: format!("0{EXPANDABLE_BODY}"),
         checksum_length: 2,
         // Spec 22.5: one checksum symbol through total length 5, two above.

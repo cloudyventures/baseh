@@ -1,10 +1,9 @@
 //! Repetition filter tests (spec section 21).
 
 use baseh::{
-    baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1,
-    baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1, baseh_medium_v1, baseh_minimum_p_v1,
-    baseh_minimum_v1, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Mode, Permutation,
-    Profile,
+    baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1,
+    baseh_light_v1, baseh_medium_p_v1, baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1,
+    Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Mode, Permutation, Profile,
 };
 use num_bigint::BigUint;
 
@@ -16,7 +15,7 @@ fn alpha32() -> Profile {
         mode: Mode::Fixed,
         body_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ".to_string(),
         body_length: 6,
-        min_length: 0,
+        min_length: None,
         checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
         checksum_length: 1,
         short_checksum_length: 0,
@@ -93,7 +92,9 @@ fn encode_blocks_run_of_exactly_4() {
     let mut profile = alpha32();
     profile.max_repetition = 4;
     assert_blocked(
-        Baseh::new(profile.clone()).unwrap().encode(&find_id_with_run(&profile, 4)),
+        Baseh::new(profile.clone())
+            .unwrap()
+            .encode(&find_id_with_run(&profile, 4)),
         "run of 4",
     );
 }
@@ -123,7 +124,9 @@ fn custom_max_repetition_3_blocks_triples() {
     let mut profile = alpha32();
     profile.max_repetition = 3;
     assert_blocked(
-        Baseh::new(profile.clone()).unwrap().encode(&find_id_with_run(&profile, 3)),
+        Baseh::new(profile.clone())
+            .unwrap()
+            .encode(&find_id_with_run(&profile, 3)),
         "run of 3 under max 3",
     );
 }
@@ -137,7 +140,7 @@ fn separators_do_not_break_a_run() {
         mode: Mode::Fixed,
         body_alphabet: "0123456789ABCDEF".to_string(),
         body_length: 4,
-        min_length: 0,
+        min_length: None,
         checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
         checksum_length: 1,
         short_checksum_length: 0,
@@ -156,7 +159,10 @@ fn separators_do_not_break_a_run() {
     twin_profile.max_repetition = 0;
     let twin = Baseh::new(twin_profile).unwrap();
     assert!(twin.encode(&id).unwrap().starts_with("AA-AA"));
-    assert_blocked(Baseh::new(profile).unwrap().encode(&id), "separator-straddling run");
+    assert_blocked(
+        Baseh::new(profile).unwrap().encode(&id),
+        "separator-straddling run",
+    );
 }
 
 #[test]
@@ -184,7 +190,9 @@ fn decode_reports_blocked_code_for_unissuable_code() {
     let h = Baseh::new(profile.clone()).unwrap();
     let twin = Baseh::new(alpha32()).unwrap();
     let code = twin.encode(&find_id_with_run(&profile, 4)).unwrap();
-    let err = h.decode(&code, &DecodeOptions::default()).expect_err("blocked decode");
+    let err = h
+        .decode(&code, &DecodeOptions::default())
+        .expect_err("blocked decode");
     assert_eq!(err.code, ErrorCode::BlockedCode);
 }
 
@@ -200,7 +208,10 @@ fn correction_never_corrects_into_a_blocked_code() {
     // id whose body is "00BBBB": B is symbol 11 in the 32-symbol alphabet.
     let id = BigUint::from(11u64 * 32u64.pow(3) + 11 * 32u64.pow(2) + 11 * 32 + 11);
     let code = twin.encode(&id).unwrap();
-    assert!(code.starts_with("00BBBB"), "twin code is 00BBBB + checksum: {code}");
+    assert!(
+        code.starts_with("00BBBB"),
+        "twin code is 00BBBB + checksum: {code}"
+    );
     let presented = format!("00DBBB{}", &code[6..]);
     let options = DecodeOptions {
         try_correction: true,
@@ -208,7 +219,9 @@ fn correction_never_corrects_into_a_blocked_code() {
         max_corrections: 1,
         ..DecodeOptions::default()
     };
-    let err = h.decode(&presented, &options).expect_err("blocked correction");
+    let err = h
+        .decode(&presented, &options)
+        .expect_err("blocked correction");
     assert_eq!(err.code, ErrorCode::BlockedCode);
 }
 

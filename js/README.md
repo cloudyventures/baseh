@@ -13,7 +13,7 @@ safety. The normative spec is `spec/IMPLEMENTATION_CODEC.md` in the
 npm install @cloudyventures/baseh
 ```
 
-Zero runtime dependencies. Requires Node 18 or later (native `BigInt`).
+One runtime dependency (`@noble/hashes`, auditable and dependency-free itself). Requires Node 18 or later (native `BigInt`).
 
 ## Expandable mode (recommended)
 

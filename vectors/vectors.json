@@ -372,6 +372,28 @@
       "capacity": "65536"
     },
     {
+      "profileId": "sep32-multi-test",
+      "definition": {
+        "profileId": "sep32-multi-test",
+        "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+        "bodyLength": 6,
+        "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+        "checksumLength": 1,
+        "caseSensitive": false,
+        "separator": "..",
+        "grouping": [
+          3,
+          2,
+          2
+        ],
+        "aliases": {},
+        "permutation": {
+          "enabled": false
+        }
+      },
+      "capacity": "1073741824"
+    },
+    {
       "profileId": "baseh-expandable-v1",
       "definition": {
         "profileId": "baseh-expandable-v1",
@@ -2328,6 +2350,41 @@
       "rawChecksum": "F"
     },
     {
+      "profileId": "sep32-multi-test",
+      "id": "0",
+      "canonicalCode": "000..00..0F",
+      "rawBody": "000000",
+      "rawChecksum": "F"
+    },
+    {
+      "profileId": "sep32-multi-test",
+      "id": "1",
+      "canonicalCode": "000..00..1G",
+      "rawBody": "000001",
+      "rawChecksum": "G"
+    },
+    {
+      "profileId": "sep32-multi-test",
+      "id": "2",
+      "canonicalCode": "000..00..2H",
+      "rawBody": "000002",
+      "rawChecksum": "H"
+    },
+    {
+      "profileId": "sep32-multi-test",
+      "id": "1073741823",
+      "canonicalCode": "ZZZ..ZZ..ZV",
+      "rawBody": "ZZZZZZ",
+      "rawChecksum": "V"
+    },
+    {
+      "profileId": "sep32-multi-test",
+      "input": "000....00..1G",
+      "id": "1",
+      "canonicalCode": "000..00..1G",
+      "note": "doubled multi-character separator strips as two literal occurrences"
+    },
+    {
       "profileId": "baseh-expandable-v1",
       "id": "0",
       "canonicalCode": "R59D",
@@ -2808,6 +2865,11 @@
     {
       "profileId": "novowel32-test",
       "input": "0000A02",
+      "error": "INVALID_CHARACTER"
+    },
+    {
+      "profileId": "sep32-multi-test",
+      "input": "000.00.1G",
       "error": "INVALID_CHARACTER"
     },
     {

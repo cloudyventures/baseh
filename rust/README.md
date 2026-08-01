@@ -140,13 +140,15 @@ Profiles accept an optional `profanity` object with three modes:
 - `encode(&BigUint) -> Result<String, BasehError>`.
 - `decode(&str, &DecodeOptions) -> Result<DecodeResult, BasehError>`
   returning the id, the canonical code and a `corrected` flag.
-- `capacity() -> &BigUint` (arbitrary precision, may exceed u64).
+- `capacity() -> Result<&BigUint, BasehError>` (arbitrary precision, may
+  exceed u64). Fixed mode only; expandable profiles fail `INVALID_PROFILE`.
 - `validate(input, options) -> ValidateOutcome` never fails on user input
   and never exposes an internal id on failure.
 - `baseh_expandable_v1` builds the recommended expandable tier profile
   (`mode: "expandable"`, `min_length` 4, `separator_min_length` 6), permuting
   per code length with the public frozen key; `baseh_expandable_p_v1` takes
-  caller-supplied key material instead.
+  caller-supplied key material instead. `min_length` is an `Option<usize>`:
+  `None` selects the default of 4 and an explicit `Some(0)` is rejected.
 - `baseh_minimum_v1` / `baseh_light_v1` / `baseh_medium_v1` /
   `baseh_heavy_v1` build the frozen fixed-mode tier profiles, each permuting
   with the public frozen key. The `*_p_v1` variants permute with

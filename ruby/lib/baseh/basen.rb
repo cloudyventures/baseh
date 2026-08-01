@@ -8,6 +8,13 @@ module Baseh
     # Spec 5.1. All arithmetic stays in Integer (arbitrary precision).
     def encode_base_n(value, alphabet, length)
       base = alphabet.length
+      capacity = base**length
+      if value.negative? || value >= capacity
+        raise BasehError.new(
+          "OUT_OF_RANGE",
+          "Value #{value} does not fit in #{length} base-#{base} symbols"
+        )
+      end
       out = Array.new(length)
       v = value
       (length - 1).downto(0) do |pos|

@@ -1,9 +1,12 @@
 name: pages
 
+# Deploy only after the ci workflow passes on main. ci runs on every push to
+# main, so gating here means a failing test or type error can never go live.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
-    paths: [web/**, js/**]
 
 permissions:
   pages: write
@@ -11,18 +14,23 @@ permissions:
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci && npm run build
+      # vite build strips types without checking them, so the deploy runs the
+      # same gate as local development: tests, then tsc, then the build.
+      - run: npm ci && npm test && npx tsc --noEmit && npm run build
         working-directory: web
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

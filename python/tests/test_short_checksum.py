@@ -3,14 +3,10 @@ frozen tier shape, generation round trips and the short/normal boundary,
 effective-K decode, validation errors, interactions with the repetition
 filter and separator threshold, and a custom short-checksum window."""
 
-import sys
-import os
 import re
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
+from baseh import (
     Baseh,
     BasehError,
     INVALID_PROFILE,
@@ -21,7 +17,7 @@ from baseh import (  # noqa: E402
     generation_base,
     generation_capacity,
 )
-from baseh.checksum import calculate_checksum  # noqa: E402
+from baseh.checksum import calculate_checksum
 
 _TEST_KEY = b"test-only-key-material-0001"
 

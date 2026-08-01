@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use num_bigint::BigUint;
 
-use crate::basen::encode_base_n;
+use crate::basen::{encode_base_n, pow_biguint};
 use crate::error::{BasehError, ErrorCode};
 use crate::profile::PreparedProfile;
 
@@ -65,12 +65,4 @@ fn checksum_value(
             % modulus;
     }
     Ok(state)
-}
-
-fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
-    let mut result = BigUint::from(1u64);
-    for _ in 0..exp {
-        result *= &base;
-    }
-    result
 }

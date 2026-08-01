@@ -17,7 +17,7 @@ fn base_profile() -> Profile {
         mode: Mode::Fixed,
         body_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ".to_string(),
         body_length: 6,
-        min_length: 0,
+        min_length: None,
         checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
         checksum_length: 1,
         short_checksum_length: 0,
@@ -258,19 +258,19 @@ fn shipped_profiles_accepted() {
 #[test]
 fn frozen_tiers_have_documented_capacities() {
     assert_eq!(
-        Baseh::new(baseh_minimum_v1()).unwrap().capacity(),
+        Baseh::new(baseh_minimum_v1()).unwrap().capacity().unwrap(),
         &BigUint::from(2_176_782_336u64)
     );
     assert_eq!(
-        Baseh::new(baseh_light_v1()).unwrap().capacity(),
+        Baseh::new(baseh_light_v1()).unwrap().capacity().unwrap(),
         &BigUint::from(887_503_681u64)
     );
     assert_eq!(
-        Baseh::new(baseh_medium_v1()).unwrap().capacity(),
+        Baseh::new(baseh_medium_v1()).unwrap().capacity().unwrap(),
         &BigUint::from(481_890_304u64)
     );
     assert_eq!(
-        Baseh::new(baseh_heavy_v1()).unwrap().capacity(),
+        Baseh::new(baseh_heavy_v1()).unwrap().capacity().unwrap(),
         &BigUint::from(308_915_776u64)
     );
 }
@@ -351,7 +351,7 @@ fn boundary_round_trips() {
         baseh_medium_p_v1(KEY, "test-01", 8),
     ] {
         let baseh = Baseh::new(profile).unwrap();
-        let cap = baseh.capacity().clone();
+        let cap = baseh.capacity().unwrap().clone();
         let options = DecodeOptions::default();
         for id in [0u64, 1, 31, 32, 33] {
             round_trip(&baseh, &BigUint::from(id), &options);
@@ -389,7 +389,7 @@ fn round_trip(baseh: &Baseh, id: &BigUint, options: &DecodeOptions) {
 fn capacity_values() {
     // Medium is the default tier; capacity is exact at 28^6.
     let baseh = Baseh::new(baseh_medium_v1()).unwrap();
-    assert_eq!(baseh.capacity(), &BigUint::from(481_890_304u64));
+    assert_eq!(baseh.capacity().unwrap(), &BigUint::from(481_890_304u64));
 
     // Capacity beyond u64 must still work end to end.
     let mut big = base_profile();
@@ -400,7 +400,7 @@ fn capacity_values() {
     let options = DecodeOptions::default();
     let id = BigUint::from(1u64) << 99usize;
     round_trip(&baseh, &id, &options);
-    let cap = baseh.capacity().clone();
+    let cap = baseh.capacity().unwrap().clone();
     assert_eq!(cap, BigUint::from(1u64) << 100usize);
 }
 
@@ -490,6 +490,23 @@ fn formatting_positions() {
     assert_eq!(chars[3], '-', "separator after group 1");
     assert_eq!(chars[7], '-', "separator after group 2");
     assert_eq!(chars.len(), 9);
+}
+
+#[test]
+fn multi_character_separator_is_removed_literally() {
+    // Separator removal is literal-substring based (matches the JS
+    // reference): a separator of ".." is stripped as a unit, not as a
+    // per-character filter.
+    let mut p = base_profile();
+    p.profile_id = "multi-sep".to_string();
+    p.separator = "..".to_string();
+    p.grouping = vec![4, 3];
+    let baseh = Baseh::new(p).unwrap();
+    let code = baseh.encode(&BigUint::from(42u64)).unwrap();
+    assert!(code.contains(".."), "grouped with the separator: {code}");
+    let d = baseh.decode(&code, &DecodeOptions::default()).unwrap();
+    assert_eq!(d.id, BigUint::from(42u64));
+    assert!(!d.corrected, "canonical code must not be flagged corrected");
 }
 
 #[test]
@@ -769,7 +786,7 @@ fn profanity_no_vowels() {
     let baseh = Baseh::new(p).unwrap();
     // Body alphabet 32 - {A,E} = 30; capacity 30^6 (the checksum alphabet
     // loses A,E,U but leaves body capacity unchanged).
-    assert_eq!(baseh.capacity(), &BigUint::from(729_000_000u64));
+    assert_eq!(baseh.capacity().unwrap(), &BigUint::from(729_000_000u64));
 
     let options = DecodeOptions::default();
     round_trip(&baseh, &BigUint::from(0u64), &options);
@@ -796,7 +813,7 @@ fn profanity_no_vowels() {
             mode: Mode::Fixed,
             body_alphabet: "AB".to_string(),
             body_length: 4,
-            min_length: 0,
+            min_length: None,
             checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY".to_string(),
             checksum_length: 0,
             short_checksum_length: 0,
@@ -891,7 +908,10 @@ fn fuzz_smoke() {
         match baseh.decode(&input, &options) {
             Ok(result) => {
                 ok_count += 1;
-                assert!(result.id < *baseh.capacity(), "decoded id in range");
+                assert!(
+                    result.id < *baseh.capacity().unwrap(),
+                    "decoded id in range"
+                );
                 // Canonical stability: re-encoding reproduces the reporting code.
                 assert_eq!(baseh.encode(&result.id).unwrap(), result.canonical_code);
             }

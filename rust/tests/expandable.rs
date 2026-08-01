@@ -20,7 +20,7 @@ fn custom_expandable() -> Profile {
         mode: Mode::Expandable,
         body_alphabet: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(), // 0/O stripped at preparation
         body_length: 0,
-        min_length: 3,
+        min_length: Some(3),
         checksum_alphabet: String::new(),
         checksum_length: 1,
         short_checksum_length: 0,
@@ -64,7 +64,7 @@ fn expect_error<T>(result: Result<T, baseh::BasehError>, code: ErrorCode) {
 fn frozen_tier_shape() {
     let h = Baseh::new(baseh_expandable_v1()).expect("valid profile");
     assert_eq!(h.profile().mode, Mode::Expandable);
-    assert_eq!(h.profile().min_length, 4);
+    assert_eq!(h.profile().min_length, Some(4));
     assert_eq!(h.profile().separator_min_length, 6);
     // Spec 22.5: the frozen tier ships the short checksum on, one symbol
     // through total length 5 and two above.
@@ -83,15 +83,43 @@ fn frozen_tier_shape() {
     ];
     for (l, base, cap) in expected {
         assert_eq!(h.generation_base(l), big(base), "generation base {l}");
-        assert_eq!(h.generation_capacity(l), big(cap), "generation capacity {l}");
+        assert_eq!(
+            h.generation_capacity(l),
+            big(cap),
+            "generation capacity {l}"
+        );
     }
 }
 
 #[test]
-#[should_panic(expected = "capacity() is only defined for fixed-mode profiles")]
 fn capacity_is_fixed_mode_only() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    h.capacity();
+    expect_error(h.capacity(), ErrorCode::InvalidProfile);
+}
+
+#[test]
+fn huge_id_fails_fast_out_of_range() {
+    // The generation scan is capped at 33 - min_length iterations, so an
+    // astronomically large id returns OUT_OF_RANGE immediately instead of
+    // looping over ever-larger big integers.
+    let h = Baseh::new(baseh_expandable_v1()).unwrap();
+    let huge = BigUint::from(10u64).pow(100_000);
+    let start = std::time::Instant::now();
+    expect_error(h.generation_for_id(&huge), ErrorCode::OutOfRange);
+    expect_error(h.encode(&huge), ErrorCode::OutOfRange);
+    assert!(
+        start.elapsed().as_secs() < 5,
+        "huge id must fail fast, took {:?}",
+        start.elapsed()
+    );
+}
+
+#[test]
+fn rejects_zero_min_length() {
+    // JS parity: an explicit 0 is rejected, not coerced to the default of 4.
+    let mut p = custom_expandable();
+    p.min_length = Some(0);
+    expect_error(Baseh::new(p), ErrorCode::InvalidProfile);
 }
 
 #[test]
@@ -102,7 +130,11 @@ fn boundary_round_trips() {
         let next = h.generation_base(l + 1);
         for id in [base.clone(), &next - 1u64, next.clone()] {
             let code = h.encode(&id).expect("boundary id issuable");
-            assert_eq!(raw(&code).len(), h.generation_for_id(&id), "length of {id}");
+            assert_eq!(
+                raw(&code).len(),
+                h.generation_for_id(&id).unwrap(),
+                "length of {id}"
+            );
             let d = h.decode(&code, &strict()).expect("boundary id decodes");
             assert_eq!(d.id, id);
             assert_eq!(d.canonical_code, code);
@@ -139,7 +171,10 @@ fn exhaustive_generation_four_round_trip() {
         assert_eq!(h.decode(&code, &strict()).unwrap().id, big(id));
         issued += 1;
     }
-    assert!(issued > 39000, "expected nearly all 39304 ids issuable, got {issued}");
+    assert!(
+        issued > 39000,
+        "expected nearly all 39304 ids issuable, got {issued}"
+    );
 }
 
 #[test]
@@ -189,12 +224,17 @@ fn checksum_with_zero_round_trips() {
         if found.len() >= 8 {
             break;
         }
-        let Ok(code) = h.encode(&big(id)) else { continue };
+        let Ok(code) = h.encode(&big(id)) else {
+            continue;
+        };
         if raw(&code)[raw(&code).len() - 2..].contains('0') {
             found.push((big(id), code));
         }
     }
-    assert!(found.len() >= 8, "expected checksum-with-zero codes in the sample");
+    assert!(
+        found.len() >= 8,
+        "expected checksum-with-zero codes in the sample"
+    );
     for (id, code) in found {
         let d = h.decode(&code, &strict()).unwrap();
         assert_eq!(d.id, id);
@@ -210,7 +250,9 @@ fn typed_o_in_checksum_position_aliases_to_zero() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let mut pinned: Option<(BigUint, String)> = None;
     for id in 0..500000u64 {
-        let Ok(code) = h.encode(&big(id)) else { continue };
+        let Ok(code) = h.encode(&big(id)) else {
+            continue;
+        };
         if raw(&code).ends_with('0') {
             pinned = Some((big(id), code));
             break;
@@ -237,7 +279,9 @@ fn checksum_detects_substitutions_and_transpositions() {
         let body_len = l - h.effective_checksum_length(l);
         let mut misses = 0u32;
         for offset in 0..50u64 {
-            let Ok(code) = h.encode(&(&base + big(offset))) else { continue };
+            let Ok(code) = h.encode(&(&base + big(offset))) else {
+                continue;
+            };
             let r: Vec<char> = raw(&code).chars().collect();
             for pos in 0..body_len {
                 let cur = alphabet.iter().position(|c| *c == r[pos]).unwrap();
@@ -272,7 +316,10 @@ fn no_left_padding() {
     expect_error(h.decode("1", &strict()), ErrorCode::InvalidLength);
     expect_error(h.decode("ABC", &strict()), ErrorCode::InvalidLength);
     expect_error(h.decode("", &strict()), ErrorCode::InvalidLength);
-    expect_error(h.decode(&"A".repeat(33), &strict()), ErrorCode::InvalidLength);
+    expect_error(
+        h.decode(&"A".repeat(33), &strict()),
+        ErrorCode::InvalidLength,
+    );
     for id in [0u64, 1155, 1156, 40460, 123456789] {
         let code = h.encode(&big(id)).unwrap();
         let d = h.decode(&code, &strict()).unwrap();
@@ -289,7 +336,10 @@ fn separator_threshold() {
     // The decoder rejects a separator below separatorMinLength.
     let code = h.encode(&big(0)).unwrap();
     let with_hyphen = format!("{}-{}", &code[..2], &code[2..]);
-    expect_error(h.decode(&with_hyphen, &strict()), ErrorCode::InvalidCharacter);
+    expect_error(
+        h.decode(&with_hyphen, &strict()),
+        ErrorCode::InvalidCharacter,
+    );
     // The pinned shapes for lengths 6 through 10.
     for l in 6..=10usize {
         let id = h.generation_base(l);
@@ -373,8 +423,14 @@ fn correction_stays_within_the_presented_generation() {
     let code = h.encode(&id).unwrap();
     let r: Vec<char> = raw(&code).chars().collect();
     let pairs = [
-        ('B', 'D'), ('D', 'B'), ('P', 'T'), ('T', 'P'),
-        ('M', 'N'), ('N', 'M'), ('V', 'W'), ('W', 'V'),
+        ('B', 'D'),
+        ('D', 'B'),
+        ('P', 'T'),
+        ('T', 'P'),
+        ('M', 'N'),
+        ('N', 'M'),
+        ('V', 'W'),
+        ('W', 'V'),
     ];
     let mut typo: Option<String> = None;
     for (pos, ch) in r.iter().enumerate().take(r.len() - 2) {
@@ -402,7 +458,15 @@ fn keyed_p_tier_round_trips() {
     let p = Baseh::new(baseh_expandable_p_v1(KEY, "test-01", 0)).unwrap();
     assert_eq!(p.profile().profile_id, "baseh-expandable-p-v1");
     let gen9 = p.generation_base(9);
-    for id in [big(0), big(1), big(1155), big(1156), big(40460), big(123456789), gen9] {
+    for id in [
+        big(0),
+        big(1),
+        big(1155),
+        big(1156),
+        big(40460),
+        big(123456789),
+        gen9,
+    ] {
         let code = match p.encode(&id) {
             Ok(code) => code,
             Err(err) => {
@@ -427,7 +491,10 @@ fn keyed_p_tier_honours_custom_rounds() {
 fn keyed_p_tier_differs_from_frozen_key_tier() {
     let frozen = Baseh::new(baseh_expandable_v1()).unwrap();
     let keyed = Baseh::new(baseh_expandable_p_v1(KEY, "test-01", 0)).unwrap();
-    assert_ne!(frozen.encode(&big(42)).unwrap(), keyed.encode(&big(42)).unwrap());
+    assert_ne!(
+        frozen.encode(&big(42)).unwrap(),
+        keyed.encode(&big(42)).unwrap()
+    );
 }
 
 #[test]
@@ -503,7 +570,7 @@ fn mode_specific_profile_validation() {
     // minLength must exceed checksumLength.
     expect_error(
         Baseh::new(Profile {
-            min_length: 1,
+            min_length: Some(1),
             ..custom_expandable()
         }),
         ErrorCode::InvalidProfile,

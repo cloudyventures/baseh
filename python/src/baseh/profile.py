@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from .blocklist import effective_blocklist, strip_vowels
 from .errors import INVALID_PROFILE, BasehError
@@ -47,7 +48,7 @@ class PreparedProfile:
     case_sensitive: bool
     separator: str
     grouping: tuple
-    aliases_norm: dict
+    aliases_norm: MappingProxyType
     permutation: PreparedPermutation
     checksum_modulus: int
     capacity: int
@@ -119,6 +120,10 @@ def prepare_profile(profile) -> PreparedProfile:
     min_length = profile.get("minLength")
     if min_length is None:
         min_length = 4
+    # JS parity (profile.ts): an explicit minLength of 0 is rejected in both
+    # modes, and a non-integer fails cleanly rather than blowing up later.
+    if not _is_int(min_length) or min_length < 1:
+        _fail("minLength must be an integer of at least 1")
     separator_min_length = profile.get("separatorMinLength")
     if separator_min_length is None:
         separator_min_length = 0
@@ -129,8 +134,6 @@ def prepare_profile(profile) -> PreparedProfile:
     if not _is_int(checksum_length) or checksum_length < 0 or checksum_length > 8:
         _fail("checksumLength must be an integer from 0 through 8")
     if mode == "expandable":
-        if not _is_int(min_length) or min_length < 1:
-            _fail("minLength must be an integer of at least 1")
         if min_length <= checksum_length:
             _fail("minLength must be greater than checksumLength")
         if not _is_int(separator_min_length) or separator_min_length < 0:
@@ -259,7 +262,7 @@ def prepare_profile(profile) -> PreparedProfile:
 
     grouping = profile.get("grouping")
     if not isinstance(grouping, (list, tuple)):
-        _fail("grouping must be empty when separator is empty")
+        _fail("grouping must be a list of group sizes")
     if separator == "":
         if len(grouping) != 0:
             _fail("grouping must be empty when separator is empty")
@@ -315,7 +318,7 @@ def prepare_profile(profile) -> PreparedProfile:
         case_sensitive=case_sensitive,
         separator=separator,
         grouping=tuple(grouping),
-        aliases_norm=aliases_norm,
+        aliases_norm=MappingProxyType(aliases_norm),
         permutation=perm,
         checksum_modulus=modulus_base ** checksum_length,
         capacity=len(body_norm) ** body_length,

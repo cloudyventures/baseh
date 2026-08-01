@@ -25,13 +25,10 @@ Feistel key from the profile's permutation field (Baseh._feistel_key).
 
 import os
 import random
-import sys
 import time
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
+from baseh import (
     BLOCKED_CODE,
     Baseh,
     BasehError,

@@ -121,12 +121,10 @@ module Baseh
     end
 
     # Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
-    # zero ban of section 19.2)". The JSON bodyAlphabet string printed in
-    # section 17.1 lists only 32 symbols (it also drops I and L), but the
-    # prose, the generation-capacity table (34^(L-2); 1,156 ids at length 4)
-    # and the checksum modulus (35^2 = 1,225) are all consistent only with
-    # 34, and the zero ban removes exactly 0 and O. The 34-symbol alphabet
-    # is the one that satisfies the normative numbers.
+    # zero ban of section 19.2)". The alphabet is 34 symbols and keeps I and
+    # L; only 0 and O are dropped. The generation-capacity table (34^(L-2);
+    # 1,156 ids at length 4) and the checksum modulus (35^2 = 1,225) are
+    # consistent only with 34.
     EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
     # The frozen expandable tier; the recommended starting point for new

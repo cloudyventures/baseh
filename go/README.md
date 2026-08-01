@@ -68,7 +68,7 @@ decode and the default profanity blocklist:
 `HeavyV1()` take no arguments. Medium is the default fixed tier
 (expandable is the recommended default overall).
 
-Every tier permutes with the frozen published key (`FrozenKeyBytes`). The
+Every tier permutes with the frozen published key (`FrozenKeyBytes()`). The
 key is public by design: it makes issued codes look non-sequential but
 offers no secrecy, since anyone can read it in `profiles.go`. Never swap
 it on a live namespace; codes only decode with the key they were issued

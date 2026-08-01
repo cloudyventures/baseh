@@ -271,7 +271,7 @@ function blockProfile(profileId: string, profanity: BasehProfile["profanity"]): 
     grouping: [],
     aliases: { O: "0", I: "1", L: "1" },
     permutation: { enabled: false },
-    profanity
+    ...(profanity ? { profanity } : {})
   };
 }
 
@@ -319,7 +319,7 @@ function encodeEntry(h: Baseh, id: bigint): Record<string, unknown> {
 function findIdWith(h: Baseh, needle: string): bigint {
   // Probe with a profanity-free twin: the twin's raw output is exactly what the
   // blocklist codec would emit before it rejects the code.
-  const probe = new Baseh({ ...h.profile, blocklist: [], profanity: { mode: "none" } });
+  const probe = new Baseh({ ...h.profile, profanity: { mode: "none" } });
   for (let id = 0n; id < probe.capacity(); id += 1n) {
     if (probe.encode(id).replaceAll("-", "").toUpperCase().includes(needle)) return id;
   }
@@ -428,6 +428,68 @@ encodeErrors.push({ profileId: rep3.profileId, id: findIdWithRun(rep3, 3).toStri
   codecVectors.push(encodeEntry(hSepRep, 1n));
   const idAaaa = 10n * 16n ** 3n + 10n * 16n ** 2n + 10n * 16n + 10n;
   encodeErrors.push({ profileId: sepRep.profileId, id: idAaaa.toString(10), error: "BLOCKED_CODE" });
+}
+
+// --- Multi-character separator ----------------------------------------------
+// Separators are removed as a literal substring (spec 3.3): every occurrence
+// of the exact separator string is stripped, nothing else. A two-symbol
+// separator pins that semantics: a lone "." is not half a separator and must
+// fail as INVALID_CHARACTER, while the full ".." strips wherever it appears.
+{
+  const sepMulti: BasehProfile = {
+    profileId: "sep32-multi-test",
+    bodyAlphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+    bodyLength: 6,
+    checksumAlphabet: "234679ACDEFGHJKMNPQRTUVWXY",
+    checksumLength: 1,
+    caseSensitive: false,
+    separator: "..",
+    grouping: [3, 2, 2],
+    aliases: {},
+    permutation: { enabled: false }
+  };
+  const hSepMulti = new Baseh(sepMulti);
+  profileEntries.push(profileEntry(sepMulti, hSepMulti, null));
+
+  function sepMultiEntry(id: bigint): Record<string, unknown> {
+    const canonical = hSepMulti.encode(id);
+    const raw = canonical.split("..").join("");
+    return {
+      profileId: sepMulti.profileId,
+      id: id.toString(10),
+      canonicalCode: canonical,
+      rawBody: raw.slice(0, sepMulti.bodyLength),
+      rawChecksum: raw.slice(sepMulti.bodyLength)
+    };
+  }
+
+  for (const id of [0n, 1n, 2n, hSepMulti.capacity() - 1n]) {
+    codecVectors.push(sepMultiEntry(id));
+  }
+
+  // Every occurrence of the full separator strips: a doubled "...." inside
+  // the canonical form still decodes to the same id.
+  {
+    const canonical = hSepMulti.encode(1n);
+    codecVectors.push({
+      profileId: sepMulti.profileId,
+      input: canonical.replace("..", "...."),
+      id: "1",
+      canonicalCode: canonical,
+      note: "doubled multi-character separator strips as two literal occurrences"
+    } as never);
+  }
+
+  // A lone "." is not a separator occurrence: it stays in the input and must
+  // fail as INVALID_CHARACTER, never silently stripped.
+  {
+    const canonical = hSepMulti.encode(1n);
+    errorVectors.push({
+      profileId: sepMulti.profileId,
+      input: canonical.replaceAll("..", "."),
+      error: "INVALID_CHARACTER"
+    });
+  }
 }
 
 // Feistel vectors over several capacities, with walk counts.

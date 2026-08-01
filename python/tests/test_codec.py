@@ -3,14 +3,9 @@ profile validation rejections, profanity modes, round trips, fuzz smoke."""
 
 import random
 import string
-import sys
-import os
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import (  # noqa: E402
-    AMBIGUOUS_INPUT,
+from baseh import (
     BLOCKED_CODE,
     FROZEN_KEY_BYTES,
     INVALID_CHARACTER,
@@ -459,6 +454,53 @@ class TestCorrectionFilter(unittest.TestCase):
         with self.assertRaises(BasehError) as ctx:
             codec.decode(bad, try_correction=True, confusion_profile="light")
         self.assertEqual(ctx.exception.code, INVALID_CHECKSUM)
+
+    def test_unknown_confusion_profile_is_a_baseh_error(self):
+        codec = Baseh(baseh_medium_v1())
+        code = codec.encode(123456)
+        bad = code[:-1] + ("3" if code.endswith("2") else "2")
+        with self.assertRaises(BasehError) as ctx:
+            codec.decode(bad, try_correction=True, confusion_profile="bogus")
+        self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+        # validate() never raises on user input: the same call reports the
+        # rejection instead of leaking the error.
+        result = codec.validate(
+            bad, try_correction=True, confusion_profile="bogus"
+        )
+        self.assertEqual(result, {"valid": False, "reason": INVALID_PROFILE})
+
+    def test_non_string_input_is_a_type_error(self):
+        codec = Baseh(baseh_medium_v1())
+        for bad_input in (None, 42, b"XXXX-XXXX"):
+            with self.subTest(input=bad_input):
+                with self.assertRaises(TypeError):
+                    codec.decode(bad_input)
+
+
+class TestProfileOptionValidation(unittest.TestCase):
+    def test_fixed_mode_rejects_zero_and_non_int_min_length(self):
+        # JS parity (profile.ts): minLength 0 is invalid in every mode.
+        for bad in (0, "4", 2.5, True):
+            with self.subTest(minLength=bad):
+                profile = _base_profile()
+                profile["minLength"] = bad
+                with self.assertRaises(BasehError) as ctx:
+                    Baseh(profile)
+                self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+
+    def test_non_list_grouping_reports_a_list_error(self):
+        profile = _base_profile()
+        profile["separator"] = "-"
+        profile["grouping"] = "4-4"
+        with self.assertRaises(BasehError) as ctx:
+            Baseh(profile)
+        self.assertEqual(ctx.exception.code, INVALID_PROFILE)
+        self.assertIn("list", str(ctx.exception))
+
+    def test_prepared_profile_aliases_are_immutable(self):
+        codec = Baseh(baseh_medium_v1())
+        with self.assertRaises(TypeError):
+            codec.profile.aliases_norm["Q"] = "0"
 
 
 class TestFuzz(unittest.TestCase):

@@ -86,7 +86,7 @@ fn profile_from_definition(def: &Value) -> Profile {
         },
         body_alphabet: def["bodyAlphabet"].as_str().unwrap().to_string(),
         body_length: def["bodyLength"].as_u64().unwrap_or(0) as usize,
-        min_length: def["minLength"].as_u64().unwrap_or(0) as usize,
+        min_length: def["minLength"].as_u64().map(|v| v as usize),
         checksum_alphabet: def["checksumAlphabet"].as_str().unwrap().to_string(),
         checksum_length: def["checksumLength"].as_u64().unwrap() as usize,
         short_checksum_length: def["shortChecksumLength"].as_u64().unwrap_or(0) as usize,
@@ -168,7 +168,7 @@ fn profile_capacities_match() {
             continue;
         }
         assert_eq!(
-            baseh.capacity(),
+            baseh.capacity().unwrap(),
             &big(&p["capacity"]),
             "capacity for {}",
             p["profileId"]
@@ -244,7 +244,10 @@ fn formatted_code_carries_expected_raw_parts() {
             let expected_body = expected_body.as_str().unwrap();
             assert_eq!(&raw[..expected_body.len()], expected_body);
             if let Some(expected_checksum) = v.get("rawChecksum") {
-                assert_eq!(&raw[expected_body.len()..], expected_checksum.as_str().unwrap());
+                assert_eq!(
+                    &raw[expected_body.len()..],
+                    expected_checksum.as_str().unwrap()
+                );
             }
         }
     }
@@ -373,8 +376,27 @@ fn feistel_vectors() {
             "permute {} (capacity {} rounds {} length {:?})",
             v["input"], v["capacity"], v["rounds"], length
         );
-        let back = feistel::inverse_permute(&permuted, &capacity, profile_id, &key_bytes, rounds, length)
-            .expect("inverse must succeed");
+        let back =
+            feistel::inverse_permute(&permuted, &capacity, profile_id, &key_bytes, rounds, length)
+                .expect("inverse must succeed");
         assert_eq!(back, input, "inverse(permute(x)) == x for {}", v["input"]);
+    }
+}
+
+#[test]
+fn feistel_rejects_out_of_range_rounds() {
+    // The round index is mixed into the HMAC message as a single byte, so
+    // rounds above 255 would silently alias earlier rounds. The public
+    // entry points mirror profile validation (even, 4 through 16) instead
+    // of corrupting the permutation.
+    let value = BigUint::from(42u64);
+    let capacity = BigUint::from(1000u64);
+    for rounds in [0u32, 2, 3, 5, 17, 18, 256] {
+        let err = feistel::permute(&value, &capacity, "test-p", b"key", rounds, None)
+            .expect_err(&format!("rounds {rounds} must be rejected"));
+        assert_eq!(err.code, ErrorCode::InvalidProfile, "rounds {rounds}");
+        let err = feistel::inverse_permute(&value, &capacity, "test-p", b"key", rounds, None)
+            .expect_err(&format!("rounds {rounds} must be rejected"));
+        assert_eq!(err.code, ErrorCode::InvalidProfile, "rounds {rounds}");
     }
 }

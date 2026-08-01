@@ -1,4 +1,4 @@
-import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, friendlyError, parseIdentifier, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
+import { calculate, calculatorProfile, deriveAlphabet, deriveChecksumAlphabet, deriveExpandableChecksumAlphabet, escapeHtml, friendlyError, parseIdentifier, spokenDropsExplainer, trySuggestions, visualDropsExplainer, type CalculatorInput, type AlphabetMode, type CodecMode, type ProfanityMode, type SafetyLevel } from "./core.js";
 import { renderTryList } from "./try-list.js";
 import { Baseh, type BasehProfile } from "@cloudyventures/baseh";
 
@@ -208,7 +208,7 @@ function render() {
   els.examplesBody.innerHTML = r.examples
     .map((e) => `<tr><td title="${fmt(BigInt(e.id))}">${fmtExampleId(e.id)}</td><td>${e.blocked
         ? `<span class="muted">blocked: never issued (profanity or a repetition run)</span>`
-        : `<code>${e.code}</code>`}</td></tr>`)
+        : `<code>${escapeHtml(e.code)}</code>`}</td></tr>`)
     .join("");
 
   let fit = "";
@@ -232,7 +232,7 @@ function render() {
   els.fitOut.innerHTML = fit;
   els.fitOut.hidden = fit === "";
 
-  els.problems.innerHTML = r.problems.map((p) => `<p>${p}</p>`).join("");
+  els.problems.innerHTML = r.problems.map((p) => `<p>${escapeHtml(p)}</p>`).join("");
   els.copyJson.disabled = !r.valid;
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));

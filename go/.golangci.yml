@@ -1,0 +1,12 @@
+# Minimal golangci-lint v2 config for the baseH Go port.
+# Run from this directory: golangci-lint run
+# (go vet remains part of CI; this adds staticcheck-style checks on top.)
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - errcheck

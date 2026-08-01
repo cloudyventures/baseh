@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use num_bigint::BigUint;
 
-use crate::basen::{decode_base_n, encode_base_n};
+use crate::basen::{decode_base_n, encode_base_n, pow_biguint};
 use crate::checksum::calculate_checksum;
 use crate::error::{BasehError, ErrorCode};
 use crate::feistel::{inverse_permute, permute};
@@ -239,7 +239,7 @@ fn format_with(raw: &[char], sizes: &[usize], separator: &str) -> String {
 /// `g = max(2, ceil(L / 5))` groups whose sizes differ by at most one, the
 /// larger groups on the left.
 pub fn expandable_grouping(length: usize) -> Vec<usize> {
-    let g = (length + 4) / 5;
+    let g = length.div_ceil(5);
     let g = g.max(2);
     let base = length / g;
     if base < 1 {
@@ -247,7 +247,7 @@ pub fn expandable_grouping(length: usize) -> Vec<usize> {
     }
     let rem = length % g;
     let mut sizes = vec![base + 1; rem];
-    sizes.extend(std::iter::repeat(base).take(g - rem));
+    sizes.extend(std::iter::repeat_n(base, g - rem));
     sizes
 }
 
@@ -271,25 +271,29 @@ pub(crate) fn generation_capacity(profile: &PreparedProfile, length: usize) -> B
     )
 }
 
-/// Smallest generation whose range holds id, per spec 19.6.
-pub(crate) fn generation_for_id(profile: &PreparedProfile, id: &BigUint) -> usize {
+/// Smallest generation whose range holds id, per spec 19.6. The scan is
+/// capped at generation 32 (spec 19.7's maximum code length), so at most
+/// `33 - min_length` iterations run; an id beyond that fails OUT_OF_RANGE
+/// here instead of looping on ever-larger big integers.
+pub(crate) fn generation_for_id(
+    profile: &PreparedProfile,
+    id: &BigUint,
+) -> Result<usize, BasehError> {
     let mut l = profile.min_length;
     let mut base = BigUint::from(0u64);
     let mut cap = generation_capacity(profile, l);
     while *id >= &base + &cap {
+        if l >= 32 {
+            return Err(BasehError::customer(
+                ErrorCode::OutOfRange,
+                format!("ID {id} requires a code longer than 32 symbols"),
+            ));
+        }
         base += &cap;
         l += 1;
         cap = generation_capacity(profile, l);
     }
-    l
-}
-
-fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
-    let mut result = BigUint::from(1u64);
-    for _ in 0..exp {
-        result *= &base;
-    }
-    result
+    Ok(l)
 }
 
 /// Spec 10. Substitution-only candidate generation, capped and deduplicated.
@@ -348,12 +352,16 @@ impl Baseh {
     /// Spec 12.3: fixed mode only. Expandable profiles have no single
     /// capacity; use the per-generation formulas of spec 19.1
     /// ([`Baseh::generation_base`], [`Baseh::generation_capacity`]).
-    pub fn capacity(&self) -> &BigUint {
-        assert!(
-            self.profile.profile.mode == Mode::Fixed,
-            "INVALID_PROFILE: capacity() is only defined for fixed-mode profiles"
-        );
-        &self.profile.capacity
+    /// Calling this on an expandable profile fails INVALID_PROFILE.
+    pub fn capacity(&self) -> Result<&BigUint, BasehError> {
+        if self.profile.profile.mode != Mode::Fixed {
+            return Err(BasehError::new(
+                ErrorCode::InvalidProfile,
+                "capacity() is only defined for fixed-mode profiles",
+                false,
+            ));
+        }
+        Ok(&self.profile.capacity)
     }
 
     /// Spec 19.1. First id held by generation `length` (expandable mode).
@@ -366,8 +374,9 @@ impl Baseh {
         generation_capacity(&self.profile, length)
     }
 
-    /// Smallest generation whose range holds `id`, per spec 19.6.
-    pub fn generation_for_id(&self, id: &BigUint) -> usize {
+    /// Smallest generation whose range holds `id`, per spec 19.6. Fails
+    /// OUT_OF_RANGE when `id` needs a code longer than 32 symbols.
+    pub fn generation_for_id(&self, id: &BigUint) -> Result<usize, BasehError> {
         generation_for_id(&self.profile, id)
     }
 
@@ -412,13 +421,7 @@ impl Baseh {
 
     /// Spec 19.6.
     fn encode_expandable(&self, id: &BigUint) -> Result<String, BasehError> {
-        let l = generation_for_id(&self.profile, id);
-        if l > 32 {
-            return Err(BasehError::customer(
-                ErrorCode::OutOfRange,
-                format!("ID {id} requires a code longer than 32 symbols"),
-            ));
-        }
+        let l = generation_for_id(&self.profile, id)?;
         let p = &self.profile.profile;
         let mut value = id - generation_base(&self.profile, l);
         let domain = generation_capacity(&self.profile, l);
@@ -546,30 +549,30 @@ impl Baseh {
                 })
                 .collect();
             let candidates = generate_candidates(&body, &filtered_map, options.max_corrections)?;
-            let mut valid: HashSet<Vec<char>> = HashSet::new();
+            let mut valid: Option<Vec<char>> = None;
             for candidate in candidates {
-                let candidate_checksum = calculate_checksum(&self.profile, &candidate, effective_k)?;
+                let candidate_checksum =
+                    calculate_checksum(&self.profile, &candidate, effective_k)?;
                 if candidate_checksum == supplied_checksum.iter().collect::<String>() {
-                    valid.insert(candidate);
+                    if valid.is_some() {
+                        return Err(BasehError::new(
+                            ErrorCode::AmbiguousInput,
+                            "The reference code matches more than one record",
+                            false,
+                        ));
+                    }
+                    valid = Some(candidate);
                 }
             }
-            if valid.is_empty() {
-                return Err(BasehError::customer(
-                    ErrorCode::InvalidChecksum,
-                    "The reference code did not pass validation",
-                ));
+            match valid {
+                Some(candidate) => body = candidate,
+                None => {
+                    return Err(BasehError::customer(
+                        ErrorCode::InvalidChecksum,
+                        "The reference code did not pass validation",
+                    ));
+                }
             }
-            if valid.len() > 1 {
-                return Err(BasehError::new(
-                    ErrorCode::AmbiguousInput,
-                    "The reference code matches more than one record",
-                    false,
-                ));
-            }
-            body = valid
-                .into_iter()
-                .next()
-                .expect("exactly one valid candidate");
         }
 
         let mut value = decode_base_n(
@@ -611,10 +614,13 @@ impl Baseh {
         // Spec 18.2: the canonical re-encode may raise BLOCKED_CODE here,
         // since a blocked string could never have been issued.
         let canonical_code = self.encode(&value)?;
-        let canonical_raw: Vec<char> = canonical_code
-            .chars()
-            .filter(|c| !p.separator.contains(*c))
-            .collect();
+        // Separator removal is literal-substring based (matches the JS
+        // reference: split on the separator string, not per character).
+        let canonical_raw: Vec<char> = if p.separator.is_empty() {
+            canonical_code.chars().collect()
+        } else {
+            canonical_code.replace(&p.separator, "").chars().collect()
+        };
         Ok(DecodeResult {
             id: value,
             canonical_code,

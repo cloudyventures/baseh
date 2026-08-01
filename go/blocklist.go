@@ -22,11 +22,18 @@ type Profanity struct {
 	ExtraWords []string `json:"extraWords,omitempty"`
 }
 
-// DefaultBlocklist is the spec 18.2 default list. Deliberately small;
-// applications extend it with Words or ExtraWords.
-var DefaultBlocklist = []string{
+// defaultBlocklist is the spec 18.2 default list. Deliberately small;
+// applications extend it with Words or ExtraWords. Unexported so no caller
+// can mutate the shared list; DefaultBlocklist returns a copy.
+var defaultBlocklist = []string{
 	"CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC",
 	"SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
+}
+
+// DefaultBlocklist returns a copy of the spec 18.2 default blocklist.
+// Callers may mutate the result freely; the shared list is never aliased.
+func DefaultBlocklist() []string {
+	return append([]string(nil), defaultBlocklist...)
 }
 
 // isBlocklistWord reports whether s is 2 through 32 ASCII letters.
@@ -48,7 +55,7 @@ func isBlocklistWord(s string) bool {
 func effectiveBlocklist(p Profanity) ([]string, error) {
 	base := p.Words
 	if base == nil {
-		base = DefaultBlocklist
+		base = defaultBlocklist
 	}
 	list := make([]string, 0, len(base)+len(p.ExtraWords))
 	list = append(list, base...)

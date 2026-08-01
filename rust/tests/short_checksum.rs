@@ -142,7 +142,10 @@ fn short_generations_use_modulus_35_not_1225() {
             hits += 1;
         }
     }
-    assert_eq!(hits, 1, "exactly one checksum symbol validates a gen-4 body");
+    assert_eq!(
+        hits, 1,
+        "exactly one checksum symbol validates a gen-4 body"
+    );
 }
 
 #[test]
@@ -152,7 +155,10 @@ fn separator_threshold_is_still_a_function_of_total_length() {
     assert!(!h.encode(&h.generation_base(5)).unwrap().contains('-'));
     let first6 = first_issuable(&h, &h.generation_base(6));
     let code = h.encode(&first6).unwrap();
-    assert!(code.chars().nth(3) == Some('-') && code.len() == 7, "expected XXX-XXX, got {code}");
+    assert!(
+        code.chars().nth(3) == Some('-') && code.len() == 7,
+        "expected XXX-XXX, got {code}"
+    );
 }
 
 #[test]
@@ -232,7 +238,7 @@ fn rejects_short_checksum_until_below_min_length() {
 fn rejects_min_length_at_or_below_short_checksum_length() {
     expect_error(
         Baseh::new(Profile {
-            min_length: 1,
+            min_length: Some(1),
             short_checksum_length: 1,
             short_checksum_until: 5,
             ..baseh_expandable_v1()
@@ -312,7 +318,7 @@ fn custom_short_checksum_window_round_trips_at_every_generation() {
     let h = Baseh::new(Profile {
         profile_id: "short-window-test".to_string(),
         mode: Mode::Expandable,
-        min_length: 4,
+        min_length: Some(4),
         checksum_length: 2,
         short_checksum_length: 1,
         short_checksum_until: 6,
@@ -340,7 +346,7 @@ fn zero_window_profile() -> Profile {
     Profile {
         profile_id: "short-zero-test".to_string(),
         mode: Mode::Expandable,
-        min_length: 4,
+        min_length: Some(4),
         checksum_length: 2,
         short_checksum_length: 0,
         short_checksum_until: 5,
@@ -387,7 +393,9 @@ fn zero_window_checksum_of_zero_symbols_is_the_empty_string() {
     let code = raw(&h.encode(&id).unwrap());
     // All body: every symbol of the raw code is a body symbol.
     assert_eq!(code.len(), 4);
-    assert!(code.chars().all(|c| "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ".contains(c)));
+    assert!(code
+        .chars()
+        .all(|c| "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ".contains(c)));
 }
 
 #[test]
@@ -453,7 +461,7 @@ fn until_8_window_generation_8_carries_one_checksum_symbol_generation_9_carries_
     let h = Baseh::new(Profile {
         profile_id: "short-until-8-test".to_string(),
         mode: Mode::Expandable,
-        min_length: 4,
+        min_length: Some(4),
         checksum_length: 2,
         short_checksum_length: 1,
         short_checksum_until: 8,

@@ -4,20 +4,17 @@ fails if any supported implementation disagrees."""
 
 import json
 import os
-import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from baseh import Baseh, BasehError  # noqa: E402
-from baseh.codec import generation_base, generation_capacity  # noqa: E402
-from baseh.feistel import FeistelKey, inverse_permute, permute  # noqa: E402
+from baseh import Baseh, BasehError
+from baseh.codec import generation_base, generation_capacity
+from baseh.feistel import FeistelKey, inverse_permute, permute
 
 _VECTORS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vectors")
 
 
 def _load(name):
-    with open(os.path.join(_VECTORS_DIR, name), "r", encoding="ascii") as fh:
+    with open(os.path.join(_VECTORS_DIR, name), encoding="ascii") as fh:
         return json.load(fh)
 
 

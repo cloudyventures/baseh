@@ -48,7 +48,8 @@ class DecodeResult:
 def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False) -> str:
     """Spec 3.1 normalization, steps 1-7. Returns the raw unformatted string."""
     if not isinstance(input, str):
-        raise BasehError(INVALID_CHARACTER, "input must be a string")
+        # A programming error, not user input: normalize() only accepts str.
+        raise TypeError(f"input must be a string, got {type(input).__name__}")
     s = input.strip(_ASCII_WS)
     had_separator = bool(profile.separator) and profile.separator in s
     if profile.separator:
@@ -151,7 +152,14 @@ def generation_capacity(profile: PreparedProfile, length: int) -> int:
 
 
 def generation_for_id(profile: PreparedProfile, id: int) -> int:
-    """Smallest generation whose range holds id, per spec 19.6."""
+    """Smallest generation whose range holds id, per spec 19.6. Ids beyond
+    generation 32 fail fast: the range check runs before the loop so an
+    adversarial bignum id cannot force an unbounded walk of big-integer
+    arithmetic."""
+    if id >= generation_base(profile, 33):
+        # The id is deliberately not embedded: formatting a hostile bignum
+        # trips Python's int-to-str digit limit.
+        raise BasehError(OUT_OF_RANGE, "ID requires a code longer than 32 symbols")
     length = profile.min_length
     base = 0
     cap = generation_capacity(profile, length)
@@ -260,10 +268,6 @@ class Baseh:
         if id < 0:
             raise BasehError(OUT_OF_RANGE, f"ID {id} is negative")
         length = generation_for_id(self._profile, id)
-        if length > 32:
-            raise BasehError(
-                OUT_OF_RANGE, f"ID {id} requires a code longer than 32 symbols"
-            )
         value = id - generation_base(self._profile, length)
         domain = generation_capacity(self._profile, length)
         if self._profile.permutation.enabled:
@@ -329,8 +333,10 @@ class Baseh:
             elif confusion_profile in CONFUSION_MAPS:
                 raw_map = CONFUSION_MAPS[confusion_profile]
             else:
-                raise ValueError(
-                    f"unknown confusion profile: {confusion_profile!r}"
+                raise BasehError(
+                    INVALID_PROFILE,
+                    f"unknown confusion profile: {confusion_profile!r}",
+                    False,
                 )
             # Spec 10: replacements that are not body alphabet symbols are
             # dropped before candidate generation. A suggested symbol the

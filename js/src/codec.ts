@@ -1,5 +1,5 @@
 import { BasehError, type BasehErrorCode } from "./errors.js";
-import { decodeBaseN, encodeBaseN, alphabetIndex } from "./basen.js";
+import { decodeBaseN, encodeBaseN, alphabetIndex, powBigInt } from "./basen.js";
 import { calculateChecksum } from "./checksum.js";
 import { inversePermute, permute } from "./feistel.js";
 import { prepareProfile, effectiveChecksumLength, type BasehProfile, type PreparedProfile } from "./profile.js";
@@ -160,17 +160,17 @@ export function generationForId(profile: PreparedProfile, id: bigint): number {
   let base = 0n;
   let cap = generationCapacity(profile, l);
   while (id >= base + cap) {
+    // Codes cap at 32 symbols, so generation 33 is the hard ceiling.
+    // Throwing from inside keeps an adversarial huge id from spinning the
+    // loop (and its bigint multiplications) without bound.
+    if (l >= 32) {
+      throw new BasehError("OUT_OF_RANGE", "ID requires a code longer than 32 symbols");
+    }
     base += cap;
     l += 1;
     cap = generationCapacity(profile, l);
   }
   return l;
-}
-
-function powBigInt(base: bigint, exp: number): bigint {
-  let result = 1n;
-  for (let i = 0; i < exp; i += 1) result *= base;
-  return result;
 }
 
 /** Spec 10. Substitution-only candidate generation, capped and deduplicated. */
@@ -250,7 +250,7 @@ export class Baseh {
       value = permute(value, this.profile.capacity, this.permKey());
     }
     const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, this.profile.bodyLength as number);
-    const raw = body + calculateChecksum(this.profile, body);
+    const raw = body + calculateChecksum(this.profile, body, this.profile.checksumLength, this.bodyIndex);
     this.checkBlocked(raw);
     return formatRaw(raw, this.profile);
   }
@@ -260,10 +260,8 @@ export class Baseh {
     if (id < 0n) {
       throw new BasehError("OUT_OF_RANGE", `ID ${id} is negative`);
     }
+    // generationForId throws OUT_OF_RANGE for ids beyond the 32-symbol ceiling.
     const l = generationForId(this.profile, id);
-    if (l > 32) {
-      throw new BasehError("OUT_OF_RANGE", `ID ${id} requires a code longer than 32 symbols`);
-    }
     let value = id - generationBase(this.profile, l);
     const domain = generationCapacity(this.profile, l);
     const perm = this.profile.permutation;
@@ -272,7 +270,7 @@ export class Baseh {
     }
     const k = effectiveChecksumLength(this.profile, l);
     const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, l - k);
-    const raw = body + calculateChecksum(this.profile, body, k);
+    const raw = body + calculateChecksum(this.profile, body, k, this.bodyIndex);
     this.checkBlocked(raw);
     return formatRaw(raw, this.profile);
   }
@@ -285,6 +283,11 @@ export class Baseh {
 
   /** Spec 9/19.7. */
   decode(input: string, options: DecodeOptions = {}): DecodeResult {
+    // Spec API is maxCorrections?: 0 | 1; anything else is a caller bug and
+    // is rejected at the boundary instead of silently coerced.
+    if (options.maxCorrections !== undefined && options.maxCorrections !== 0 && options.maxCorrections !== 1) {
+      throw new BasehError("INVALID_PROFILE", "maxCorrections must be 0 or 1", false);
+    }
     const raw = normalize(input, this.profile, options.acceptSpaces === true);
     // Spec 22: the generation is selected by the presented total length, so
     // the effective checksum length is a deterministic function of it.
@@ -302,7 +305,7 @@ export class Baseh {
     // checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
     // outside the body alphabet fails later in decodeBaseN as INVALID_CHARACTER.
 
-    if (calculateChecksum(this.profile, body, effectiveK) !== suppliedChecksum) {
+    if (calculateChecksum(this.profile, body, effectiveK, this.bodyIndex) !== suppliedChecksum) {
       if (!options.tryCorrection || (options.maxCorrections ?? 1) === 0) {
         throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
       }
@@ -322,7 +325,7 @@ export class Baseh {
       }
       const valid = new Set<string>();
       for (const candidate of generateCandidates(body, map, options.maxCorrections ?? 1)) {
-        if (calculateChecksum(this.profile, candidate, effectiveK) === suppliedChecksum) {
+        if (calculateChecksum(this.profile, candidate, effectiveK, this.bodyIndex) === suppliedChecksum) {
           valid.add(candidate);
         }
       }

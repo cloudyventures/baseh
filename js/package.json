@@ -3,6 +3,17 @@
   "version": "2.0.0",
   "description": "baseH: reversible, checksummed, human-safe short references for integers.",
   "repository": "github:cloudyventures/baseh",
+  "homepage": "https://github.com/cloudyventures/baseh#readme",
+  "bugs": "https://github.com/cloudyventures/baseh/issues",
+  "keywords": [
+    "baseh",
+    "encoding",
+    "checksum",
+    "human-readable",
+    "identifier",
+    "short-id",
+    "reference-code"
+  ],
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/index.js",
@@ -27,16 +38,21 @@
     "build:esm": "tsc -p tsconfig.build.json",
     "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }) + '\\n')\"",
     "test": "tsx --test test/*.test.ts",
-    "vectors": "tsx scripts/generate-vectors.ts"
+    "lint": "eslint src test",
+    "vectors": "tsx scripts/generate-vectors.ts",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
+    "eslint": "^10.8.0",
     "fast-check": "^4.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.65.0"
   },
   "license": "AGPL-3.0-only"
 }

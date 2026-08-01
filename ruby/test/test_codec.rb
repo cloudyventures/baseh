@@ -799,4 +799,49 @@ class TestCodec < Minitest::Test
       end
     end
   end
+
+  # --- multi-character separators (literal substring, not a character class) ---
+
+  def test_multi_character_separator_round_trip
+    codec = Baseh::Baseh.new(base_profile.merge(separator: ".."))
+    [0, 1, 123_456, codec.capacity - 1].each do |id|
+      code = codec.encode(id: id)
+      assert_includes code, ".."
+      result = codec.decode(code)
+      assert_equal id, result.id
+      assert_equal code, result.canonical_code
+      refute result.corrected
+    end
+  end
+
+  def test_multi_character_separator_is_removed_literally
+    # String#delete would treat ".." as a character class and strip every
+    # lone "."; JS split-join (and Ruby gsub) remove only the full separator,
+    # so a single "." stays and fails as an invalid character.
+    codec = Baseh::Baseh.new(base_profile.merge(separator: ".."))
+    code = codec.encode(id: 123_456)
+    error = assert_raises(Baseh::BasehError) { codec.decode(code.sub("..", ".")) }
+    assert_equal "INVALID_CHARACTER", error.code
+  end
+
+  # --- base-N guards and module visibility ---
+
+  def test_encode_base_n_rejects_out_of_range_values
+    [BODY_ALPHABET.length**6, BODY_ALPHABET.length**6 + 1, -1].each do |value|
+      error = assert_raises(Baseh::BasehError) do
+        Baseh::BaseN.encode_base_n(value, BODY_ALPHABET, 6)
+      end
+      assert_equal "OUT_OF_RANGE", error.code
+    end
+    # The boundary value itself still encodes.
+    assert_equal 6, Baseh::BaseN.encode_base_n(BODY_ALPHABET.length**6 - 1, BODY_ALPHABET, 6).length
+  end
+
+  def test_feistel_exposes_only_the_permutations
+    assert_respond_to Baseh::Feistel, :permute
+    assert_respond_to Baseh::Feistel, :inverse_permute
+    %i[walk run_rounds run_inverse round_message bit_length low_bits to_be hmac].each do |helper|
+      refute_respond_to Baseh::Feistel, helper
+    end
+  end
 end
