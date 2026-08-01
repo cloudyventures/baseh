@@ -1,6 +1,6 @@
-# base-human
+# baseh
 
-Rust implementation of the baseH (Base Human) codec: fixed-length,
+Rust implementation of the baseH codec: fixed-length,
 checksummed, optionally permuted human-readable identifiers for internal
 integer IDs. The normative specification is `../spec/IMPLEMENTATION_CODEC.md`
 and cross-language conformance vectors live in `../vectors/`.
@@ -8,7 +8,7 @@ and cross-language conformance vectors live in `../vectors/`.
 ## Usage
 
 ```rust
-use base_human::{baseh_medium_v1, Baseh, ConfusionProfile, DecodeOptions};
+use baseh::{baseh_medium_v1, Baseh, ConfusionProfile, DecodeOptions};
 use num_bigint::BigUint;
 
 // Medium is the default tier; permutation is off and needs no key material.
@@ -31,7 +31,7 @@ let fixed = baseh.decode("0000TBC", &DecodeOptions {
     confusion_profile: ConfusionProfile::Light,
     ..DecodeOptions::default()
 });
-# Ok::<(), base_human::BasehError>(())
+# Ok::<(), baseh::BasehError>(())
 ```
 
 ## Frozen tiers
@@ -60,8 +60,8 @@ and round count (pass an empty key id or 0 rounds for the defaults
 frontend code.
 
 ```rust
-use base_human::{baseh_medium_p_v1, Baseh};
-# fn f() -> Result<(), base_human::BasehError> {
+use baseh::{baseh_medium_p_v1, Baseh};
+# fn f() -> Result<(), baseh::BasehError> {
 let baseh = Baseh::new(baseh_medium_p_v1(b"application-key-material", "app-key-1", 8))?;
 # Ok(())
 # }

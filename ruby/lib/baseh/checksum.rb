@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Version 1 checksum, spec section 6.2. Rolling polynomial over symbol
   # values, then modulus conversion into the checksum alphabet.
   module Checksum

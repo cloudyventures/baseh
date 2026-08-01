@@ -2,7 +2,7 @@
 
 require "openssl"
 
-module BaseHuman
+module Baseh
   # Balanced Feistel network with cycle walking, spec section 7.3.
   # HMAC-SHA-256 comes from OpenSSL; HMAC and SHA-256 are never implemented
   # by hand (section 7.5).

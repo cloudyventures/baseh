@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Error raised by every baseH failure path. #code is one of the spec error
   # codes (spec sections 12, 13 and 18).
   class BasehError < StandardError

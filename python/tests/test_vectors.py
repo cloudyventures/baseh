@@ -9,8 +9,8 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from base_human import Baseh, BasehError  # noqa: E402
-from base_human.feistel import FeistelKey, inverse_permute, permute  # noqa: E402
+from baseh import Baseh, BasehError  # noqa: E402
+from baseh.feistel import FeistelKey, inverse_permute, permute  # noqa: E402
 
 _VECTORS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vectors")
 

@@ -1,6 +1,6 @@
 //! Zero-config pair tests, mirroring js/test/zero.test.ts.
 
-use base_human::{baseh_medium_v1, from_code, to_code, Baseh, DecodeOptions, ErrorCode};
+use baseh::{baseh_medium_v1, from_code, to_code, Baseh, DecodeOptions, ErrorCode};
 use num_bigint::BigUint;
 
 fn medium() -> Baseh {
@@ -11,7 +11,7 @@ fn medium_encode(id: u64) -> String {
     medium().encode(&BigUint::from(id)).unwrap()
 }
 
-fn expect_code(result: Result<BigUint, base_human::BasehError>, code: ErrorCode) {
+fn expect_code(result: Result<BigUint, baseh::BasehError>, code: ErrorCode) {
     let err = match result {
         Ok(value) => panic!("expected {code}, got id {value}"),
         Err(err) => err,
@@ -19,7 +19,7 @@ fn expect_code(result: Result<BigUint, base_human::BasehError>, code: ErrorCode)
     assert_eq!(err.code, code);
 }
 
-fn expect_to_code_error(result: Result<String, base_human::BasehError>, code: ErrorCode) {
+fn expect_to_code_error(result: Result<String, baseh::BasehError>, code: ErrorCode) {
     let err = match result {
         Ok(code_str) => panic!("expected {code}, got code {code_str}"),
         Err(err) => err,

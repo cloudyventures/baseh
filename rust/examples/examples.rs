@@ -1,17 +1,17 @@
 //! Runnable examples for the baseh Rust crate.
 //! Run from rust/:  cargo run --example examples
 
-use base_human::{baseh_medium_v1, from_code, to_code, Baseh, DecodeOptions};
+use baseh::{baseh_medium_v1, from_code, to_code, Baseh, DecodeOptions};
 use num_bigint::BigUint;
 
-fn show_str(label: &str, r: Result<String, base_human::BasehError>) {
+fn show_str(label: &str, r: Result<String, baseh::BasehError>) {
     match r {
         Ok(v) => println!("{label} -> {v}"),
         Err(e) => println!("{label} -> returns BasehError [{:?}]: {}", e.code, e.message),
     }
 }
 
-fn show_id(label: &str, r: Result<BigUint, base_human::BasehError>) {
+fn show_id(label: &str, r: Result<BigUint, baseh::BasehError>) {
     match r {
         Ok(v) => println!("{label} -> {v}"),
         Err(e) => println!("{label} -> returns BasehError [{:?}]: {}", e.code, e.message),

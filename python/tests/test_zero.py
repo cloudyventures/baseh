@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from base_human import (  # noqa: E402
+from baseh import (  # noqa: E402
     BLOCKED_CODE,
     INVALID_CHARACTER,
     INVALID_CHECKSUM,

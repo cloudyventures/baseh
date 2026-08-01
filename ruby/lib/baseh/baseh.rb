@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Codec engine, spec sections 8 through 12 and 18. Instances wrap one
   # validated profile and are stateless and safe to share across threads.
   class Baseh
@@ -170,7 +170,8 @@ module BaseHuman
       ValidateResult.new(valid: false, reason: e.code)
     end
 
-    # Spec 3.1 normalization, steps 1-7. Returns the raw unformatted string.
+    # Spec 3.1 normalization, steps 1-9, with the spec 3.4 re-pad. Returns
+    # the raw unformatted string.
     def normalize(input, accept_spaces)
       s = input.gsub(ASCII_WS, "")
       s = s.delete(@profile.separator) unless @profile.separator.empty?
@@ -188,6 +189,13 @@ module BaseHuman
       end
 
       expected = @profile.body_length + @profile.checksum_length
+      # Spec 3.4: a code that lost leading zero body symbols is re-padded
+      # with the body zero symbol. The checksum symbols always remain, so
+      # the split point is unambiguous. A fully stripped no-checksum code
+      # would be empty and stays a length error.
+      if s.length < expected && s.length >= [@profile.checksum_length, 1].max
+        s = @profile.body_alphabet[0] * (expected - s.length) + s
+      end
       if s.length != expected
         raise BasehError.new(
           "INVALID_LENGTH",

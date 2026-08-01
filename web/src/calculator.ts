@@ -1,5 +1,5 @@
 import { calculate, calculatorProfile, friendlyError, type CalculatorInput, type AlphabetMode, type ProfanityMode, type SafetyLevel, deriveChecksumAlphabet } from "./core.js";
-import { Baseh } from "base-human";
+import { Baseh } from "@cloudyventures/baseh";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 

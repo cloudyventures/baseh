@@ -1,6 +1,6 @@
-//! # base-human
+//! # baseh
 //!
-//! Rust implementation of the baseH (Base Human) codec:
+//! Rust implementation of the baseH codec:
 //! fixed-length, checksummed, optionally permuted human-readable
 //! identifiers. Mirrors the normative specification in
 //! `spec/IMPLEMENTATION_CODEC.md` at the repository root.
@@ -8,10 +8,10 @@
 //! ```
 //! use num_bigint::BigUint;
 //!
-//! let profile = base_human::baseh_medium_v1();
-//! let baseh = base_human::Baseh::new(profile).unwrap();
+//! let profile = baseh::baseh_medium_v1();
+//! let baseh = baseh::Baseh::new(profile).unwrap();
 //! let code = baseh.encode(&BigUint::from(42u64)).unwrap();
-//! let result = baseh.decode(&code, &base_human::DecodeOptions::default()).unwrap();
+//! let result = baseh.decode(&code, &baseh::DecodeOptions::default()).unwrap();
 //! assert_eq!(result.id, BigUint::from(42u64));
 //! ```
 

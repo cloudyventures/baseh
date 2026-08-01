@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module BaseHuman
+module Baseh
   # Profanity safety, spec section 18. Profiles gain an optional
   # profanity: { mode:, words:, extra_words: } object. It never changes
   # decode behavior for issued codes and never changes capacity accounting.

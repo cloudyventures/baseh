@@ -2,7 +2,7 @@
 
 require "json"
 require "minitest/autorun"
-require "base_human"
+require "baseh"
 
 # Cross-language conformance vectors. vectors/ is the frozen contract and is
 # shared with every other language implementation in this repo.
@@ -68,7 +68,7 @@ class TestVectors < Minitest::Test
                        .find { |p| p["profileId"] == profile_id }
       raise "unknown vector profile #{profile_id}" unless definition
 
-      BaseHuman::Baseh.new(self.class.build_profile(definition["definition"]))
+      Baseh::Baseh.new(self.class.build_profile(definition["definition"]))
     end
   end
 
@@ -98,7 +98,7 @@ class TestVectors < Minitest::Test
   def test_encode_error_vectors
     self.class.vectors_doc["encodeErrors"].each do |vector|
       codec = codec(vector["profileId"])
-      error = assert_raises(BaseHuman::BasehError,
+      error = assert_raises(Baseh::BasehError,
                             "expected #{vector['error']} for #{vector['profileId']} id=#{vector['id']}") do
         codec.encode(id: vector["id"].to_i)
       end
@@ -135,7 +135,7 @@ class TestVectors < Minitest::Test
   def test_error_vectors
     self.class.vectors_doc["errors"].each do |vector|
       codec = codec(vector["profileId"])
-      error = assert_raises(BaseHuman::BasehError,
+      error = assert_raises(Baseh::BasehError,
                             "expected #{vector['error']} for #{vector['input'].inspect}") do
         codec.decode(vector["input"])
       end
@@ -149,7 +149,7 @@ class TestVectors < Minitest::Test
       codec = codec(vector["profileId"])
       confusion = (vector["confusionProfile"] || "light").to_sym
       if vector["error"]
-        error = assert_raises(BaseHuman::BasehError) do
+        error = assert_raises(Baseh::BasehError) do
           codec.decode(vector["input"], try_correction: true, confusion_profile: confusion)
         end
         assert_equal vector["error"], error.code
@@ -178,11 +178,11 @@ class TestVectors < Minitest::Test
       input = vector["input"].to_i
       expected = vector["permuted"].to_i
 
-      permuted = BaseHuman::Feistel.permute(input, capacity, **key)
+      permuted = Baseh::Feistel.permute(input, capacity, **key)
       assert_equal expected, permuted,
                    "permute mismatch: #{vector.inspect}"
 
-      back = BaseHuman::Feistel.inverse_permute(permuted, capacity, **key)
+      back = Baseh::Feistel.inverse_permute(permuted, capacity, **key)
       assert_equal input, back,
                    "inverse mismatch: #{vector.inspect}"
     end
@@ -198,9 +198,9 @@ class TestVectors < Minitest::Test
       capacity = vector["capacity"].to_i
       input = vector["input"].to_i
 
-      permuted = BaseHuman::Feistel.permute(input, capacity, **key)
+      permuted = Baseh::Feistel.permute(input, capacity, **key)
       assert_operator permuted, :<, capacity
-      assert_equal input, BaseHuman::Feistel.inverse_permute(permuted, capacity, **key)
+      assert_equal input, Baseh::Feistel.inverse_permute(permuted, capacity, **key)
     end
   end
 end

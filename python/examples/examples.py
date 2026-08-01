@@ -2,7 +2,7 @@
 
 Run from python/:  PYTHONPATH=src python3 examples/examples.py
 """
-from base_human import Baseh, BasehError, baseh_medium_v1, from_code, to_code
+from baseh import Baseh, BasehError, baseh_medium_v1, from_code, to_code
 
 
 def show(label, fn):
