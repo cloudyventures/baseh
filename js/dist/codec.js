@@ -1,4 +1,4 @@
-import { HrcError } from "./errors.js";
+import { BasehError } from "./errors.js";
 import { decodeBaseN, encodeBaseN, alphabetIndex } from "./basen.js";
 import { calculateChecksum } from "./checksum.js";
 import { inversePermute, permute } from "./feistel.js";
@@ -30,12 +30,20 @@ export function normalize(input, profile, acceptSpaces = false) {
     const allowed = new Set([...profile.bodyAlphabetNorm, ...profile.checksumAlphabetNorm]);
     for (const ch of s) {
         if (!allowed.has(ch)) {
-            throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not accepted`);
+            throw new BasehError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} is not accepted`);
         }
     }
     const expected = profile.bodyLength + profile.checksumLength;
+    // Spec 3.4: a code that lost leading zero body symbols is re-padded with
+    // the body zero symbol. The checksum symbols always remain, so the split
+    // point is unambiguous. A fully stripped no-checksum code would be empty
+    // and stays a length error.
+    if (s.length < expected && s.length >= Math.max(profile.checksumLength, 1)) {
+        const zero = profile.bodyAlphabetNorm[0];
+        s = zero.repeat(expected - s.length) + s;
+    }
     if (s.length !== expected) {
-        throw new HrcError("INVALID_LENGTH", `Expected ${expected} symbols, got ${s.length}`);
+        throw new BasehError("INVALID_LENGTH", `Expected ${expected} symbols, got ${s.length}`);
     }
     return s;
 }
@@ -63,13 +71,13 @@ export function generateCandidates(body, confusionMap, maxEdits = 1) {
             candidate[pos] = replacement;
             results.add(candidate.join(""));
             if (results.size > MAX_CANDIDATES) {
-                throw new HrcError("TOO_MANY_CANDIDATES", "Candidate generation exceeded 64 entries", false);
+                throw new BasehError("TOO_MANY_CANDIDATES", "Candidate generation exceeded 64 entries", false);
             }
         }
     }
     return [...results];
 }
-export class Hrc {
+export class Baseh {
     profile;
     bodyIndex;
     constructor(profile) {
@@ -83,7 +91,7 @@ export class Hrc {
     encode(id) {
         let value = BigInt(id);
         if (value < 0n || value >= this.profile.capacity) {
-            throw new HrcError("OUT_OF_RANGE", `ID ${value} is outside the profile capacity`);
+            throw new BasehError("OUT_OF_RANGE", `ID ${value} is outside the profile capacity`);
         }
         const perm = this.profile.permutation;
         if (perm.enabled) {
@@ -95,31 +103,46 @@ export class Hrc {
         }
         const body = encodeBaseN(value, this.profile.bodyAlphabetNorm, this.profile.bodyLength);
         const checksum = calculateChecksum(this.profile, body);
-        return formatRaw(body + checksum, this.profile);
+        const raw = body + checksum;
+        // Spec 18.2: case-insensitive substring scan over the raw code.
+        if (this.profile.blocklist.length > 0) {
+            const upper = raw.toUpperCase();
+            for (const word of this.profile.blocklist) {
+                if (upper.includes(word)) {
+                    throw new BasehError("BLOCKED_CODE", "The generated reference contains a blocked substring", false);
+                }
+            }
+        }
+        return formatRaw(raw, this.profile);
     }
     /** Spec 9. */
     decode(input, options = {}) {
         const raw = normalize(input, this.profile, options.acceptSpaces === true);
         let body = raw.slice(0, this.profile.bodyLength);
         const suppliedChecksum = raw.slice(this.profile.bodyLength);
-        const bodyAllowed = new Set(this.profile.bodyAlphabetNorm);
-        for (const ch of body) {
-            if (!bodyAllowed.has(ch)) {
-                throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} cannot appear in the body`);
-            }
-        }
-        const checksumAllowed = new Set(this.profile.checksumAlphabetNorm);
-        for (const ch of suppliedChecksum) {
-            if (!checksumAllowed.has(ch)) {
-                throw new HrcError("INVALID_CHARACTER", `Symbol ${JSON.stringify(ch)} cannot appear in the checksum`);
-            }
-        }
+        // Spec 3.1 validates union membership before the split. There is no
+        // per-region membership check: a checksum-region symbol outside the
+        // checksum alphabet simply fails as INVALID_CHECKSUM, and a body symbol
+        // outside the body alphabet fails later in decodeBaseN as INVALID_CHARACTER.
         if (calculateChecksum(this.profile, body) !== suppliedChecksum) {
             if (!options.tryCorrection || (options.maxCorrections ?? 1) === 0) {
-                throw new HrcError("INVALID_CHECKSUM", "The reference code did not pass validation");
+                throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
             }
-            const mapName = options.confusionProfile ?? "light";
-            const map = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
+            const mapName = options.confusionProfile ?? "none";
+            // Spec 10: replacements that are not body alphabet symbols are
+            // dropped before candidate generation. A suggested symbol the alphabet
+            // cannot contain (say a spoken drop on a stripped-alphabet profile)
+            // could never validate; generating it anyway would throw
+            // INVALID_CHARACTER from the checksum step instead of reporting an
+            // honest INVALID_CHECKSUM.
+            const bodySet = new Set(this.profile.bodyAlphabetNorm);
+            const rawMap = mapName === "none" ? {} : CONFUSION_MAPS[mapName];
+            const map = {};
+            for (const [source, replacements] of Object.entries(rawMap)) {
+                const kept = replacements.filter((r) => bodySet.has(r));
+                if (kept.length > 0)
+                    map[source] = kept;
+            }
             const valid = new Set();
             for (const candidate of generateCandidates(body, map, options.maxCorrections ?? 1)) {
                 if (calculateChecksum(this.profile, candidate) === suppliedChecksum) {
@@ -127,10 +150,10 @@ export class Hrc {
                 }
             }
             if (valid.size === 0) {
-                throw new HrcError("INVALID_CHECKSUM", "The reference code did not pass validation");
+                throw new BasehError("INVALID_CHECKSUM", "The reference code did not pass validation");
             }
             if (valid.size > 1) {
-                throw new HrcError("AMBIGUOUS_INPUT", "The reference code matches more than one record", false);
+                throw new BasehError("AMBIGUOUS_INPUT", "The reference code matches more than one record", false);
             }
             body = [...valid][0];
         }
@@ -154,7 +177,7 @@ export class Hrc {
             return { valid: true, canonicalCode: result.canonicalCode };
         }
         catch (err) {
-            if (err instanceof HrcError)
+            if (err instanceof BasehError)
                 return { valid: false, reason: err.code };
             throw err;
         }

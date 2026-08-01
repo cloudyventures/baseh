@@ -1,7 +1,8 @@
-import { HrcError } from "./errors.js";
+import { BasehError } from "./errors.js";
+import { effectiveBlocklist, stripVowels } from "./blocklist.js";
 const ASCII_ONLY = /^[\x20-\x7e]*$/;
 function fail(reason) {
-    throw new HrcError("INVALID_PROFILE", `Invalid HRC profile: ${reason}`, false);
+    throw new BasehError("INVALID_PROFILE", `Invalid baseH profile: ${reason}`, false);
 }
 function isAsciiChar(ch) {
     return ch.length === 1 && ASCII_ONLY.test(ch);
@@ -17,7 +18,7 @@ function powBigInt(base, exp) {
 }
 /**
  * Validates a profile per spec section 2.2 and returns it with derived,
- * pre-computed values. Throws HrcError INVALID_PROFILE on any violation.
+ * pre-computed values. Throws BasehError INVALID_PROFILE on any violation.
  * Call once at construction, never per encode/decode.
  */
 export function prepareProfile(profile) {
@@ -38,7 +39,7 @@ export function prepareProfile(profile) {
             fail(`body alphabet symbol is not single ASCII: ${JSON.stringify(ch)}`);
     }
     const view = { caseSensitive };
-    const bodyNorm = [...bodyAlphabet].map((c) => norm(view, c)).join("");
+    let bodyNorm = [...bodyAlphabet].map((c) => norm(view, c)).join("");
     if (new Set(bodyNorm).size !== bodyNorm.length) {
         fail("body alphabet symbols must be unique after case normalization");
     }
@@ -62,10 +63,27 @@ export function prepareProfile(profile) {
                 fail(`checksum alphabet symbol is not single ASCII: ${JSON.stringify(ch)}`);
         }
     }
-    const checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");
+    let checksumNorm = [...checksumAlphabet].map((c) => norm(view, c)).join("");
     if (new Set(checksumNorm).size !== checksumNorm.length) {
         fail("checksum alphabet symbols must be unique after case normalization");
     }
+    // Spec 18. no-vowels strips vowels before every downstream rule; blocklist
+    // only arms the encode-time scan.
+    const profanity = profile.profanity ?? { mode: "none" };
+    if (!["none", "no-vowels", "blocklist"].includes(profanity.mode)) {
+        fail("profanity mode must be none, no-vowels or blocklist");
+    }
+    if (profanity.mode === "no-vowels") {
+        bodyNorm = stripVowels(bodyNorm);
+        checksumNorm = stripVowels(checksumNorm);
+        if (bodyNorm.length < 2) {
+            fail("no-vowels mode leaves the body alphabet with fewer than two symbols");
+        }
+        if (profile.checksumLength > 0 && checksumNorm.length < 2) {
+            fail("no-vowels mode leaves the checksum alphabet with fewer than two symbols");
+        }
+    }
+    const blocklist = profanity.mode === "blocklist" ? effectiveBlocklist(profanity) : [];
     const separator = profile.separator ?? "";
     for (const ch of separator) {
         if (bodyNorm.includes(ch) || checksumNorm.includes(ch)) {
@@ -96,7 +114,11 @@ export function prepareProfile(profile) {
         aliasesNorm[sNorm] = tNorm;
     }
     const total = bodySum(profile.grouping);
-    if (total !== profile.bodyLength + profile.checksumLength) {
+    if (separator.length === 0) {
+        if (profile.grouping.length !== 0)
+            fail("grouping must be empty when separator is empty");
+    }
+    else if (total !== profile.bodyLength + profile.checksumLength) {
         fail("group sizes must sum to bodyLength + checksumLength");
     }
     const permutation = profile.permutation ?? { enabled: false };
@@ -128,7 +150,8 @@ export function prepareProfile(profile) {
         checksumAlphabetNorm: checksumNorm,
         aliasesNorm,
         checksumModulus: powBigInt(BigInt(checksumNorm.length || 1), profile.checksumLength),
-        capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength)
+        capacity: powBigInt(BigInt(bodyNorm.length), profile.bodyLength),
+        blocklist
     };
 }
 function bodySum(grouping) {
