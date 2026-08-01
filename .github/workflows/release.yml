@@ -61,7 +61,7 @@ jobs:
           npm ci && npm run build
           if npm publish --access public --provenance; then
             echo "published ${{ github.ref_name }}"
-          elif npm view "@cloudyventures/baseh@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
+          elif curl -sf "https://registry.npmjs.org/@cloudyventures%2fbaseh/$(node -p "require('./package.json').version")" >/dev/null; then
             echo "version already on npm (bootstrap publish), continuing"
           else
             exit 1
@@ -129,7 +129,19 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
           working-directory: ruby
+      # The first gem push may happen in an earlier run of the same tag;
+      # rubygems.org rejects repushes, so skip when the version is live.
+      - name: check whether gem version is already live
+        id: gemstate
+        run: |
+          V=$(ruby -e 'require_relative "ruby/lib/baseh/version"; print Baseh::VERSION')
+          if curl -sf "https://rubygems.org/api/v1/gems/baseh.json" | grep -q "\"number\":\"$V\""; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: rubygems/release-gem@v1
+        if: steps.gemstate.outputs.exists == 'false'
         with:
           working-directory: ruby
 
@@ -143,7 +155,7 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           # Idempotent so a repeat tag run does not fail: an identical
           # existing tag is left alone, a divergent one is a hard failure.
-          if git rev-parse -q --verify "refs/tags/go/${TAG}" >/dev/null; then
+          if [ -n "$(git ls-remote --tags origin "go/${TAG}")" ]; then
             echo "go/${TAG} already exists remotely, leaving as-is"
             exit 0
           fi
