@@ -9,6 +9,7 @@ function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
     customAlphabet: "",
     visualSafety: "none",
     spokenSafety: "none",
+    profanity: "none",
     bodyLength: 6,
     checksumLength: 1,
     permutation: false,
@@ -35,6 +36,7 @@ function designInput(overrides: Partial<DesignerInput> = {}): DesignerInput {
     allowAlnum: true,
     visualSafety: "none",
     spokenSafety: "none",
+    profanity: "none",
     ...overrides
   };
 }
@@ -229,5 +231,40 @@ describe("parseRequired", () => {
     assert.equal(parseRequired("6x"), null);
     assert.equal(parseRequired("-5"), null);
     assert.equal(parseRequired("6.5.2m"), null);
+  });
+});
+
+describe("profanity modes (spec 18)", async () => {
+  const { deriveAlphabet, deriveChecksumAlphabet, sampleCodes } = await import("../src/core.js");
+
+  it("no-vowels strips AEIOU from body and checksum alphabets", () => {
+    const body = deriveAlphabet("alnum", "", "none", "none", "no-vowels");
+    for (const c of "AEIOU") assert.equal(body.includes(c), false);
+    const check = deriveChecksumAlphabet(body, "none", "no-vowels");
+    for (const c of "AEIOU") assert.equal(check.includes(c), false);
+  });
+  it("no-vowels lowers alnum capacity to 31^6", () => {
+    const r = calculate(calcInput({ profanity: "no-vowels" }));
+    assert.equal(r.capacity.toString(), "887503681");
+  });
+  it("designer prices no-vowels into candidate alphabets", () => {
+    const r = design(designInput({ profanity: "no-vowels" }));
+    for (const c of r.feasible) {
+      if (c.alphabetId !== "digits10") assert.equal(c.alphabet.includes("A"), false);
+    }
+  });
+  it("blocklist keeps the alphabet but sample profile accepts the mode", () => {
+    const alpha = deriveAlphabet("alnum", "", "light", "light", "blocklist");
+    assert.equal(alpha.length, 31);
+    const s = sampleCodes(alpha, 6, 1, BigInt(alpha.length) ** 6n, "light", "", "blocklist");
+    assert.ok(s.length === 3);
+    for (const sample of s) {
+      if (sample.blocked) assert.equal(sample.code, "");
+    }
+  });
+  it("a delimiter that collides with every alphabet yields a delimiter repair", () => {
+    const r = design(designInput({ separator: "A", allowDigits: false }));
+    assert.equal(r.recommended, null);
+    assert.ok(r.repair && r.repair.includes('delimiter "A"'));
   });
 });

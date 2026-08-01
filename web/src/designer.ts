@@ -1,4 +1,4 @@
-import { design, exportDesign, parseRequired, sampleCodes, type DesignerInput, type SafetyLevel, type Candidate } from "./core.js";
+import { design, exportDesign, parseRequired, sampleCodes, type DesignerInput, type ProfanityMode, type SafetyLevel, type Candidate } from "./core.js";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -12,6 +12,7 @@ const els = {
   maxUtil: $<HTMLSelectElement>("max-util"),
   visual: $<HTMLSelectElement>("d-visual"),
   spoken: $<HTMLSelectElement>("d-spoken"),
+  profanity: $<HTMLSelectElement>("d-profanity"),
   allowAlnum: $<HTMLInputElement>("allow-alnum"),
   allowUpper: $<HTMLInputElement>("allow-upper"),
   allowDigits: $<HTMLInputElement>("allow-digits"),
@@ -64,11 +65,12 @@ function readInput(): DesignerInput | null {
     allowUpper: els.allowUpper.checked,
     allowAlnum: els.allowAlnum.checked,
     visualSafety: els.visual.value as SafetyLevel,
-    spokenSafety: els.spoken.value as SafetyLevel
+    spokenSafety: els.spoken.value as SafetyLevel,
+    profanity: els.profanity.value as ProfanityMode
   };
 }
 
-function sampleLine(s: { id: string; code: string }): string {
+function sampleLine(s: { id: string; code: string; blocked?: boolean }): string {
   let title: string;
   let marker: string;
   if (s.id === "0") {
@@ -81,11 +83,14 @@ function sampleLine(s: { id: string; code: string }): string {
     title = "Identifier infinity: the highest number this design can issue (its capacity minus one). Its code shows what the very last codes look like.";
     marker = "&infin;";
   }
-  return `<div><span title="${title}">${marker}: <code>${s.code}</code></span></div>`;
+  const rendered = s.blocked
+    ? `<span class="muted">blocked: this identifier spells a bad word and is never issued</span>`
+    : `<code>${s.code}</code>`;
+  return `<div title="${title}">${marker}: ${rendered}</div>`;
 }
 
 function card(c: Candidate, label?: string): string {
-  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator)
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity)
     .map(sampleLine)
     .join("");
   return `<div class="card alt-card">
@@ -121,7 +126,7 @@ function render() {
       <td title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</td>
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
-      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator).find((s) => s.id === "0")?.code ?? ""}</code></td>
+      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator, c.profanity).find((s) => s.id === "0")?.code ?? ""}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");
   els.exportBtn.onclick = async () => {
@@ -132,7 +137,7 @@ function render() {
 }
 
 for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.separator, els.minCheck,
-  els.maxUtil, els.visual, els.spoken, els.allowAlnum, els.allowUpper, els.allowDigits]) {
+  els.maxUtil, els.visual, els.spoken, els.profanity, els.allowAlnum, els.allowUpper, els.allowDigits]) {
   el.addEventListener("input", render);
 }
 // When the user leaves the required field, restate their number in the

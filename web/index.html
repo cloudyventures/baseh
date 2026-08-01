@@ -60,6 +60,14 @@
         </select>
       </div>
       <div class="field">
+        <label for="profanity-mode">Bad words<span class="tip" tabindex="0" aria-label="Bad words details"><span class="i">i</span><span class="tip-body">Keeps codes customer-safe. Strip vowels removes A, E, I, O and U from the alphabets so no English word can ever be spelled; capacity falls accordingly. Blocklist keeps the full alphabet but refuses to issue any code containing a common English profanity; those identifiers are reserved and marked as blocked in the examples. None applies no check.</span></span></label>
+        <select id="profanity-mode">
+          <option value="none" selected>None</option>
+          <option value="no-vowels">Strip vowels</option>
+          <option value="blocklist">Blocklist</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="body-length">Body length <output id="body-length-out">6</output></label>
         <input id="body-length" type="range" min="1" max="10" value="6" />
       </div>
