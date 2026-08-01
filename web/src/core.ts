@@ -105,10 +105,25 @@ export function applySpoken(alphabet: string, spoken: SafetyLevel): string {
   return [...alphabet].filter((c) => !drops.has(c)).join("");
 }
 
-/** Checksum alphabet with the same spoken drops, so alias sources stay non-canonical. */
+/** Symbols that act as alias sources under the visual safety drops. */
+const LOOKALIKE_SOURCES: ReadonlySet<string> = new Set(["O", "I", "L", "B", "S", "U"]);
+
+/**
+ * Checksum alphabet with the spoken drops removed, and with any alias
+ * source that no longer appears in the body removed too. Alias sources must
+ * stay non-canonical in every region of the code, or profile preparation
+ * rejects the profile. SAFE_CHECKSUM already excludes O, I, L, B and S, so
+ * the only alias source this ever removes is U (dropped at visual heavy).
+ * Symbols absent from the body for other reasons are retained: the checksum
+ * alphabet deliberately differs from the body alphabet.
+ */
 export function deriveChecksumAlphabet(bodyAlphabet: string, spoken: SafetyLevel, profanity: ProfanityMode = "none"): string {
   const drops = new Set(spokenPairsFor(bodyAlphabet, spoken).map(([, drop]) => drop));
-  return applyProfanity([...SAFE_CHECKSUM].filter((c) => !drops.has(c)).join(""), profanity);
+  const inBody = new Set(bodyAlphabet);
+  return applyProfanity(
+    [...SAFE_CHECKSUM].filter((c) => !drops.has(c) && (inBody.has(c) || !LOOKALIKE_SOURCES.has(c))).join(""),
+    profanity
+  );
 }
 
 /** Spec 18 no-vowels mode: vowels are removed from every alphabet. */
@@ -117,10 +132,17 @@ export function applyProfanity(alphabet: string, profanity: ProfanityMode): stri
   return [...alphabet].filter((c) => !"AEIOU".includes(c)).join("");
 }
 
-/** O/I/L aliases, keeping only those whose target exists and whose source does not. */
+/**
+ * Look-alike aliases for every symbol the visual safety levels can strip:
+ * O/I/L (light), B/S (medium) and U (heavy). Each stripped symbol can never
+ * appear in an issued code, so seeing one always means its surviving twin.
+ * Kept only when the target exists in the alphabet and the source does not;
+ * the targets (digits and V) are never themselves alias sources, so chains
+ * cannot form and every substitution is unambiguous.
+ */
 export function baseAliases(alphabet: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"]]) {
+  for (const [src, tgt] of [["O", "0"], ["I", "1"], ["L", "1"], ["B", "8"], ["S", "5"], ["U", "V"]]) {
     if (alphabet.includes(tgt) && !alphabet.includes(src)) out[src] = tgt;
   }
   return out;
