@@ -11,13 +11,18 @@ C8XP-8J49
 ```
 
 - **Reversible**: an internal integer ID converts to a code and back, exactly.
+- **Expandable by default**: codes start at four characters and grow one
+  symbol at a time as the id sequence fills each length. No migrations, no
+  re-issue; shorter codes decode forever. Fixed-width profiles remain for
+  constant-width needs.
 - **Checksummed**: routine transcription typos are detected on decode.
 - **Human-safe alphabet**: no `O`/`0`, `I`/`1`/`L` confusion in canonical output.
 - **Aliases**: typed `O`, `I`, `L` are accepted as `0`, `1`, `1`.
 - **Permutation always on**: every frozen tier shuffles sequence with a
-  published frozen key, so codes never read as adjacent. For a private
-  mapping the keyed `-p` tiers take your own key. Either way it is
-  presentation only; it is not encryption and not access control.
+  published frozen key (per code length in expandable mode), so codes never
+  read as adjacent. For a private mapping the keyed `-p` tiers take your own
+  key. Either way it is presentation only; it is not encryption and not
+  access control.
 - **Correction with abstention**: checksum-guided substitution suggestions
   that return `AMBIGUOUS_INPUT` instead of guessing.
 
@@ -43,20 +48,30 @@ Interactive, client-side only:
 ## Quick start
 
 ```typescript
-import { Baseh, basehMediumV1 } from "@cloudyventures/baseh";
+import { Baseh, basehExpandableV1 } from "@cloudyventures/baseh";
 
-const h = new Baseh(basehMediumV1());
+const h = new Baseh(basehExpandableV1());
 
-const code = h.encode(123456789n);   // "C8XP-8J49"
-const { id } = h.decode("c8xp 8j49", { acceptSpaces: true });
-console.log(id === 123456789n);        // true
+const code = h.encode(12345n);   // 4 characters at this namespace size; grows as ids climb
+const { id } = h.decode(code);
+console.log(id === 12345n);        // true
 ```
 
-The frozen tiers already hide sequence with the public frozen key. For a
-private mapping, use a keyed `-p` tier and supply your own key:
+Codes from the expandable tier are short while the namespace is small and
+gain a symbol automatically as it fills. If you need a constant width
+instead, the fixed tiers behave exactly as before:
 
 ```typescript
-const h = new Baseh(basehMediumPV1({ keyBytes: myKey, keyId: "prod-01" }));
+const h = new Baseh(basehMediumV1());
+const code = h.encode(123456789n);   // "C8XP-8J49"
+```
+
+Every frozen tier hides sequence with the public frozen key (per code length
+in expandable mode). For a private mapping, use a keyed `-p` tier and supply
+your own key:
+
+```typescript
+const h = new Baseh(basehExpandablePV1({ keyBytes: myKey, keyId: "prod-01" }));
 ```
 
 Every implementation shares one behaviour contract: the vectors in
@@ -65,15 +80,48 @@ fails if any implementation disagrees with them.
 
 ## Profiles
 
-Four frozen tiers ship with the library, all running the default profanity
-blocklist, all six characters of body, all hyphen-delimited and all
-permuting with the published frozen key:
+Profiles carry a `mode`: `"expandable"` (the default for new profiles) or
+`"fixed"`. Every existing option — visual and spoken safety levels, custom
+alphabets, profanity modes, blocklists, separators — composes with either
+mode unchanged.
+
+### Expandable mode (default)
+
+The `baseh-expandable-v1` tier is the recommended starting point:
+
+- **Starts short, grows on its own**: minimum four characters (the profile
+  field `minLength`). When the id sequence outgrows a length, codes become
+  one symbol longer — transparently, with no re-issue and no migration.
+  Shorter codes decode forever.
+- **No `0` or `O` in the body, ever**: the default body alphabet is the 34
+  remaining alphanumerics, and a custom alphabet has `0`/`O` removed during
+  profile preparation (tooling always displays the derived alphabet). No
+  code can start with a zero glyph, so there is nothing to mis-drop and no
+  left-padding anywhere.
+- **Checksum keeps the zero**: the checksum alphabet is the body alphabet
+  plus `0`, and the `O -> 0` input alias still applies, so a misread `O` in
+  a checksum position resolves correctly.
+- **Permuted per length**: the Feistel permutation runs within each code
+  length's range with the length mixed into the key derivation, so codes
+  look random at every size even though issuance is sequential.
+- **Separator on a threshold**: the shipped tier introduces the hyphen
+  grouping at six characters (the profile field `separatorMinLength`);
+  shorter codes print bare.
+
+A keyed variant `baseh-expandable-p-v1` takes your own key for a private
+mapping, like the other `-p` tiers.
+
+### Fixed mode (frozen tiers)
+
+Four frozen tiers ship with the library, all `mode: "fixed"`, all running
+the default profanity blocklist, all six characters of body, all
+hyphen-delimited and all permuting with the published frozen key:
 
 | Tier | Symbols | Checksum | Shape | Capacity | Use for |
 |---|---|---|---|---|---|
 | `baseh-minimum-v1` | 36 | none | `XXX-XXX` | 2,176,782,336 | Typed contexts, maximum capacity |
 | `baseh-light-v1` | 31 | 2 | `XXXX-XXXX` | 887,503,681 | Typed workflows with light safety |
-| `baseh-medium-v1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 | General use; **the default** |
+| `baseh-medium-v1` | 28 | 2 | `XXXX-XXXX` | 481,890,304 | General use; **the default fixed tier** |
 | `baseh-heavy-v1` | 26 | 2 | `XXXX-XXXX` | 308,915,776 | Spoken-first workflows |
 
 The frozen key is public by design: it hides sequence, not records. Each
@@ -91,6 +139,12 @@ profile.bodyLength = 7;
 ```
 
 ## When the namespace fills up
+
+With an expandable profile, it fills up gracefully on its own: the code
+simply gains a symbol and issuance continues. Nothing is re-issued, nothing
+is migrated, and every shorter code keeps decoding. The guidance below
+matters only for fixed-mode profiles, where capacity is a one-time design
+decision.
 
 Plan so it does not, and design so it does not matter if it does.
 
@@ -136,8 +190,11 @@ of each package.
 
 ## Status and release process
 
-The codec, the four frozen tiers and the vector suite are version 2. Releases
-are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
+The codec, the four frozen tiers and the vector suite are version 2.
+Expandable mode is the headline of the next release; this README and the
+package examples describe it ahead of the implementation landing, so the
+`baseh-expandable-v1` helpers will not exist in published packages until
+then. Releases are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC
 trusted publishing with no stored tokens; setup is in

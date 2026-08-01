@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"math/big"
 
-	basehuman "github.com/cloudyventures/baseh/go/v2"
+	baseh "github.com/cloudyventures/baseh/go/v2"
 )
 
 func describeErr(err error) string {
-	var be *basehuman.Error
+	var be *baseh.Error
 	if errors.As(err, &be) {
 		return fmt.Sprintf("baseh error [%s]: %s (SafeForCustomer=%t)", be.Code, be.Message, be.SafeForCustomer)
 	}
@@ -37,30 +37,55 @@ func showID(label string, fn func() (*big.Int, error)) {
 }
 
 func main() {
-	// 1. Zero configuration: the default Medium tier behind two functions.
-	fmt.Println("== zero config ==")
-	showStr("ToCode(123456789)", func() (string, error) {
-		return basehuman.ToCode(big.NewInt(123456789))
+	// 1. Expandable mode (recommended default for new users).
+	// Expandable mode: shipping in the next release; shown here as the new default.
+	// Codes start at 4 characters and grow automatically as ids climb past
+	// each length's capacity — no migration, and old short codes keep decoding.
+	fmt.Println("== expandable ==")
+	exp, err := baseh.New(baseh.ExpandableV1())
+	if err != nil {
+		panic(err)
+	}
+	showStr("Encode(123456789)", func() (string, error) {
+		// 4 characters at this namespace size; grows as ids climb.
+		return exp.Encode(big.NewInt(123456789))
 	})
-	showStr(`ToCodeString("123456789")`, func() (string, error) {
-		return basehuman.ToCodeString("123456789")
-	})
-	showID(`FromCode("C8XP-8J49")`, func() (*big.Int, error) {
-		return basehuman.FromCode("C8XP-8J49")
-	})
-	showID(`FromCode("c8xp 8j49")`, func() (*big.Int, error) {
-		return basehuman.FromCode("c8xp 8j49")
-	})
-	showID(`FromCode("C8XP-8J4X")`, func() (*big.Int, error) {
-		return basehuman.FromCode("C8XP-8J4X")
-	})
-	showStr("ToCode(481890304)", func() (string, error) {
-		return basehuman.ToCode(big.NewInt(481890304))
+	expCode, err := exp.Encode(big.NewInt(123456789))
+	if err != nil {
+		panic(err)
+	}
+	showID("Decode(...) round trip", func() (*big.Int, error) {
+		r, e := exp.Decode(expCode, nil)
+		if e != nil {
+			return nil, e
+		}
+		return r.ID, nil
 	})
 
-	// 2. A frozen preset: load baseh-medium-v1 and use the full codec.
-	fmt.Println("== preset ==")
-	medium, err := basehuman.NewBaseh(basehuman.BasehMediumV1())
+	// 2. Zero configuration: the default Medium tier behind two functions.
+	fmt.Println("== zero config ==")
+	showStr("ToCode(123456789)", func() (string, error) {
+		return baseh.ToCode(big.NewInt(123456789))
+	})
+	showStr(`ToCodeString("123456789")`, func() (string, error) {
+		return baseh.ToCodeString("123456789")
+	})
+	showID(`FromCode("C8XP-8J49")`, func() (*big.Int, error) {
+		return baseh.FromCode("C8XP-8J49")
+	})
+	showID(`FromCode("c8xp 8j49")`, func() (*big.Int, error) {
+		return baseh.FromCode("c8xp 8j49")
+	})
+	showID(`FromCode("C8XP-8J4X")`, func() (*big.Int, error) {
+		return baseh.FromCode("C8XP-8J4X")
+	})
+	showStr("ToCode(481890304)", func() (string, error) {
+		return baseh.ToCode(big.NewInt(481890304))
+	})
+
+	// 3. A fixed-mode frozen preset: load baseh-medium-v1 and use the full codec.
+	fmt.Println("== preset (fixed mode) ==")
+	medium, err := baseh.New(baseh.MediumV1())
 	if err != nil {
 		panic(err)
 	}
@@ -93,17 +118,17 @@ func main() {
 	})
 	fmt.Printf("Capacity -> %s\n", medium.Capacity())
 
-	// 3. Correction: a spoken slip recovers the intended record. The frozen
+	// 4. Correction: a spoken slip recovers the intended record. The frozen
 	// tiers alias the spoken pairs outright (a typed T is a P at Medium), so
 	// this demo uses a custom profile that keeps B, D, P and T canonical and
 	// lets the light confusion map propose the fix.
 	fmt.Println("== correction ==")
-	spoken := basehuman.BasehMinimumV1()
+	spoken := baseh.MinimumV1()
 	spoken.ProfileID = "spoken-v1"
 	spoken.ChecksumAlphabet = "234679ACEFGHJKMNPQRUVWXY"
 	spoken.ChecksumLength = 2
 	spoken.Grouping = []int{4, 4}
-	calls, err := basehuman.NewBaseh(spoken)
+	calls, err := baseh.New(spoken)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +137,7 @@ func main() {
 	})
 	// The customer reads "LPXM-1LPA" back as "LTXM-1LPA" (T for P). With
 	// correction on, the amended code prints its canonical form.
-	corrected, err := calls.Decode("LTXM-1LPA", &basehuman.DecodeOptions{
+	corrected, err := calls.Decode("LTXM-1LPA", &baseh.DecodeOptions{
 		TryCorrection:    true,
 		ConfusionProfile: "light",
 	})
@@ -123,13 +148,17 @@ func main() {
 			corrected.ID, corrected.CanonicalCode)
 	}
 
-	// 4. Customized: load the preset, extend the body and re-group.
+	// 5. Customized: load the preset, extend the body and re-group.
+	// Profiles also carry a Mode field ("fixed" or "expandable"); all frozen
+	// tiers shown above are fixed mode. In expandable mode, MinLength (default
+	// 4) sets the starting code width and SeparatorMinLength (6 in the
+	// baseh-expandable-v1 tier) controls when hyphens and grouping kick in.
 	fmt.Println("== customized ==")
-	custom := basehuman.BasehMediumV1()
+	custom := baseh.MediumV1()
 	custom.ProfileID = "orders-v1"
 	custom.BodyLength = 7
 	custom.Grouping = []int{5, 4}
-	orders, err := basehuman.NewBaseh(custom)
+	orders, err := baseh.New(custom)
 	if err != nil {
 		panic(err)
 	}
