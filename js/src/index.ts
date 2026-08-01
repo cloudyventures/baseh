@@ -16,9 +16,11 @@ export { permute, inversePermute } from "./feistel.js";
 export {
   basehMinimumV1, basehLightV1, basehMediumV1, basehHeavyV1,
   basehMinimumPV1, basehLightPV1, basehMediumPV1, basehHeavyPV1,
+  basehExpandableV1, basehExpandablePV1,
   FROZEN_KEY_BYTES,
   type FrozenKeyOptions
 } from "./profiles.js";
+export { generationBase, generationCapacity, generationForId, expandableGrouping } from "./codec.js";
 export { toCode, fromCode } from "./zero.js";
 export { DEFAULT_BLOCKLIST, effectiveBlocklist, stripVowels } from "./blocklist.js";
 export type { BasehProfanity, BasehProfanityMode } from "./blocklist.js";

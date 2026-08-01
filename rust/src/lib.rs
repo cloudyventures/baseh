@@ -25,11 +25,14 @@ mod zero;
 
 pub mod feistel;
 
-pub use codec::{Baseh, ConfusionProfile, DecodeOptions, DecodeResult, ValidateOutcome};
+pub use codec::{
+    expandable_grouping, Baseh, ConfusionProfile, DecodeOptions, DecodeResult, ValidateOutcome,
+};
 pub use error::{BasehError, ErrorCode};
-pub use profile::{Permutation, Profanity, ProfanityMode, Profile, DEFAULT_BLOCKLIST};
+pub use profile::{Mode, Permutation, Profanity, ProfanityMode, Profile, DEFAULT_BLOCKLIST};
 pub use profiles::{
-    baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1,
-    baseh_medium_v1, baseh_minimum_p_v1, baseh_minimum_v1, FROZEN_KEY_BYTES,
+    baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1,
+    baseh_light_p_v1, baseh_light_v1, baseh_medium_p_v1, baseh_medium_v1, baseh_minimum_p_v1,
+    baseh_minimum_v1, FROZEN_KEY_BYTES,
 };
 pub use zero::{from_code, to_code, ToCodeId};

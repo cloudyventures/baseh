@@ -12,6 +12,7 @@ from .errors import (
     INVALID_CHARACTER,
     INVALID_CHECKSUM,
     INVALID_LENGTH,
+    INVALID_PROFILE,
     OUT_OF_RANGE,
     TOO_MANY_CANDIDATES,
     BasehError,
@@ -49,18 +50,43 @@ def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False)
     if not isinstance(input, str):
         raise BasehError(INVALID_CHARACTER, "input must be a string")
     s = input.strip(_ASCII_WS)
+    had_separator = bool(profile.separator) and profile.separator in s
     if profile.separator:
         s = s.replace(profile.separator, "")
     if accept_spaces:
         s = s.replace(" ", "")
     if not profile.case_sensitive:
         s = s.upper()
-    if profile.aliases_norm:
-        s = "".join(profile.aliases_norm.get(ch, ch) for ch in s)
     allowed = set(profile.body_alphabet_norm) | set(profile.checksum_alphabet_norm)
+    # Spec 3.2: an alias never maps two distinct canonical symbols into one
+    # value, so a symbol that is already canonical stays as-is and only
+    # non-canonical symbols are aliased. (In fixed tiers alias sources are
+    # never canonical, so this changes nothing there.)
+    if profile.aliases_norm:
+        s = "".join(ch if ch in allowed else profile.aliases_norm.get(ch, ch) for ch in s)
     for ch in s:
         if ch not in allowed:
             raise BasehError(INVALID_CHARACTER, f"Symbol {ch!r} is not accepted")
+    if profile.mode == "expandable":
+        # Spec 19.2/19.7: no left-padding and no stripped-zero leniency.
+        # Input shorter than minLength or longer than 32 fails
+        # INVALID_LENGTH, and a separator below separatorMinLength is
+        # rejected (spec 19.5: the decoder expects no separators there).
+        if len(s) < profile.min_length:
+            raise BasehError(
+                INVALID_LENGTH,
+                f"Expected at least {profile.min_length} symbols, got {len(s)}",
+            )
+        if len(s) > 32:
+            raise BasehError(
+                INVALID_LENGTH, f"Expected at most 32 symbols, got {len(s)}"
+            )
+        if had_separator and len(s) < profile.separator_min_length:
+            raise BasehError(
+                INVALID_CHARACTER,
+                f"Separators do not appear below {profile.separator_min_length} symbols",
+            )
+        return s
     expected = profile.body_length + profile.checksum_length
     # Spec 3.4: a code that lost leading zero body symbols is re-padded with
     # the body zero symbol. The checksum symbols always remain, so the split
@@ -74,15 +100,73 @@ def normalize(input: str, profile: PreparedProfile, accept_spaces: bool = False)
     return s
 
 
-def format_raw(raw: str, profile: PreparedProfile) -> str:
-    if not profile.separator:
+def _format_with(raw: str, sizes, separator: str) -> str:
+    if not separator:
         return raw
     parts = []
     offset = 0
-    for size in profile.grouping:
+    for size in sizes:
         parts.append(raw[offset : offset + size])
         offset += size
-    return profile.separator.join(parts)
+    return separator.join(parts)
+
+
+def format_raw(raw: str, profile: PreparedProfile) -> str:
+    if profile.mode == "expandable":
+        if not profile.separator or len(raw) < profile.separator_min_length:
+            return raw
+        return _format_with(
+            raw, expandable_grouping(len(raw), profile.grouping), profile.separator
+        )
+    return _format_with(raw, profile.grouping, profile.separator)
+
+
+def expandable_grouping(length: int, pattern) -> list:
+    """Spec 19.5. Group sizes for a total length under the right-anchored
+    repeating pattern: consume groups from the right, cycling the pattern
+    from its last element backwards; a short remainder forms the leftmost
+    group."""
+    sizes: list = []
+    remaining = length
+    i = len(pattern) - 1
+    while remaining > 0:
+        p = pattern[i]
+        if remaining <= p:
+            sizes.insert(0, remaining)
+            break
+        sizes.insert(0, p)
+        remaining -= p
+        i = (i - 1 + len(pattern)) % len(pattern)
+    return sizes
+
+
+def generation_base(profile: PreparedProfile, length: int) -> int:
+    """Spec 19.1. First id of generation L: the sum of A^(k-K) for k from
+    minLength through L-1."""
+    a = len(profile.body_alphabet_norm)
+    base = 0
+    cap = a ** (profile.min_length - profile.checksum_length)
+    for _ in range(profile.min_length, length):
+        base += cap
+        cap *= a
+    return base
+
+
+def generation_capacity(profile: PreparedProfile, length: int) -> int:
+    """Spec 19.1. Ids held by generation L: A^(L-K)."""
+    return len(profile.body_alphabet_norm) ** (length - profile.checksum_length)
+
+
+def generation_for_id(profile: PreparedProfile, id: int) -> int:
+    """Smallest generation whose range holds id, per spec 19.6."""
+    length = profile.min_length
+    base = 0
+    cap = generation_capacity(profile, length)
+    while id >= base + cap:
+        base += cap
+        cap *= len(profile.body_alphabet_norm)
+        length += 1
+    return length
 
 
 def generate_candidates(body: str, confusion_map: dict, max_edits: int = 1) -> list:
@@ -119,20 +203,38 @@ class Baseh:
         return self._profile
 
     def capacity(self) -> int:
+        # Spec 12.3: fixed mode only. Expandable profiles have no single
+        # capacity; use the per-generation formulas of spec 19.1.
+        if self._profile.mode != "fixed":
+            raise BasehError(
+                INVALID_PROFILE,
+                "capacity() is only defined for fixed-mode profiles",
+                False,
+            )
         return self._profile.capacity
 
-    def _feistel_key(self) -> FeistelKey:
+    def _feistel_key(self, length: int | None = None) -> FeistelKey:
         perm = self._profile.permutation
         return FeistelKey(
             profile_id=self._profile.profile_id,
             key_bytes=perm.key_bytes,
             rounds=perm.rounds,
+            length=length,
         )
 
-    def encode(self, id: int) -> str:
-        """Spec 8, including the section 18.2 blocked-substring scan."""
-        if isinstance(id, bool) or not isinstance(id, int):
-            raise BasehError(OUT_OF_RANGE, "id must be an integer")
+    def _check_blocklist(self, raw: str) -> None:
+        # Spec 18.2: case-insensitive substring scan over the raw code.
+        if self._profile.blocklist:
+            upper = raw.upper()
+            if any(word in upper for word in self._profile.blocklist):
+                raise BasehError(
+                    BLOCKED_CODE,
+                    "The generated reference contains a blocked substring",
+                    False,
+                )
+
+    def _encode_fixed(self, id: int) -> str:
+        """Spec 8."""
         value = id
         if value < 0 or value >= self._profile.capacity:
             raise BasehError(OUT_OF_RANGE, f"ID {value} is outside the profile capacity")
@@ -143,16 +245,39 @@ class Baseh:
         )
         checksum = calculate_checksum(self._profile, body)
         raw = body + checksum
-        # Spec 18.2: case-insensitive substring scan over the raw code.
-        if self._profile.blocklist:
-            upper = raw.upper()
-            if any(word in upper for word in self._profile.blocklist):
-                raise BasehError(
-                    BLOCKED_CODE,
-                    "The generated reference contains a blocked substring",
-                    False,
-                )
+        self._check_blocklist(raw)
         return format_raw(raw, self._profile)
+
+    def _encode_expandable(self, id: int) -> str:
+        """Spec 19.6."""
+        if id < 0:
+            raise BasehError(OUT_OF_RANGE, f"ID {id} is negative")
+        length = generation_for_id(self._profile, id)
+        if length > 32:
+            raise BasehError(
+                OUT_OF_RANGE, f"ID {id} requires a code longer than 32 symbols"
+            )
+        value = id - generation_base(self._profile, length)
+        domain = generation_capacity(self._profile, length)
+        if self._profile.permutation.enabled:
+            value = permute(value, domain, self._feistel_key(length))
+        body = encode_base_n(
+            value,
+            self._profile.body_alphabet_norm,
+            length - self._profile.checksum_length,
+        )
+        checksum = calculate_checksum(self._profile, body)
+        raw = body + checksum
+        self._check_blocklist(raw)
+        return format_raw(raw, self._profile)
+
+    def encode(self, id: int) -> str:
+        """Spec 8/19.6, including the section 18.2 blocked-substring scan."""
+        if isinstance(id, bool) or not isinstance(id, int):
+            raise BasehError(OUT_OF_RANGE, "id must be an integer")
+        if self._profile.mode == "expandable":
+            return self._encode_expandable(id)
+        return self._encode_fixed(id)
 
     def decode(
         self,
@@ -163,10 +288,15 @@ class Baseh:
         confusion_profile: str = "none",
         max_corrections: int = 1,
     ) -> DecodeResult:
-        """Spec 9."""
+        """Spec 9/19.7."""
         raw = normalize(input, self._profile, accept_spaces)
-        body = raw[: self._profile.body_length]
-        supplied_checksum = raw[self._profile.body_length :]
+        body_length = (
+            len(raw) - self._profile.checksum_length
+            if self._profile.mode == "expandable"
+            else self._profile.body_length
+        )
+        body = raw[:body_length]
+        supplied_checksum = raw[body_length:]
 
         # Spec 3.1 validates union membership before the split. There is no
         # per-region membership check: a checksum-region symbol outside the
@@ -218,7 +348,18 @@ class Baseh:
         value = decode_base_n(
             body, self._profile.body_alphabet_norm, self._body_index
         )
-        if self._profile.permutation.enabled:
+        if self._profile.mode == "expandable":
+            # Spec 19.7: the offset is de-permuted within the generation's own
+            # domain, then the generation base is added back.
+            length = len(raw)
+            if self._profile.permutation.enabled:
+                value = inverse_permute(
+                    value,
+                    generation_capacity(self._profile, length),
+                    self._feistel_key(length),
+                )
+            value = generation_base(self._profile, length) + value
+        elif self._profile.permutation.enabled:
             value = inverse_permute(
                 value, self._profile.capacity, self._feistel_key()
             )

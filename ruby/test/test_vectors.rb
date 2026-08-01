@@ -48,12 +48,15 @@ class TestVectors < Minitest::Test
       end
     {
       profile_id: definition["profileId"],
+      mode: definition["mode"],
       body_alphabet: definition["bodyAlphabet"],
       body_length: definition["bodyLength"],
+      min_length: definition["minLength"],
       checksum_alphabet: definition["checksumAlphabet"],
       checksum_length: definition["checksumLength"],
       case_sensitive: definition["caseSensitive"],
       separator: definition["separator"],
+      separator_min_length: definition["separatorMinLength"],
       grouping: definition["grouping"],
       aliases: definition["aliases"] || {},
       permutation: permutation,
@@ -74,9 +77,15 @@ class TestVectors < Minitest::Test
 
   def test_profile_capacities
     self.class.vectors_doc["profiles"].each do |entry|
-      assert_equal entry["capacity"].to_i,
-                   codec(entry["profileId"]).capacity,
-                   "capacity mismatch for #{entry['profileId']}"
+      if entry["capacity"].nil?
+        # Expandable profiles have no single capacity (spec 12.3).
+        error = assert_raises(Baseh::BasehError) { codec(entry["profileId"]).capacity }
+        assert_equal "INVALID_PROFILE", error.code
+      else
+        assert_equal entry["capacity"].to_i,
+                     codec(entry["profileId"]).capacity,
+                     "capacity mismatch for #{entry['profileId']}"
+      end
     end
   end
 
@@ -174,6 +183,9 @@ class TestVectors < Minitest::Test
         key_bytes: [vector["keyBytesHex"]].pack("H*"),
         rounds: vector["rounds"]
       }
+      # Expandable-mode vectors mix the generation length into the round
+      # message (spec 7.3/19.4); fixed-mode vectors carry no length.
+      key[:length] = vector["length"] if vector["length"]
       capacity = vector["capacity"].to_i
       input = vector["input"].to_i
       expected = vector["permuted"].to_i
@@ -195,6 +207,7 @@ class TestVectors < Minitest::Test
         key_bytes: [vector["keyBytesHex"]].pack("H*"),
         rounds: vector["rounds"]
       }
+      key[:length] = vector["length"] if vector["length"]
       capacity = vector["capacity"].to_i
       input = vector["input"].to_i
 

@@ -25,5 +25,9 @@ export declare function basehMediumV1(): BasehProfile;
 export declare function basehMediumPV1(options: FrozenKeyOptions): BasehProfile;
 /** Conservative alphabet plus spoken heavy, two checksum symbols, hyphen-delimited. */
 export declare function basehHeavyV1(): BasehProfile;
+/** The frozen expandable tier; the recommended starting point for new namespaces. */
+export declare function basehExpandableV1(): BasehProfile;
+/** baseh-expandable permuted with caller-supplied key material. */
+export declare function basehExpandablePV1(options: FrozenKeyOptions): BasehProfile;
 /** baseh-heavy permuted with caller-supplied key material. */
 export declare function basehHeavyPV1(options: FrozenKeyOptions): BasehProfile;

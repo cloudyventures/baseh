@@ -19,6 +19,18 @@ pub enum Permutation {
     },
 }
 
+/// Codec mode (spec 2.1/19.9). Profiles that predate the mode field are
+/// fixed: the shared frozen vectors pin their byte-for-byte behaviour, so a
+/// missing mode is prepared as fixed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Mode {
+    /// The classic constant-width behaviour.
+    #[default]
+    Fixed,
+    /// Variable-length codes driven by id magnitude (spec 19).
+    Expandable,
+}
+
 /// Profanity handling mode (spec 18.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProfanityMode {
@@ -57,12 +69,22 @@ pub const DEFAULT_BLOCKLIST: [&str; 12] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Profile {
     pub profile_id: String,
+    /// Fixed keeps the classic constant-width behaviour; expandable gives
+    /// variable-length codes driven by id magnitude (spec 19).
+    pub mode: Mode,
     pub body_alphabet: String,
+    /// Fixed mode only; ignored in expandable mode.
     pub body_length: usize,
+    /// Expandable mode only; `0` selects the default of 4. Must exceed
+    /// `checksum_length`.
+    pub min_length: usize,
     pub checksum_alphabet: String,
     pub checksum_length: usize,
     pub case_sensitive: bool,
     pub separator: String,
+    /// Expandable mode only; `0` (the default) means the separator always
+    /// applies. Must be `0` in fixed mode.
+    pub separator_min_length: usize,
     pub grouping: Vec<usize>,
     pub aliases: Vec<(char, char)>,
     pub permutation: Permutation,
@@ -72,6 +94,8 @@ pub struct Profile {
 /// A profile after validation, with derived values computed once.
 pub(crate) struct PreparedProfile {
     pub profile: Profile,
+    pub min_length: usize,
+    pub separator_min_length: usize,
     pub body_alphabet_norm: Vec<char>,
     pub checksum_alphabet_norm: Vec<char>,
     pub aliases_norm: HashMap<char, char>,
@@ -154,6 +178,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
     }
 
     let case_sensitive = profile.case_sensitive;
+    let mode = profile.mode;
 
     if profile.body_alphabet.chars().count() < 2 {
         return Err(fail("bodyAlphabet needs at least two symbols"));
@@ -166,6 +191,12 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         .chars()
         .map(|c| norm_char(case_sensitive, c))
         .collect();
+    // Spec 19.2: in expandable mode the zero ban strips 0 and O from the body
+    // alphabet silently, before any other validation, exactly like the
+    // no-vowels strip of section 18.1.
+    if mode == Mode::Expandable {
+        body_norm.retain(|c| *c != '0' && *c != 'O');
+    }
     let body_set: HashSet<char> = body_norm.iter().copied().collect();
     if body_set.len() != body_norm.len() {
         return Err(fail(
@@ -173,14 +204,26 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         ));
     }
 
-    if profile.body_length == 0 || profile.body_length > 32 {
+    if mode == Mode::Fixed && (profile.body_length == 0 || profile.body_length > 32) {
         return Err(fail("bodyLength must be an integer from 1 through 32"));
+    }
+    let min_length = if profile.min_length == 0 {
+        4
+    } else {
+        profile.min_length
+    };
+    let separator_min_length = profile.separator_min_length;
+    if mode == Mode::Fixed && separator_min_length != 0 {
+        return Err(fail("separatorMinLength must be 0 in fixed mode"));
     }
     if profile.checksum_length > 8 {
         return Err(fail("checksumLength must be an integer from 0 through 8"));
     }
+    if mode == Mode::Expandable && min_length <= profile.checksum_length {
+        return Err(fail("minLength must be greater than checksumLength"));
+    }
 
-    if profile.checksum_length > 0 {
+    if mode == Mode::Fixed && profile.checksum_length > 0 {
         if profile.checksum_alphabet.chars().count() < 2 {
             return Err(fail(
                 "checksumAlphabet needs at least two symbols when checksumLength is positive",
@@ -190,26 +233,35 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
             return Err(fail("checksum alphabet symbol is not single ASCII"));
         }
     }
-    let mut checksum_norm: Vec<char> = profile
-        .checksum_alphabet
-        .chars()
-        .map(|c| norm_char(case_sensitive, c))
-        .collect();
-    let checksum_set: HashSet<char> = checksum_norm.iter().copied().collect();
-    if checksum_set.len() != checksum_norm.len() {
-        return Err(fail(
-            "checksum alphabet symbols must be unique after case normalization",
-        ));
+    // Spec 19.3: in expandable mode the checksum alphabet is derived, "0"
+    // followed by the body alphabet in order. The configured checksumAlphabet
+    // is not consulted.
+    let mut checksum_norm: Vec<char> = if mode == Mode::Expandable {
+        Vec::new()
+    } else {
+        profile
+            .checksum_alphabet
+            .chars()
+            .map(|c| norm_char(case_sensitive, c))
+            .collect()
+    };
+    if mode == Mode::Fixed {
+        let checksum_set: HashSet<char> = checksum_norm.iter().copied().collect();
+        if checksum_set.len() != checksum_norm.len() {
+            return Err(fail(
+                "checksum alphabet symbols must be unique after case normalization",
+            ));
+        }
     }
 
     // Spec 18. no-vowels strips vowels before every downstream rule;
     // blocklist only arms the encode-time scan.
-    let mode = profile
+    let profanity_mode = profile
         .profanity
         .as_ref()
         .map(|p| p.mode)
         .unwrap_or(ProfanityMode::None);
-    if mode == ProfanityMode::NoVowels {
+    if profanity_mode == ProfanityMode::NoVowels {
         body_norm = strip_vowels(&body_norm);
         checksum_norm = strip_vowels(&checksum_norm);
         if body_norm.len() < 2 {
@@ -217,11 +269,22 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
                 "no-vowels mode leaves the body alphabet with fewer than two symbols",
             ));
         }
-        if profile.checksum_length > 0 && checksum_norm.len() < 2 {
+        if mode == Mode::Fixed && profile.checksum_length > 0 && checksum_norm.len() < 2 {
             return Err(fail(
                 "no-vowels mode leaves the checksum alphabet with fewer than two symbols",
             ));
         }
+    }
+    if mode == Mode::Expandable {
+        // Derived after every body strip (zero ban, no-vowels) so all
+        // downstream rules — modulus, separator collision, alias targets —
+        // see the final alphabets.
+        checksum_norm = std::iter::once('0').chain(body_norm.iter().copied()).collect();
+    }
+    if body_norm.len() < 2 {
+        return Err(fail(
+            "body alphabet needs at least two symbols after preparation",
+        ));
     }
     let blocklist = match &profile.profanity {
         Some(p) if p.mode == ProfanityMode::Blocklist => effective_blocklist(p)?,
@@ -246,7 +309,13 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
         }
         let s_norm = norm_char(case_sensitive, *src);
         let t_norm = norm_char(case_sensitive, *tgt);
-        if canonical_set.contains(&s_norm) {
+        // Spec 3.2: an alias must never map two distinct canonical symbols
+        // into one value. Fixed mode rejects a canonical alias source
+        // outright. In expandable mode the frozen tier (spec 17.1) carries
+        // aliases whose sources are canonical body symbols (T, N, W stay in
+        // the body alphabet); the canonical symbol wins at normalization,
+        // making those entries inert instead of destructive.
+        if mode == Mode::Fixed && canonical_set.contains(&s_norm) {
             return Err(fail("alias source is already a canonical symbol"));
         }
         if !canonical_set.contains(&t_norm) {
@@ -271,6 +340,14 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
     if profile.separator.is_empty() {
         if !profile.grouping.is_empty() {
             return Err(fail("grouping must be empty when separator is empty"));
+        }
+    } else if mode == Mode::Expandable {
+        // Spec 19.5: the sum rule cannot hold at every length; grouping is a
+        // right-anchored repeating pattern and only needs positive sizes.
+        if profile.grouping.is_empty() || profile.grouping.iter().any(|g| *g == 0) {
+            return Err(fail(
+                "expandable grouping must be non-empty with positive integer sizes",
+            ));
         }
     } else {
         let total = profile.grouping.iter().try_fold(0usize, |acc, g| {
@@ -320,7 +397,10 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, Baseh
 
     Ok(PreparedProfile {
         checksum_modulus: pow_biguint(modulus_base, profile.checksum_length),
+        // Fixed-mode capacity A^bodyLength. Meaningless in expandable mode.
         capacity: pow_biguint(BigUint::from(body_norm.len() as u64), profile.body_length),
+        min_length,
+        separator_min_length,
         blocklist,
         body_alphabet_norm: body_norm,
         checksum_alphabet_norm: checksum_norm,

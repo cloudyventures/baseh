@@ -73,13 +73,27 @@ func (h *Codec) Profile() Profile {
 	return h.prep.profile
 }
 
-// Capacity returns A^bodyLength as a fresh *big.Int.
-func (h *Codec) Capacity() *big.Int {
-	return new(big.Int).Set(h.prep.capacity)
+// Capacity returns A^bodyLength as a fresh *big.Int. It is fixed-mode
+// only (spec 12.3): expandable profiles have no single capacity, so they
+// return INVALID_PROFILE; use the per-generation formulas of spec 19.1.
+func (h *Codec) Capacity() (*big.Int, error) {
+	if h.prep.mode != "fixed" {
+		return nil, newError(INVALID_PROFILE, "Capacity is only defined for fixed-mode profiles", false)
+	}
+	return new(big.Int).Set(h.prep.capacity), nil
 }
 
-// Encode implements spec 8 plus the spec-18.2 encode-time blocklist scan.
+// Encode implements spec 8 (fixed mode) or spec 19.6 (expandable mode),
+// plus the spec-18.2 encode-time blocklist scan.
 func (h *Codec) Encode(id *big.Int) (string, error) {
+	if h.prep.mode == "expandable" {
+		return h.encodeExpandable(id)
+	}
+	return h.encodeFixed(id)
+}
+
+// encodeFixed implements spec 8.
+func (h *Codec) encodeFixed(id *big.Int) (string, error) {
 	if id == nil || id.Sign() < 0 || id.Cmp(h.prep.capacity) >= 0 {
 		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v is outside the profile capacity", id), true)
 	}
@@ -97,16 +111,65 @@ func (h *Codec) Encode(id *big.Int) (string, error) {
 		return "", err
 	}
 	raw := body + checksum
-	// Spec 18.2: case-insensitive substring scan over the raw code.
+	if err := h.checkBlocklist(raw); err != nil {
+		return "", err
+	}
+	return formatRaw(raw, h.prep), nil
+}
+
+// encodeExpandable implements spec 19.6.
+func (h *Codec) encodeExpandable(id *big.Int) (string, error) {
+	if id == nil || id.Sign() < 0 {
+		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v is negative", id), true)
+	}
+	l := generationForId(h.prep, id)
+	if l > 32 {
+		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v requires a code longer than 32 symbols", id), true)
+	}
+	value := new(big.Int).Sub(id, generationBase(h.prep, l))
+	domain := generationCapacity(h.prep, l)
+	if h.prep.profile.Permutation.Enabled {
+		permuted, err := permute(value, domain, h.permKey(l))
+		if err != nil {
+			return "", err
+		}
+		value = permuted
+	}
+	body := encodeBaseN(value, h.prep.bodyNorm, l-h.prep.profile.ChecksumLength)
+	checksum, err := calculateChecksum(h.prep, body)
+	if err != nil {
+		return "", err
+	}
+	raw := body + checksum
+	if err := h.checkBlocklist(raw); err != nil {
+		return "", err
+	}
+	return formatRaw(raw, h.prep), nil
+}
+
+// permKey returns the Feistel key for one generation, with the total code
+// length mixed in per spec 7.3/19.4. Fixed mode passes no length.
+func (h *Codec) permKey(length int) feistelKey {
+	key := h.prep.permutationKey
+	if h.prep.mode == "expandable" {
+		key.length = length
+		key.hasLength = true
+	}
+	return key
+}
+
+// checkBlocklist runs the spec-18.2 case-insensitive substring scan over
+// the raw code.
+func (h *Codec) checkBlocklist(raw string) error {
 	if len(h.prep.blocklist) > 0 {
 		upper := strings.ToUpper(raw)
 		for _, word := range h.prep.blocklist {
 			if strings.Contains(upper, word) {
-				return "", newError(BLOCKED_CODE, "the generated reference contains a blocked substring", false)
+				return newError(BLOCKED_CODE, "the generated reference contains a blocked substring", false)
 			}
 		}
 	}
-	return formatRaw(raw, h.prep), nil
+	return nil
 }
 
 // Decode implements spec 9. All returned errors are *Error.
@@ -131,8 +194,12 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 		return nil, err
 	}
 
-	body := raw[:h.prep.profile.BodyLength]
-	suppliedChecksum := raw[h.prep.profile.BodyLength:]
+	bodyLength := h.prep.profile.BodyLength
+	if h.prep.mode == "expandable" {
+		bodyLength = len(raw) - h.prep.profile.ChecksumLength
+	}
+	body := raw[:bodyLength]
+	suppliedChecksum := raw[bodyLength:]
 
 	// Spec 3.1 validates union membership before the split. There is no
 	// per-region membership check: a checksum-region symbol outside the
@@ -205,7 +272,18 @@ func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 	if err != nil {
 		return nil, err
 	}
-	if h.prep.profile.Permutation.Enabled {
+	if h.prep.mode == "expandable" {
+		// Spec 19.7: the offset is de-permuted within the generation's own
+		// domain, then the generation base is added back.
+		l := len(raw)
+		if h.prep.profile.Permutation.Enabled {
+			value, err = inversePermute(value, generationCapacity(h.prep, l), h.permKey(l))
+			if err != nil {
+				return nil, err
+			}
+		}
+		value.Add(generationBase(h.prep, l), value)
+	} else if h.prep.profile.Permutation.Enabled {
 		value, err = inversePermute(value, h.prep.capacity, h.prep.permutationKey)
 		if err != nil {
 			return nil, err
@@ -238,6 +316,7 @@ func (h *Codec) Validate(input string, opts *DecodeOptions) ValidateResult {
 // unformatted string.
 func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 	s := strings.Trim(input, "\t\n\v\f\r ")
+	hadSeparator := h.prep.profile.Separator != "" && strings.Contains(s, h.prep.profile.Separator)
 	if h.prep.profile.Separator != "" {
 		s = strings.ReplaceAll(s, h.prep.profile.Separator, "")
 	}
@@ -247,9 +326,16 @@ func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 	if !h.prep.profile.CaseSensitive {
 		s = strings.ToUpper(s)
 	}
+	// Spec 3.2: an alias never maps two distinct canonical symbols into
+	// one value, so a symbol that is already canonical stays as-is and
+	// only non-canonical symbols are aliased. (In fixed tiers alias
+	// sources are never canonical, so this changes nothing there.)
 	if len(h.prep.aliasesNorm) > 0 {
 		buf := []byte(s)
 		for i := 0; i < len(buf); i++ {
+			if buf[i] < 0x80 && h.prep.allowedByte[buf[i]] {
+				continue
+			}
 			if tgt, ok := h.prep.aliasesNorm[buf[i]]; ok {
 				buf[i] = tgt
 			}
@@ -260,6 +346,22 @@ func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 		if s[i] > 0x7f || !h.prep.allowedByte[s[i]] {
 			return "", newError(INVALID_CHARACTER, fmt.Sprintf("symbol %q is not accepted", string(s[i])), true)
 		}
+	}
+	if h.prep.mode == "expandable" {
+		// Spec 19.2/19.7: no left-padding and no stripped-zero leniency.
+		// Input shorter than minLength or longer than 32 fails
+		// INVALID_LENGTH, and a separator below separatorMinLength is
+		// rejected (spec 19.5: the decoder expects no separators there).
+		if len(s) < h.prep.minLength {
+			return "", newError(INVALID_LENGTH, fmt.Sprintf("expected at least %d symbols, got %d", h.prep.minLength, len(s)), true)
+		}
+		if len(s) > 32 {
+			return "", newError(INVALID_LENGTH, fmt.Sprintf("expected at most 32 symbols, got %d", len(s)), true)
+		}
+		if hadSeparator && len(s) < h.prep.separatorMinLength {
+			return "", newError(INVALID_CHARACTER, fmt.Sprintf("separators do not appear below %d symbols", h.prep.separatorMinLength), true)
+		}
+		return s, nil
 	}
 	// Spec 3.4: a code that lost leading zero body symbols is re-padded with
 	// the body zero symbol. The checksum symbols always remain, so the split
@@ -278,19 +380,86 @@ func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 	return s, nil
 }
 
-// formatRaw applies the presentation grouping of spec 11. An empty
-// separator skips grouping entirely.
+// formatRaw applies the presentation grouping of spec 11 (fixed mode) or
+// the right-anchored pattern of spec 19.5 (expandable mode). An empty
+// separator skips grouping entirely, and expandable codes shorter than
+// separatorMinLength render bare.
 func formatRaw(raw string, prep *prepared) string {
 	if prep.profile.Separator == "" {
 		return raw
 	}
-	parts := make([]string, 0, len(prep.profile.Grouping))
+	grouping := prep.profile.Grouping
+	if prep.mode == "expandable" {
+		if len(raw) < prep.separatorMinLength {
+			return raw
+		}
+		grouping = expandableGrouping(len(raw), prep.profile.Grouping)
+	}
+	parts := make([]string, 0, len(grouping))
 	offset := 0
-	for _, size := range prep.profile.Grouping {
+	for _, size := range grouping {
 		parts = append(parts, raw[offset:offset+size])
 		offset += size
 	}
 	return strings.Join(parts, prep.profile.Separator)
+}
+
+// expandableGrouping implements spec 19.5: consume groups from the right,
+// cycling the pattern from its last element backwards; a short remainder
+// forms the leftmost group.
+func expandableGrouping(length int, pattern []int) []int {
+	var sizes []int
+	remaining := length
+	i := len(pattern) - 1
+	for remaining > 0 {
+		p := pattern[i]
+		if remaining <= p {
+			sizes = append([]int{remaining}, sizes...)
+			break
+		}
+		sizes = append([]int{p}, sizes...)
+		remaining -= p
+		i = (i - 1 + len(pattern)) % len(pattern)
+	}
+	return sizes
+}
+
+// generationBase implements spec 19.1: the first id of generation L, the
+// sum of A^(k-K) for k from minLength through L-1.
+func generationBase(prep *prepared, length int) *big.Int {
+	a := int64(len(prep.bodyNorm))
+	k := prep.profile.ChecksumLength
+	base := new(big.Int)
+	cap := new(big.Int).Exp(big.NewInt(a), big.NewInt(int64(prep.minLength-k)), nil)
+	for l := prep.minLength; l < length; l++ {
+		base.Add(base, cap)
+		cap.Mul(cap, big.NewInt(a))
+	}
+	return base
+}
+
+// generationCapacity implements spec 19.1: A^(L-K) ids held by
+// generation L.
+func generationCapacity(prep *prepared, length int) *big.Int {
+	return new(big.Int).Exp(
+		big.NewInt(int64(len(prep.bodyNorm))),
+		big.NewInt(int64(length-prep.profile.ChecksumLength)), nil)
+}
+
+// generationForId returns the smallest generation whose range holds id,
+// per spec 19.6.
+func generationForId(prep *prepared, id *big.Int) int {
+	a := big.NewInt(int64(len(prep.bodyNorm)))
+	l := prep.minLength
+	base := new(big.Int)
+	cap := generationCapacity(prep, l)
+	sum := new(big.Int)
+	for id.Cmp(sum.Add(base, cap)) >= 0 {
+		base.Add(base, cap)
+		cap.Mul(cap, a)
+		l++
+	}
+	return l
 }
 
 func resolveConfusionMap(name string) (map[string][]string, error) {

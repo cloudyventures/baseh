@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use baseh::{
-    feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Permutation, Profanity,
+    feistel, Baseh, ConfusionProfile, DecodeOptions, ErrorCode, Mode, Permutation, Profanity,
     ProfanityMode, Profile,
 };
 use num_bigint::BigUint;
@@ -79,12 +79,19 @@ fn profile_from_definition(def: &Value) -> Profile {
     });
     Profile {
         profile_id: def["profileId"].as_str().unwrap().to_string(),
+        mode: match def["mode"].as_str().unwrap_or("fixed") {
+            "fixed" => Mode::Fixed,
+            "expandable" => Mode::Expandable,
+            other => panic!("unknown mode {other}"),
+        },
         body_alphabet: def["bodyAlphabet"].as_str().unwrap().to_string(),
-        body_length: def["bodyLength"].as_u64().unwrap() as usize,
+        body_length: def["bodyLength"].as_u64().unwrap_or(0) as usize,
+        min_length: def["minLength"].as_u64().unwrap_or(0) as usize,
         checksum_alphabet: def["checksumAlphabet"].as_str().unwrap().to_string(),
         checksum_length: def["checksumLength"].as_u64().unwrap() as usize,
         case_sensitive: def["caseSensitive"].as_bool().unwrap(),
         separator: def["separator"].as_str().unwrap().to_string(),
+        separator_min_length: def["separatorMinLength"].as_u64().unwrap_or(0) as usize,
         grouping: def["grouping"]
             .as_array()
             .unwrap()
@@ -137,6 +144,26 @@ fn profile_capacities_match() {
     let fixture = Fixture::load();
     for p in fixture.root["profiles"].as_array().unwrap() {
         let baseh = fixture.get(p["profileId"].as_str().unwrap());
+        // Expandable profiles carry a per-generation table instead of a
+        // single capacity (spec 12.3/19.1).
+        if let Some(generations) = p.get("generations") {
+            for g in generations.as_array().unwrap() {
+                let length = g["length"].as_u64().unwrap() as usize;
+                assert_eq!(
+                    baseh.generation_base(length),
+                    big(&g["base"]),
+                    "generation base {length} for {}",
+                    p["profileId"]
+                );
+                assert_eq!(
+                    baseh.generation_capacity(length),
+                    big(&g["capacity"]),
+                    "generation capacity {length} for {}",
+                    p["profileId"]
+                );
+            }
+            continue;
+        }
         assert_eq!(
             baseh.capacity(),
             &big(&p["capacity"]),
@@ -208,12 +235,14 @@ fn formatted_code_carries_expected_raw_parts() {
         let baseh = fixture.get(v["profileId"].as_str().unwrap());
         let code = baseh.encode(&big(&v["id"])).unwrap();
         let raw = strip_separators(&code, baseh.profile());
-        let body_len = baseh.profile().body_length;
+        // Expandable codes are variable-length, so split at the expected
+        // body length rather than the profile's (fixed-only) bodyLength.
         if let Some(expected_body) = v.get("rawBody") {
-            assert_eq!(&raw[..body_len], expected_body.as_str().unwrap());
-        }
-        if let Some(expected_checksum) = v.get("rawChecksum") {
-            assert_eq!(&raw[body_len..], expected_checksum.as_str().unwrap());
+            let expected_body = expected_body.as_str().unwrap();
+            assert_eq!(&raw[..expected_body.len()], expected_body);
+            if let Some(expected_checksum) = v.get("rawChecksum") {
+                assert_eq!(&raw[expected_body.len()..], expected_checksum.as_str().unwrap());
+            }
         }
     }
 }
@@ -315,16 +344,19 @@ fn feistel_vectors() {
         let key_bytes = hex::decode(v["keyBytesHex"].as_str().unwrap()).unwrap();
         let capacity = big(&v["capacity"]);
         let rounds = v["rounds"].as_u64().unwrap() as u32;
+        // Expandable generations mix the code length into the round-message
+        // key derivation (spec 7.3/19.4); fixed-mode entries omit it.
+        let length = v["length"].as_u64().map(|l| l as u32);
         let input = big(&v["input"]);
         let permuted = big(&v["permuted"]);
-        let got = feistel::permute(&input, &capacity, profile_id, &key_bytes, rounds)
+        let got = feistel::permute(&input, &capacity, profile_id, &key_bytes, rounds, length)
             .unwrap_or_else(|_| panic!("permute {} within {}", v["input"], v["capacity"]));
         assert_eq!(
             got, permuted,
-            "permute {} (capacity {} rounds {})",
-            v["input"], v["capacity"], v["rounds"]
+            "permute {} (capacity {} rounds {} length {:?})",
+            v["input"], v["capacity"], v["rounds"], length
         );
-        let back = feistel::inverse_permute(&permuted, &capacity, profile_id, &key_bytes, rounds)
+        let back = feistel::inverse_permute(&permuted, &capacity, profile_id, &key_bytes, rounds, length)
             .expect("inverse must succeed");
         assert_eq!(back, input, "inverse(permute(x)) == x for {}", v["input"]);
     }

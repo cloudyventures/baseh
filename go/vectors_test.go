@@ -55,8 +55,11 @@ type feistelVectorFile struct {
 		KeyBytesHex string `json:"keyBytesHex"`
 		Capacity    string `json:"capacity"`
 		Rounds      int    `json:"rounds"`
-		Input       string `json:"input"`
-		Permuted    string `json:"permuted"`
+		// Length is expandable mode only (spec 19.4): the generation's
+		// total code length mixed into the round message.
+		Length   *int   `json:"length"`
+		Input    string `json:"input"`
+		Permuted string `json:"permuted"`
 	} `json:"vectors"`
 }
 
@@ -88,8 +91,16 @@ func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Codec {
 		if err != nil {
 			t.Fatalf("profile %s rejected: %v", vp.ProfileID, err)
 		}
-		if got := h.Capacity().String(); got != vp.Capacity {
-			t.Fatalf("profile %s capacity %s, want %s", vp.ProfileID, got, vp.Capacity)
+		// Expandable profiles carry no single capacity (spec 12.3); the
+		// vector file leaves the field empty for them.
+		if vp.Capacity != "" {
+			capacity, err := h.Capacity()
+			if err != nil {
+				t.Fatalf("profile %s capacity: %v", vp.ProfileID, err)
+			}
+			if got := capacity.String(); got != vp.Capacity {
+				t.Fatalf("profile %s capacity %s, want %s", vp.ProfileID, got, vp.Capacity)
+			}
 		}
 		codecs[vp.ProfileID] = h
 	}
@@ -258,6 +269,10 @@ func TestFeistelVectors(t *testing.T) {
 				profileID: v.ProfileID,
 				keyBytes:  mustHex(t, v.KeyBytesHex),
 				rounds:    v.Rounds,
+			}
+			if v.Length != nil {
+				key.length = *v.Length
+				key.hasLength = true
 			}
 			capacity := parseBig(t, v.Capacity)
 			input := parseBig(t, v.Input)

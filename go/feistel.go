@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"math/big"
+	"strconv"
 )
 
 // Feistel-v1, spec 7.3. HMAC-SHA-256 round function, alternating half
@@ -17,6 +18,12 @@ type feistelKey struct {
 	profileID string
 	keyBytes  []byte
 	rounds    int
+	// length is expandable mode only (spec 7.3/19.4): the total code
+	// length L of the generation, mixed into the round message. hasLength
+	// is false in fixed mode, where the message stays byte-for-byte
+	// unchanged.
+	length    int
+	hasLength bool
 }
 
 // bitLength returns ceil(log2(capacity)) = bit length of capacity - 1.
@@ -38,20 +45,25 @@ func lowBits(digest []byte, n int) *big.Int {
 }
 
 // roundMessage builds the exact round input byte sequence of spec 7.3:
-// tag, 0x00, profileId, 0x00, round byte, right in ceil(wr/8) big-endian
+// tag, 0x00, profileId, 0x00, optional ASCII length + 0x00 (expandable
+// mode only, spec 19.4), round byte, right in ceil(wr/8) big-endian
 // bytes (zero bytes when wr is 0).
-func roundMessage(profileID string, round int, right *big.Int, wr int) []byte {
+func roundMessage(key feistelKey, round int, right *big.Int, wr int) []byte {
 	byteCount := (wr + 7) / 8
 	rightBytes := make([]byte, byteCount)
 	if byteCount > 0 {
 		rb := right.Bytes()
 		copy(rightBytes[byteCount-len(rb):], rb)
 	}
-	msg := make([]byte, 0, len(feistelTag)+1+len(profileID)+1+1+byteCount)
+	msg := make([]byte, 0, len(feistelTag)+1+len(key.profileID)+1+8+1+byteCount)
 	msg = append(msg, feistelTag...)
 	msg = append(msg, 0)
-	msg = append(msg, profileID...)
+	msg = append(msg, key.profileID...)
 	msg = append(msg, 0)
+	if key.hasLength {
+		msg = strconv.AppendInt(msg, int64(key.length), 10)
+		msg = append(msg, 0)
+	}
 	msg = append(msg, byte(round))
 	msg = append(msg, rightBytes...)
 	return msg
@@ -89,7 +101,7 @@ func runRounds(h halves, key feistelKey, w0, w1 int) halves {
 		if i%2 != 0 {
 			wr, wl = w0, w1
 		}
-		f := lowBits(roundMAC(key, roundMessage(key.profileID, i, right, wr)), wl)
+		f := lowBits(roundMAC(key, roundMessage(key, i, right, wr)), wl)
 		left, right = right, new(big.Int).Xor(left, f)
 	}
 	return halves{left: left, right: right}
@@ -105,7 +117,7 @@ func runInverse(h halves, key feistelKey, w0, w1 int) halves {
 		if i%2 != 0 {
 			wr, wl = w0, w1
 		}
-		f := lowBits(roundMAC(key, roundMessage(key.profileID, i, left, wr)), wl)
+		f := lowBits(roundMAC(key, roundMessage(key, i, left, wr)), wl)
 		left, right = new(big.Int).Xor(right, f), left
 	}
 	return halves{left: left, right: right}

@@ -42,6 +42,7 @@ function keyedPermutation(options) {
 function tier(shape, permutation, pSuffix) {
     return {
         profileId: shape.profileId + (pSuffix ? "-p" : "") + "-v1",
+        mode: "fixed",
         bodyAlphabet: shape.bodyAlphabet,
         bodyLength: 6,
         checksumAlphabet: shape.checksumAlphabet,
@@ -123,6 +124,47 @@ export function basehMediumPV1(options) {
 /** Conservative alphabet plus spoken heavy, two checksum symbols, hyphen-delimited. */
 export function basehHeavyV1() {
     return tier(HEAVY, frozenPermutation(), false);
+}
+// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the zero
+// ban of section 19.2)". The JSON bodyAlphabet string printed in section
+// 17.1 lists only 32 symbols (it also drops I and L), but the prose, the
+// generation-capacity table (34^(L-2); 1,156 ids at length 4) and the
+// checksum modulus (35^2 = 1,225) are all consistent only with 34, and the
+// zero ban removes exactly 0 and O. The 34-symbol alphabet is the one that
+// satisfies the normative numbers.
+const EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+/**
+ * Spec 17.1. The frozen expandable tier: four characters while the namespace
+ * is small, gaining one symbol automatically as issuance climbs past each
+ * generation's capacity. The body alphabet is the full alphanumeric set
+ * minus 0/O (the zero ban, spec 19.2); the checksum alphabet derives as "0"
+ * plus the body (35 symbols, modulus 1225). The hyphen appears from six
+ * characters up, grouped right-anchored by the [4, 4] pattern.
+ */
+function expandableTier(permutation, pSuffix) {
+    return {
+        profileId: "baseh-expandable" + (pSuffix ? "-p" : "") + "-v1",
+        mode: "expandable",
+        bodyAlphabet: EXPANDABLE_BODY,
+        minLength: 4,
+        checksumAlphabet: "0" + EXPANDABLE_BODY,
+        checksumLength: 2,
+        caseSensitive: false,
+        separator: "-",
+        separatorMinLength: 6,
+        grouping: [4, 4],
+        aliases: { ...OIL_ALIASES, T: "P", N: "M", W: "V" },
+        permutation,
+        profanity: { mode: "blocklist" }
+    };
+}
+/** The frozen expandable tier; the recommended starting point for new namespaces. */
+export function basehExpandableV1() {
+    return expandableTier(frozenPermutation(), false);
+}
+/** baseh-expandable permuted with caller-supplied key material. */
+export function basehExpandablePV1(options) {
+    return expandableTier(keyedPermutation(options), true);
 }
 /** baseh-heavy permuted with caller-supplied key material. */
 export function basehHeavyPV1(options) {

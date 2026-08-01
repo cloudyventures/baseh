@@ -7,7 +7,16 @@ FROZEN_KEY_BYTES; the _p variants take caller-supplied key material instead.
 """
 
 from .blocklist import DEFAULT_BLOCKLIST
-from .codec import CONFUSION_MAPS, Baseh, DecodeResult, generate_candidates
+from .codec import (
+    CONFUSION_MAPS,
+    Baseh,
+    DecodeResult,
+    expandable_grouping,
+    generate_candidates,
+    generation_base,
+    generation_capacity,
+    generation_for_id,
+)
 from .errors import (
     AMBIGUOUS_INPUT,
     BLOCKED_CODE,
@@ -22,6 +31,8 @@ from .errors import (
 )
 from .profiles import (
     FROZEN_KEY_BYTES,
+    baseh_expandable_p_v1,
+    baseh_expandable_v1,
     baseh_heavy_p_v1,
     baseh_heavy_v1,
     baseh_light_p_v1,
@@ -40,7 +51,13 @@ __all__ = [
     "CONFUSION_MAPS",
     "DEFAULT_BLOCKLIST",
     "generate_candidates",
+    "expandable_grouping",
+    "generation_base",
+    "generation_capacity",
+    "generation_for_id",
     "FROZEN_KEY_BYTES",
+    "baseh_expandable_v1",
+    "baseh_expandable_p_v1",
     "baseh_minimum_v1",
     "baseh_minimum_p_v1",
     "baseh_light_v1",

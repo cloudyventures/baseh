@@ -49,13 +49,35 @@ fn to_be(value: &BigUint, byte_count: usize) -> Vec<u8> {
     }
 }
 
-fn round_message(profile_id: &str, round: u32, right: &BigUint, wr: usize) -> Vec<u8> {
+fn round_message(
+    profile_id: &str,
+    round: u32,
+    right: &BigUint,
+    wr: usize,
+    length: Option<u32>,
+) -> Vec<u8> {
     let right_bytes = to_be(right, wr.div_ceil(8));
-    let mut msg = Vec::with_capacity(TAG.len() + 1 + profile_id.len() + 1 + 1 + right_bytes.len());
+    let len_bytes = length.map(|l| l.to_string().into_bytes());
+    let mut msg = Vec::with_capacity(
+        TAG.len()
+            + 1
+            + profile_id.len()
+            + 1
+            + len_bytes.as_ref().map_or(0, |b| b.len() + 1)
+            + 1
+            + right_bytes.len(),
+    );
     msg.extend_from_slice(TAG);
     msg.push(0);
     msg.extend_from_slice(profile_id.as_bytes());
     msg.push(0);
+    // Expandable mode only (spec 7.3/19.4): the total code length of the
+    // generation, mixed in as ASCII decimal. Absent in fixed mode, where the
+    // message stays byte-for-byte unchanged.
+    if let Some(bytes) = len_bytes {
+        msg.extend_from_slice(&bytes);
+        msg.push(0);
+    }
     msg.push(round as u8);
     msg.extend_from_slice(&right_bytes);
     msg
@@ -65,6 +87,7 @@ struct Key<'a> {
     profile_id: &'a str,
     key_bytes: &'a [u8],
     rounds: u32,
+    length: Option<u32>,
 }
 
 struct Halves {
@@ -75,7 +98,7 @@ struct Halves {
 fn round_f(key: &Key<'_>, round: u32, value: &BigUint, wr: usize, wl: usize) -> BigUint {
     let mut mac = <HmacSha256 as Mac>::new_from_slice(key.key_bytes)
         .expect("HMAC accepts keys of any length");
-    mac.update(&round_message(key.profile_id, round, value, wr));
+    mac.update(&round_message(key.profile_id, round, value, wr, key.length));
     let digest = mac.finalize().into_bytes();
     low_bits(&digest, wl)
 }
@@ -164,13 +187,16 @@ fn walk(
     ))
 }
 
-/// Spec 7.3 forward permutation with cycle walking.
+/// Spec 7.3 forward permutation with cycle walking. `length` is expandable
+/// mode only (spec 19.4): the generation's total code length, mixed into the
+/// round-message key derivation. Pass `None` in fixed mode.
 pub fn permute(
     value: &BigUint,
     capacity: &BigUint,
     profile_id: &str,
     key_bytes: &[u8],
     rounds: u32,
+    length: Option<u32>,
 ) -> Result<BigUint, BasehError> {
     walk(
         value,
@@ -179,18 +205,21 @@ pub fn permute(
             profile_id,
             key_bytes,
             rounds,
+            length,
         },
         true,
     )
 }
 
-/// Spec 7.3 inverse permutation with cycle walking.
+/// Spec 7.3 inverse permutation with cycle walking. See [`permute`] for the
+/// `length` argument.
 pub fn inverse_permute(
     value: &BigUint,
     capacity: &BigUint,
     profile_id: &str,
     key_bytes: &[u8],
     rounds: u32,
+    length: Option<u32>,
 ) -> Result<BigUint, BasehError> {
     walk(
         value,
@@ -199,6 +228,7 @@ pub fn inverse_permute(
             profile_id,
             key_bytes,
             rounds,
+            length,
         },
         false,
     )

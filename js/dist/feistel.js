@@ -24,10 +24,11 @@ function toBe(value, byteCount) {
     }
     return out;
 }
-function roundMessage(profileId, round, right, wr) {
+function roundMessage(profileId, round, right, wr, length) {
     const pidBytes = new TextEncoder().encode(profileId);
+    const lenBytes = length === undefined ? new Uint8Array(0) : new TextEncoder().encode(String(length));
     const rightBytes = toBe(right, Math.ceil(wr / 8));
-    const msg = new Uint8Array(TAG.length + 1 + pidBytes.length + 1 + 1 + rightBytes.length);
+    const msg = new Uint8Array(TAG.length + 1 + pidBytes.length + 1 + lenBytes.length + (length === undefined ? 0 : 1) + 1 + rightBytes.length);
     let o = 0;
     msg.set(TAG, o);
     o += TAG.length;
@@ -37,6 +38,12 @@ function roundMessage(profileId, round, right, wr) {
     o += pidBytes.length;
     msg[o] = 0;
     o += 1;
+    if (length !== undefined) {
+        msg.set(lenBytes, o);
+        o += lenBytes.length;
+        msg[o] = 0;
+        o += 1;
+    }
     msg[o] = round;
     o += 1;
     msg.set(rightBytes, o);
@@ -48,7 +55,7 @@ function runRounds(h, key, w0, w1) {
         const even = i % 2 === 0;
         const wr = even ? w1 : w0;
         const wl = even ? w0 : w1;
-        const digest = hmac(sha256, key.keyBytes, roundMessage(key.profileId, i, right, wr));
+        const digest = hmac(sha256, key.keyBytes, roundMessage(key.profileId, i, right, wr, key.length));
         const f = lowBits(digest, wl);
         const newLeft = right;
         const newRight = left ^ f;
@@ -63,7 +70,7 @@ function runInverse(h, key, w0, w1) {
         const even = i % 2 === 0;
         const wr = even ? w1 : w0;
         const wl = even ? w0 : w1;
-        const digest = hmac(sha256, key.keyBytes, roundMessage(key.profileId, i, left, wr));
+        const digest = hmac(sha256, key.keyBytes, roundMessage(key.profileId, i, left, wr, key.length));
         const f = lowBits(digest, wl);
         const prevRight = left;
         const prevLeft = right ^ f;

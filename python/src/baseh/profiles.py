@@ -148,6 +148,46 @@ def baseh_medium_p_v1(
     return _tier("medium", _keyed_permutation(key_bytes, key_id, rounds), True)
 
 
+_EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+
+
+def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
+    """Spec 17.1. The frozen expandable tier: four characters while the
+    namespace is small, gaining one symbol automatically as issuance climbs
+    past each generation's capacity. The body alphabet is the full
+    alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
+    alphabet derives as "0" plus the body (35 symbols, modulus 1225). The
+    hyphen appears from six characters up, grouped right-anchored by the
+    [4, 4] pattern."""
+    return {
+        "profileId": "baseh-expandable" + ("-p" if p_suffix else "") + "-v1",
+        "mode": "expandable",
+        "bodyAlphabet": _EXPANDABLE_BODY,
+        "minLength": 4,
+        "checksumAlphabet": "0" + _EXPANDABLE_BODY,
+        "checksumLength": 2,
+        "caseSensitive": False,
+        "separator": "-",
+        "separatorMinLength": 6,
+        "grouping": [4, 4],
+        "aliases": {**_OIL_ALIASES, "T": "P", "N": "M", "W": "V"},
+        "permutation": permutation,
+        "profanity": {"mode": "blocklist"},
+    }
+
+
+def baseh_expandable_v1() -> dict:
+    """The frozen expandable tier; the recommended starting point for new namespaces."""
+    return _expandable_tier(_frozen_permutation(), False)
+
+
+def baseh_expandable_p_v1(
+    key_bytes: bytes, key_id: str = "default", rounds: int = 8
+) -> dict:
+    """baseh-expandable permuted with caller-supplied key material."""
+    return _expandable_tier(_keyed_permutation(key_bytes, key_id, rounds), True)
+
+
 def baseh_heavy_v1() -> dict:
     """Conservative alphabet plus spoken heavy, two checksum symbols, hyphen-delimited."""
     return _tier("heavy", _frozen_permutation(), False)
