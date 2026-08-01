@@ -69,13 +69,19 @@ function readInput(): DesignerInput | null {
 }
 
 function sampleLine(s: { id: string; code: string }): string {
+  let title: string;
+  let marker: string;
   if (s.id === "0") {
-    return `<div><span title="Identifier 0: the first number in the space. Its code shows what the all-leading-symbols shape looks like.">0</span>: <code>${s.code}</code></div>`;
+    title = "Identifier 0: the first number in the space. Its code shows what the all-leading-symbols shape looks like.";
+    marker = "0";
+  } else if (s.id === "1") {
+    title = "Identifier 1: the second number in the space. Its code shows what changes between adjacent identifiers.";
+    marker = "1";
+  } else {
+    title = "Identifier infinity: the highest number this design can issue (its capacity minus one). Its code shows what the very last codes look like.";
+    marker = "&infin;";
   }
-  if (s.id === "1") {
-    return `<div><span title="Identifier 1: the second number in the space. Its code shows what changes between adjacent identifiers.">1</span>: <code>${s.code}</code></div>`;
-  }
-  return `<div><span title="Identifier infinity: the highest number this design can issue (its capacity minus one). Its code shows what the very last codes look like.">&infin;</span>: <code>${s.code}</code></div>`;
+  return `<div><span title="${title}">${marker}: <code>${s.code}</code></span></div>`;
 }
 
 function card(c: Candidate, label?: string): string {
