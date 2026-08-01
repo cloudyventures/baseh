@@ -2,7 +2,7 @@
 name = "base-human"
 version = "1.0.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-only"
 description = "Human Reference Code (HRC) codec: fixed-length, checksummed, optionally permuted human-readable identifiers"
 
 [dependencies]

@@ -168,7 +168,7 @@ Tests:
 
 ## 8. Formatting tests
 
-For grouping `[3, 3, 1]`:
+For grouping `[3, 4]`:
 
 - Encoder emits separators at exact positions.
 - Decoder accepts canonical separators.

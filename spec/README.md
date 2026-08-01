@@ -57,7 +57,7 @@ body_length: 6
 checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY"
 checksum_length: 1
 case_sensitive: false
-grouping: [3, 3, 1]
+grouping: [3, 4]
 separator: "-"
 permutation:
   enabled: true
@@ -73,12 +73,12 @@ aliases:
 Example rendered shape:
 
 ```text
-7KM-4Q2-H
+7KM-4Q2H
 ```
 
 This profile has `32^6 = 1,073,741,824` body combinations. The checksum adds validation but does not add identifier capacity.
 
-A second frozen profile, `hrc32s-v1`, uses two checksum characters (grouping `[3, 3, 2]`) and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
+A second frozen profile, `hrc32s-v1`, uses two checksum characters (grouping `[3, 5]`) and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
 
 Permutation key material is never part of a frozen profile. Each application assigns its own `key_id` and key and stores them in a secret manager.
 

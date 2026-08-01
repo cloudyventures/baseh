@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "HRC (Human Reference Code) codec: checksumed, optionally permuted human-readable identifiers"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-only" }
 dependencies = []
 
 [tool.setuptools]

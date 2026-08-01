@@ -433,7 +433,7 @@ Formatting is presentation only.
 Example:
 
 ```yaml
-grouping: [3, 3, 1]
+grouping: [3, 4]
 separator: "-"
 ```
 
@@ -446,7 +446,7 @@ Raw:
 Formatted:
 
 ```text
-7KM-4Q2-H
+7KM-4Q2H
 ```
 
 The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
@@ -578,7 +578,7 @@ Frozen profile for assisted-support references, `hrc32-v1`:
   "checksumLength": 1,
   "caseSensitive": false,
   "separator": "-",
-  "grouping": [3, 3, 1],
+  "grouping": [3, 4],
   "aliases": {
     "O": "0",
     "I": "1",
@@ -593,6 +593,6 @@ Frozen profile for assisted-support references, `hrc32-v1`:
 }
 ```
 
-Frozen profile for unattended self-service lookup, `hrc32s-v1`. Identical to `hrc32-v1` except `checksumLength` is 2, `grouping` is `[3, 3, 2]` and the checksum modulus is 625, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
+Frozen profile for unattended self-service lookup, `hrc32s-v1`. Identical to `hrc32-v1` except `checksumLength` is 2, `grouping` is `[3, 5]` and the checksum modulus is 676, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
 
 Application-specific permutation keys are never part of the frozen profile; each application assigns its own `keyId` and key material. Freeze both profiles' checksum and Feistel test vectors before production use.

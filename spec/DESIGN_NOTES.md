@@ -169,7 +169,7 @@ A fixed prefix does not add capacity.
 Examples:
 
 ```text
-T-7KM-4Q2-H
+T-7KM-4Q2H
 O-1DP-8R7-C
 ```
 
@@ -374,7 +374,7 @@ correction:
 permutation:
   enabled: true
 format:
-  grouping: [3, 3, 1]
+  grouping: [3, 4]
   separator: "-"
 ```
 

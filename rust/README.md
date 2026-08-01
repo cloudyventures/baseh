@@ -75,4 +75,4 @@ Also gated on `cargo clippy --all-targets` (clean) and `cargo fmt --check`.
 
 ## License
 
-MIT
+AGPL-3.0; see LICENSE for the full text and COMMERCIAL.md for proprietary-use licensing.

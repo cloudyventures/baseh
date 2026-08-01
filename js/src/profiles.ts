@@ -24,7 +24,7 @@ export function hrc32V1(options: FrozenOptions): HrcProfile {
     checksumLength: 1,
     caseSensitive: false,
     separator: "-",
-    grouping: [3, 3, 1],
+    grouping: [3, 4],
     aliases: { ...ALIASES },
     permutation: {
       enabled: true,
@@ -47,7 +47,7 @@ export function hrc32sV1(options: FrozenOptions): HrcProfile {
     ...base,
     profileId: "hrc32s-v1",
     checksumLength: 2,
-    grouping: [3, 3, 2]
+    grouping: [3, 5]
   };
 }
 
