@@ -29,6 +29,7 @@ function designInput(overrides: Partial<DesignerInput> = {}): DesignerInput {
     maxDisplayedLength: 9,
     minimumChecksumLength: 1,
     maxUtilization: 0.5,
+    separator: "",
     allowDigits: true,
     allowUpper: true,
     allowAlnum: true,
@@ -163,5 +164,25 @@ describe("spoken safety (strip one of each pair)", async () => {
     for (const ex of r.examples) {
       assert.doesNotMatch(ex.code.slice(0, 6), /[DTNWSG]/);
     }
+  });
+});
+
+describe("separator in the designer", () => {
+  it("adds one displayed char per delimiter position", () => {
+    const plain = design(designInput({ requiredCapacity: 1_000_000n, separator: "" }));
+    const dashed = design(designInput({ requiredCapacity: 1_000_000n, separator: "-" }));
+    const p = plain.feasible[0]!;
+    const d = dashed.feasible.find((c) => c.alphabetId === p.alphabetId && c.bodyLength === p.bodyLength && c.checksumLength === p.checksumLength)!;
+    assert.equal(d.displayedLength, p.displayedLength + (p.bodyLength + p.checksumLength > 4 ? 1 : 0));
+  });
+  it("sample codes carry the delimiter", async () => {
+    const { sampleCodes } = await import("../src/core.js");
+    const s = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 1073741824n, "none", "-");
+    assert.ok(s.length > 0 && s.every((e) => e.code.includes("-")));
+  });
+  it("empty delimiter means none", async () => {
+    const { sampleCodes } = await import("../src/core.js");
+    const s = sampleCodes("0123456789ABCDEFGHJKMNPQRSTVWXYZ", 6, 1, 1073741824n, "none", "");
+    assert.ok(s.length > 0 && s.every((e) => !e.code.includes("-")));
   });
 });

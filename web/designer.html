@@ -34,6 +34,10 @@
         <input id="max-len" type="number" min="3" max="20" value="9" />
       </div>
       <div class="field">
+        <label for="d-separator">Delimiter<span class="tip" tabindex="0" aria-label="Delimiter details"><span class="i">i</span><span class="tip-body">Optional one-character delimiter inserted between groups of the code, for example a hyphen turning JCG4JUY into JCG4-JUY. An empty value means no delimiter. Each delimiter position counts toward the maximum displayed length, so adding one can push a candidate from feasible to too long. The delimiter never changes capacity or the checksum; it is grouping only, and the character must not be an alphabet symbol.</span></span></label>
+        <input id="d-separator" type="text" maxlength="1" value="" placeholder="none" />
+      </div>
+      <div class="field">
         <label for="min-check">Minimum checksum length<span class="tip" tabindex="0" aria-label="Minimum checksum length details"><span class="i">i</span><span class="tip-body">Rejects every candidate with fewer checksum symbols than this. 0 allows unvalidated codes, where a typo silently matches the wrong record or fails with no explanation. 1 matches assisted-support workflows: about 98.8% of single-symbol substitutions are caught and a human handles the rest (the baseh32-v1 posture). 2 forces self-service strength: provable detection of every single substitution and every adjacent transposition (the baseh32s-v1 posture). 3 exists for very noisy channels.</span></span></label>
         <select id="min-check">
           <option value="0">0</option>
@@ -89,7 +93,7 @@
       <h2 id="compare">Comparison</h2>
       <table id="candidates">
         <thead>
-          <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>Reason</th></tr>
+          <tr><th></th><th>Candidate</th><th>Capacity</th><th>Utilization</th><th>Displayed</th><th>id 0</th><th>Reason</th></tr>
         </thead>
         <tbody></tbody>
       </table>

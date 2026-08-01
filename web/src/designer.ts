@@ -7,6 +7,7 @@ const els = {
   dRecords: $<HTMLInputElement>("d-records"),
   dRetention: $<HTMLInputElement>("d-retention"),
   maxLen: $<HTMLInputElement>("max-len"),
+  separator: $<HTMLInputElement>("d-separator"),
   minCheck: $<HTMLSelectElement>("min-check"),
   maxUtil: $<HTMLSelectElement>("max-util"),
   visual: $<HTMLSelectElement>("d-visual"),
@@ -58,6 +59,7 @@ function readInput(): DesignerInput | null {
     maxDisplayedLength: Number(els.maxLen.value),
     minimumChecksumLength: Number(els.minCheck.value),
     maxUtilization: Number(els.maxUtil.value),
+    separator: els.separator.value.trim(),
     allowDigits: els.allowDigits.checked,
     allowUpper: els.allowUpper.checked,
     allowAlnum: els.allowAlnum.checked,
@@ -67,9 +69,9 @@ function readInput(): DesignerInput | null {
 }
 
 function card(c: Candidate, label?: string): string {
-  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken)
-    .map((s) => `${fmt(BigInt(s.id))}: <code>${s.code}</code>`)
-    .join(" &middot; ");
+  const samples = sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator)
+    .map((s) => `<div>${fmt(BigInt(s.id))}: <code>${s.code}</code></div>`)
+    .join("");
   return `<div class="card alt-card">
     ${label ? `<div class="label">${label}</div>` : ""}
     <div class="big">${c.bodyLength} body + ${c.checksumLength} check</div>
@@ -103,6 +105,7 @@ function render() {
       <td title="${fmtFull(c.capacity)}">${fmt(c.capacity)}</td>
       <td>${(c.utilization * 100).toFixed(1)}%</td>
       <td>${c.displayedLength}</td>
+      <td><code>${sampleCodes(c.alphabet, c.bodyLength, c.checksumLength, c.capacity, c.spoken, c.separator).find((s) => s.id === "0")?.code ?? ""}</code></td>
       <td>${c.reason}</td>
     </tr>`).join("");
   els.exportBtn.onclick = async () => {
@@ -112,7 +115,7 @@ function render() {
   };
 }
 
-for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.minCheck,
+for (const el of [els.required, els.dRecords, els.dRetention, els.maxLen, els.separator, els.minCheck,
   els.maxUtil, els.visual, els.spoken, els.allowAlnum, els.allowUpper, els.allowDigits]) {
   el.addEventListener("input", render);
 }
