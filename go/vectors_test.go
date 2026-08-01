@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"encoding/hex"
@@ -80,11 +80,11 @@ func parseBig(t *testing.T, s string) *big.Int {
 	return v
 }
 
-func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Baseh {
+func buildVectorProfiles(t *testing.T, vf vectorFile) map[string]*Codec {
 	t.Helper()
-	codecs := make(map[string]*Baseh)
+	codecs := make(map[string]*Codec)
 	for _, vp := range vf.Profiles {
-		h, err := NewBaseh(vp.Definition)
+		h, err := New(vp.Definition)
 		if err != nil {
 			t.Fatalf("profile %s rejected: %v", vp.ProfileID, err)
 		}

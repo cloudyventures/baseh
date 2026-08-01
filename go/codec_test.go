@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"bytes"
@@ -44,11 +44,11 @@ func baseProfile() Profile {
 	return p
 }
 
-func mustNew(t *testing.T, p Profile) *Baseh {
+func mustNew(t *testing.T, p Profile) *Codec {
 	t.Helper()
-	h, err := NewBaseh(p)
+	h, err := New(p)
 	if err != nil {
-		t.Fatalf("NewBaseh: %v", err)
+		t.Fatalf("New: %v", err)
 	}
 	return h
 }
@@ -135,9 +135,9 @@ func TestProfileValidationRejections(t *testing.T) {
 	}
 	for name, p := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewBaseh(p)
+			_, err := New(p)
 			if err == nil {
-				t.Fatalf("NewBaseh accepted invalid profile")
+				t.Fatalf("New accepted invalid profile")
 			}
 			assertCode(t, err, INVALID_PROFILE)
 		})
@@ -146,19 +146,19 @@ func TestProfileValidationRejections(t *testing.T) {
 
 func keyedTiers() map[string]Profile {
 	return map[string]Profile{
-		"baseh-minimum-p-v1": BasehMinimumPV1(testKey, "test-01", 8),
-		"baseh-light-p-v1":   BasehLightPV1(testKey, "test-01", 8),
-		"baseh-medium-p-v1":  BasehMediumPV1(testKey, "test-01", 8),
-		"baseh-heavy-p-v1":   BasehHeavyPV1(testKey, "test-01", 8),
+		"baseh-minimum-p-v1": MinimumPV1(testKey, "test-01", 8),
+		"baseh-light-p-v1":   LightPV1(testKey, "test-01", 8),
+		"baseh-medium-p-v1":  MediumPV1(testKey, "test-01", 8),
+		"baseh-heavy-p-v1":   HeavyPV1(testKey, "test-01", 8),
 	}
 }
 
 func plainTiers() map[string]Profile {
 	return map[string]Profile{
-		"baseh-minimum-v1": BasehMinimumV1(),
-		"baseh-light-v1":   BasehLightV1(),
-		"baseh-medium-v1":  BasehMediumV1(),
-		"baseh-heavy-v1":   BasehHeavyV1(),
+		"baseh-minimum-v1": MinimumV1(),
+		"baseh-light-v1":   LightV1(),
+		"baseh-medium-v1":  MediumV1(),
+		"baseh-heavy-v1":   HeavyV1(),
 	}
 }
 
@@ -172,24 +172,24 @@ func TestShippedProfilesAccepted(t *testing.T) {
 		if !bytes.Equal(perm.KeyBytes, FrozenKeyBytes) {
 			t.Errorf("%s: permutation key diverges from FrozenKeyBytes", id)
 		}
-		if _, err := NewBaseh(p); err != nil {
+		if _, err := New(p); err != nil {
 			t.Errorf("%s: %v", id, err)
 		}
 	}
 	for id, p := range keyedTiers() {
-		if _, err := NewBaseh(p); err != nil {
+		if _, err := New(p); err != nil {
 			t.Errorf("%s: %v", id, err)
 		}
 	}
 	// The keyed variants require key material: empty key bytes must fail
-	// validation at NewBaseh.
+	// validation at New.
 	for _, p := range []Profile{
-		BasehMinimumPV1(nil, "", 0),
-		BasehLightPV1(nil, "", 0),
-		BasehMediumPV1(nil, "", 0),
-		BasehHeavyPV1(nil, "", 0),
+		MinimumPV1(nil, "", 0),
+		LightPV1(nil, "", 0),
+		MediumPV1(nil, "", 0),
+		HeavyPV1(nil, "", 0),
 	} {
-		if _, err := NewBaseh(p); err == nil {
+		if _, err := New(p); err == nil {
 			t.Errorf("%s accepted without key material", p.ProfileID)
 		} else {
 			assertCode(t, err, INVALID_PROFILE)
@@ -198,24 +198,24 @@ func TestShippedProfilesAccepted(t *testing.T) {
 }
 
 func TestHelpersReturnFreshProfiles(t *testing.T) {
-	p := BasehMediumV1()
+	p := MediumV1()
 	delete(p.Aliases, "T")
-	if _, ok := BasehMediumV1().Aliases["T"]; !ok {
+	if _, ok := MediumV1().Aliases["T"]; !ok {
 		t.Errorf("alias mutation leaked into a fresh profile")
 	}
-	g := BasehMinimumV1()
+	g := MinimumV1()
 	g.Grouping[0] = 1
-	if got := BasehMinimumV1().Grouping[0]; got != 3 {
+	if got := MinimumV1().Grouping[0]; got != 3 {
 		t.Errorf("grouping mutation leaked into a fresh profile: %d", got)
 	}
-	k := BasehMediumPV1(testKey, "test-01", 8)
+	k := MediumPV1(testKey, "test-01", 8)
 	k.Permutation.KeyBytes = nil
-	if got := BasehMediumPV1(testKey, "test-01", 8); len(got.Permutation.KeyBytes) == 0 {
+	if got := MediumPV1(testKey, "test-01", 8); len(got.Permutation.KeyBytes) == 0 {
 		t.Errorf("keyed tier returned a shared key slice")
 	}
-	f := BasehLightV1()
+	f := LightV1()
 	f.Permutation.KeyBytes[0] ^= 0xff
-	if got := BasehLightV1().Permutation.KeyBytes[0]; got != FrozenKeyBytes[0] {
+	if got := LightV1().Permutation.KeyBytes[0]; got != FrozenKeyBytes[0] {
 		t.Errorf("frozen key mutation leaked into a fresh profile")
 	}
 }
@@ -245,7 +245,7 @@ func TestTierCapacities(t *testing.T) {
 
 func TestKeyedPermutationDefaults(t *testing.T) {
 	// Explicit key id and rounds pass through.
-	keyed := BasehMediumPV1(testKey, "test-01", 8)
+	keyed := MediumPV1(testKey, "test-01", 8)
 	perm := keyed.Permutation
 	if !perm.Enabled || perm.Algorithm != "feistel-v1" || perm.KeyID != "test-01" || perm.Rounds != 8 {
 		t.Errorf("keyed permutation = %+v", perm)
@@ -254,12 +254,12 @@ func TestKeyedPermutationDefaults(t *testing.T) {
 		t.Errorf("keyed profile id = %q", keyed.ProfileID)
 	}
 	// Empty key id defaults to "default" and zero rounds to 8.
-	def := BasehMediumPV1(testKey, "", 0)
+	def := MediumPV1(testKey, "", 0)
 	if def.Permutation.KeyID != "default" || def.Permutation.Rounds != 8 {
 		t.Errorf("defaults = %+v", def.Permutation)
 	}
 	// The keyed variant matches its plain tier on every shared field.
-	plain := BasehMediumV1()
+	plain := MediumV1()
 	if def.BodyAlphabet != plain.BodyAlphabet ||
 		def.BodyLength != plain.BodyLength ||
 		def.ChecksumAlphabet != plain.ChecksumAlphabet ||
@@ -427,7 +427,7 @@ func TestCorrectionModes(t *testing.T) {
 // TestMediumLookalikeAliases mirrors the JS "look-alike aliases on frozen
 // tiers" suite: typed B decodes as 8 and typed S as 5 on baseh-medium-v1.
 func TestMediumLookalikeAliases(t *testing.T) {
-	medium := mustNew(t, BasehMediumV1())
+	medium := mustNew(t, MediumV1())
 	firstCodeWith := func(sym string) (int64, string) {
 		for id := int64(1); id < 5000000; id++ {
 			code, err := medium.Encode(big.NewInt(id))
@@ -498,7 +498,7 @@ func TestMediumLookalikeAliases(t *testing.T) {
 // never generated, so the failure is INVALID_CHECKSUM, never
 // INVALID_CHARACTER from the checksum step.
 func TestCorrectionFilterRegression(t *testing.T) {
-	medium := mustNew(t, BasehMediumV1())
+	medium := mustNew(t, MediumV1())
 	code := ""
 	for id := int64(1); id < 1000000; id++ {
 		c, err := medium.Encode(big.NewInt(id))
@@ -604,7 +604,7 @@ func TestProfanityNoVowels(t *testing.T) {
 	p := baseh32Shape()
 	p.ProfileID = "novowel32-test"
 	p.Profanity = Profanity{Mode: ProfanityNoVowels}
-	h, err := NewBaseh(p)
+	h, err := New(p)
 	if err != nil {
 		t.Fatalf("novowel profile rejected: %v", err)
 	}

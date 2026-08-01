@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"encoding/hex"
@@ -31,7 +31,7 @@ type Permutation struct {
 	Algorithm string `json:"algorithm"`
 	KeyID     string `json:"keyId"`
 	// KeyBytes holds the key material. When empty and KeyBytesHex is set,
-	// NewBaseh decodes KeyBytesHex instead (the vector file format).
+	// New decodes KeyBytesHex instead (the vector file format).
 	KeyBytes    []byte `json:"-"`
 	KeyBytesHex string `json:"keyBytesHex,omitempty"`
 	Rounds      int    `json:"rounds"`

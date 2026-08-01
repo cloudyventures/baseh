@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"errors"
@@ -51,35 +51,35 @@ type ValidateResult struct {
 	Reason        ErrorCode
 }
 
-// Baseh is a validated, immutable codec bound to one profile. It is safe
+// Codec is a validated, immutable codec bound to one profile. It is safe
 // for concurrent use.
-type Baseh struct {
+type Codec struct {
 	prep *prepared
 }
 
-// NewBaseh validates the profile per spec 2.2 and returns a codec ready for
+// New validates the profile per spec 2.2 and returns a codec ready for
 // use. Invalid profiles fail here, at application startup, not on the first
 // customer request.
-func NewBaseh(profile Profile) (*Baseh, error) {
+func New(profile Profile) (*Codec, error) {
 	prep, err := prepareProfile(profile)
 	if err != nil {
 		return nil, err
 	}
-	return &Baseh{prep: prep}, nil
+	return &Codec{prep: prep}, nil
 }
 
 // Profile returns the profile this codec was built from.
-func (h *Baseh) Profile() Profile {
+func (h *Codec) Profile() Profile {
 	return h.prep.profile
 }
 
 // Capacity returns A^bodyLength as a fresh *big.Int.
-func (h *Baseh) Capacity() *big.Int {
+func (h *Codec) Capacity() *big.Int {
 	return new(big.Int).Set(h.prep.capacity)
 }
 
 // Encode implements spec 8 plus the spec-18.2 encode-time blocklist scan.
-func (h *Baseh) Encode(id *big.Int) (string, error) {
+func (h *Codec) Encode(id *big.Int) (string, error) {
 	if id == nil || id.Sign() < 0 || id.Cmp(h.prep.capacity) >= 0 {
 		return "", newError(OUT_OF_RANGE, fmt.Sprintf("ID %v is outside the profile capacity", id), true)
 	}
@@ -110,7 +110,7 @@ func (h *Baseh) Encode(id *big.Int) (string, error) {
 }
 
 // Decode implements spec 9. All returned errors are *Error.
-func (h *Baseh) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
+func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 	o := DecodeOptions{ConfusionProfile: "none", MaxCorrections: 1}
 	if opts != nil {
 		o = *opts
@@ -221,7 +221,7 @@ func (h *Baseh) Decode(input string, opts *DecodeOptions) (*DecodeResult, error)
 
 // Validate implements spec 12.4. It never returns an internal ID and never
 // returns an error for user input problems; Reason carries the code instead.
-func (h *Baseh) Validate(input string, opts *DecodeOptions) ValidateResult {
+func (h *Codec) Validate(input string, opts *DecodeOptions) ValidateResult {
 	result, err := h.Decode(input, opts)
 	if err == nil {
 		return ValidateResult{Valid: true, CanonicalCode: result.CanonicalCode}
@@ -236,7 +236,7 @@ func (h *Baseh) Validate(input string, opts *DecodeOptions) ValidateResult {
 
 // normalize implements spec 3.1 steps 1 through 7 and returns the raw
 // unformatted string.
-func (h *Baseh) normalize(input string, acceptSpaces bool) (string, error) {
+func (h *Codec) normalize(input string, acceptSpaces bool) (string, error) {
 	s := strings.Trim(input, "\t\n\v\f\r ")
 	if h.prep.profile.Separator != "" {
 		s = strings.ReplaceAll(s, h.prep.profile.Separator, "")

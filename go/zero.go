@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 )
 
 // zeroCodec is the immutable codec behind the zero-config pair. The frozen
-// medium profile is valid by construction, so NewBaseh cannot fail here.
+// medium profile is valid by construction, so New cannot fail here.
 var zeroCodec = mustZeroCodec()
 
-func mustZeroCodec() *Baseh {
-	h, err := NewBaseh(BasehMediumV1())
+func mustZeroCodec() *Codec {
+	h, err := New(MediumV1())
 	if err != nil {
 		panic(err)
 	}

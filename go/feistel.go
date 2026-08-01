@@ -1,4 +1,4 @@
-package basehuman
+package baseh
 
 import (
 	"crypto/hmac"
