@@ -1,8 +1,8 @@
-//! Error codes defined by the HRC codec specification (spec section 13).
+//! Error codes defined by the BaseH codec specification (spec section 13).
 
 use std::fmt;
 
-/// The eight error codes defined by the specification.
+/// The error codes defined by the specification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
     InvalidProfile,
@@ -13,6 +13,7 @@ pub enum ErrorCode {
     InvalidChecksum,
     AmbiguousInput,
     TooManyCandidates,
+    BlockedCode,
 }
 
 impl ErrorCode {
@@ -27,6 +28,7 @@ impl ErrorCode {
             ErrorCode::InvalidChecksum => "INVALID_CHECKSUM",
             ErrorCode::AmbiguousInput => "AMBIGUOUS_INPUT",
             ErrorCode::TooManyCandidates => "TOO_MANY_CANDIDATES",
+            ErrorCode::BlockedCode => "BLOCKED_CODE",
         }
     }
 }
@@ -50,6 +52,7 @@ impl std::str::FromStr for ErrorCode {
             "INVALID_CHECKSUM" => Ok(ErrorCode::InvalidChecksum),
             "AMBIGUOUS_INPUT" => Ok(ErrorCode::AmbiguousInput),
             "TOO_MANY_CANDIDATES" => Ok(ErrorCode::TooManyCandidates),
+            "BLOCKED_CODE" => Ok(ErrorCode::BlockedCode),
             _ => Err(()),
         }
     }
@@ -57,16 +60,16 @@ impl std::str::FromStr for ErrorCode {
 
 /// The error type returned by every fallible codec operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HrcError {
+pub struct BasehError {
     pub code: ErrorCode,
     pub message: String,
     /// True when the message may be shown to an end user unchanged.
     pub safe_for_customer: bool,
 }
 
-impl HrcError {
+impl BasehError {
     pub fn new(code: ErrorCode, message: impl Into<String>, safe_for_customer: bool) -> Self {
-        HrcError {
+        BasehError {
             code,
             message: message.into(),
             safe_for_customer,
@@ -75,14 +78,14 @@ impl HrcError {
 
     /// Convenience for customer-safe errors (the common case).
     pub fn customer(code: ErrorCode, message: impl Into<String>) -> Self {
-        HrcError::new(code, message, true)
+        BasehError::new(code, message, true)
     }
 }
 
-impl fmt::Display for HrcError {
+impl fmt::Display for BasehError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.code, self.message)
     }
 }
 
-impl std::error::Error for HrcError {}
+impl std::error::Error for BasehError {}

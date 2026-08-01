@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use num_bigint::BigUint;
 
-use crate::error::{ErrorCode, HrcError};
+use crate::error::{BasehError, ErrorCode};
 
 /// Spec 5.1. Fixed-length base-N encode, most significant digit first.
 pub(crate) fn encode_base_n(value: &BigUint, alphabet: &[char], length: usize) -> String {
@@ -27,12 +27,12 @@ pub(crate) fn decode_base_n(
     text: &[char],
     alphabet_len: usize,
     index: &HashMap<char, u32>,
-) -> Result<BigUint, HrcError> {
+) -> Result<BigUint, BasehError> {
     let base = BigUint::from(alphabet_len as u64);
     let mut value = BigUint::from(0u64);
     for ch in text {
         let digit = index.get(ch).ok_or_else(|| {
-            HrcError::customer(
+            BasehError::customer(
                 ErrorCode::InvalidCharacter,
                 format!("Symbol {ch:?} is not in the alphabet"),
             )

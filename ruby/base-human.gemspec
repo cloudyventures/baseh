@@ -6,11 +6,11 @@ Gem::Specification.new do |spec|
   spec.name          = "base-human"
   spec.version       = BaseHuman::VERSION
   spec.authors       = ["BaseHuman"]
-  spec.summary       = "HRC (Human Reference Code) codec, Ruby port of the frozen spec"
-  spec.description   = "Encodes and decodes human reference codes per the HRC codec " \
+  spec.summary       = "BaseH (Human Reference Code) codec, Ruby port of the frozen spec"
+  spec.description   = "Encodes and decodes human reference codes per the BaseH codec " \
                        "specification: fixed-length base-N bodies, rolling polynomial " \
-                       "checksums, optional feistel-v1 permutation and spoken-confusion " \
-                       "correction."
+                       "checksums, optional feistel-v1 permutation, spoken-confusion " \
+                       "correction and profanity safety."
   spec.license       = "AGPL-3.0"
   spec.required_ruby_version = ">= 3.0"
   spec.files         = Dir["lib/**/*.rb"] + ["README.md"]

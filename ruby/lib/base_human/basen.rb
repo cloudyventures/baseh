@@ -26,7 +26,7 @@ module BaseHuman
       text.each_char do |ch|
         digit = index[ch]
         if digit.nil?
-          raise HrcError.new(
+          raise BasehError.new(
             "INVALID_CHARACTER",
             "Symbol #{ch.inspect} is not in the alphabet"
           )

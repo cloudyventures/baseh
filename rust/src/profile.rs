@@ -1,10 +1,10 @@
-//! Profile data model and validation (spec section 2).
+//! Profile data model and validation (spec sections 2 and 18).
 
 use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
 
-use crate::error::{ErrorCode, HrcError};
+use crate::error::{BasehError, ErrorCode};
 
 /// Reversible permutation configuration for a profile.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,7 +19,36 @@ pub enum Permutation {
     },
 }
 
-/// An HRC profile. Construct one, pass it to [`crate::Hrc::new`] and keep
+/// Profanity handling mode (spec 18.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfanityMode {
+    /// No filtering (the default; used by the frozen profiles).
+    None,
+    /// Vowels are stripped from both alphabets before any other
+    /// profile-derived computation.
+    NoVowels,
+    /// The encoder rejects codes containing a blocked substring.
+    Blocklist,
+}
+
+/// Optional profanity safety configuration (spec 18). It never changes
+/// decode behavior for issued codes and never changes identifier capacity
+/// accounting: blocked codes are simply never issued by the encoder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Profanity {
+    pub mode: ProfanityMode,
+    /// Replaces the default list when present (mode Blocklist only).
+    pub words: Option<Vec<String>>,
+    /// Appended to the effective list in either case.
+    pub extra_words: Vec<String>,
+}
+
+/// Spec 18.2 default list. Deliberately small; applications extend it.
+pub const DEFAULT_BLOCKLIST: [&str; 12] = [
+    "CRAP", "TWAT", "SHAG", "DAMN", "FCK", "FUC", "SHT", "CNT", "TWT", "DCK", "AZZ", "BCH",
+];
+
+/// A BaseH profile. Construct one, pass it to [`crate::Baseh::new`] and keep
 /// the resulting codec. Profiles are validated at construction per spec 2.2.
 ///
 /// `aliases` is a list of `(source, target)` pairs rather than a map so that
@@ -37,6 +66,7 @@ pub struct Profile {
     pub grouping: Vec<usize>,
     pub aliases: Vec<(char, char)>,
     pub permutation: Permutation,
+    pub profanity: Option<Profanity>,
 }
 
 /// A profile after validation, with derived values computed once.
@@ -48,12 +78,14 @@ pub(crate) struct PreparedProfile {
     pub checksum_modulus: BigUint,
     pub capacity: BigUint,
     pub body_index: HashMap<char, u32>,
+    /// Effective blocklist (spec 18.2). Empty unless the mode is Blocklist.
+    pub blocklist: Vec<String>,
 }
 
-fn fail(reason: impl Into<String>) -> HrcError {
-    HrcError::new(
+fn fail(reason: impl Into<String>) -> BasehError {
+    BasehError::new(
         ErrorCode::InvalidProfile,
-        format!("Invalid HRC profile: {}", reason.into()),
+        format!("Invalid BaseH profile: {}", reason.into()),
         false,
     )
 }
@@ -79,9 +111,41 @@ fn pow_biguint(base: BigUint, exp: usize) -> BigUint {
     result
 }
 
-/// Validates a profile per spec section 2.2 and returns it with derived,
-/// pre-computed values.
-pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcError> {
+/// Spec 18.2: replacement semantics first, then augmentation, uppercased
+/// and deduplicated.
+fn effective_blocklist(profanity: &Profanity) -> Result<Vec<String>, BasehError> {
+    let mut list: Vec<String> = match &profanity.words {
+        Some(words) => words.clone(),
+        None => DEFAULT_BLOCKLIST.iter().map(|w| (*w).to_string()).collect(),
+    };
+    list.extend(profanity.extra_words.iter().cloned());
+    let mut out: Vec<String> = Vec::new();
+    for word in list {
+        let len = word.chars().count();
+        if !(2..=32).contains(&len) || !word.chars().all(|c| c.is_ascii_alphabetic()) {
+            return Err(fail("blocklist entries must be 2 through 32 ASCII letters"));
+        }
+        let upper = word.to_ascii_uppercase();
+        if !out.contains(&upper) {
+            out.push(upper);
+        }
+    }
+    Ok(out)
+}
+
+/// Spec 18.1: vowels removed for no-vowels mode, applied after case
+/// normalization.
+fn strip_vowels(alphabet_norm: &[char]) -> Vec<char> {
+    alphabet_norm
+        .iter()
+        .copied()
+        .filter(|c| !matches!(c, 'A' | 'E' | 'I' | 'O' | 'U'))
+        .collect()
+}
+
+/// Validates a profile per spec sections 2.2 and 18 and returns it with
+/// derived, pre-computed values.
+pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, BasehError> {
     if profile.profile_id.is_empty() {
         return Err(fail("profileId must be non-empty"));
     }
@@ -97,7 +161,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
     if !profile.body_alphabet.chars().all(is_ascii_char) {
         return Err(fail("body alphabet symbol is not single ASCII"));
     }
-    let body_norm: Vec<char> = profile
+    let mut body_norm: Vec<char> = profile
         .body_alphabet
         .chars()
         .map(|c| norm_char(case_sensitive, c))
@@ -126,7 +190,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
             return Err(fail("checksum alphabet symbol is not single ASCII"));
         }
     }
-    let checksum_norm: Vec<char> = profile
+    let mut checksum_norm: Vec<char> = profile
         .checksum_alphabet
         .chars()
         .map(|c| norm_char(case_sensitive, c))
@@ -137,6 +201,32 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
             "checksum alphabet symbols must be unique after case normalization",
         ));
     }
+
+    // Spec 18. no-vowels strips vowels before every downstream rule;
+    // blocklist only arms the encode-time scan.
+    let mode = profile
+        .profanity
+        .as_ref()
+        .map(|p| p.mode)
+        .unwrap_or(ProfanityMode::None);
+    if mode == ProfanityMode::NoVowels {
+        body_norm = strip_vowels(&body_norm);
+        checksum_norm = strip_vowels(&checksum_norm);
+        if body_norm.len() < 2 {
+            return Err(fail(
+                "no-vowels mode leaves the body alphabet with fewer than two symbols",
+            ));
+        }
+        if profile.checksum_length > 0 && checksum_norm.len() < 2 {
+            return Err(fail(
+                "no-vowels mode leaves the checksum alphabet with fewer than two symbols",
+            ));
+        }
+    }
+    let blocklist = match &profile.profanity {
+        Some(p) if p.mode == ProfanityMode::Blocklist => effective_blocklist(p)?,
+        _ => Vec::new(),
+    };
 
     for ch in profile.separator.chars() {
         if body_norm.contains(&ch) || checksum_norm.contains(&ch) {
@@ -178,22 +268,24 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
         aliases_norm.insert(s_norm, t_norm);
     }
 
-    let total =
-        profile.grouping.iter().try_fold(
-            0usize,
-            |acc, g| {
-                if *g == 0 {
-                    None
-                } else {
-                    acc.checked_add(*g)
-                }
-            },
-        );
-    let Some(total) = total else {
-        return Err(fail("group sizes must sum to bodyLength + checksumLength"));
-    };
-    if total != profile.body_length + profile.checksum_length {
-        return Err(fail("group sizes must sum to bodyLength + checksumLength"));
+    if profile.separator.is_empty() {
+        if !profile.grouping.is_empty() {
+            return Err(fail("grouping must be empty when separator is empty"));
+        }
+    } else {
+        let total = profile.grouping.iter().try_fold(0usize, |acc, g| {
+            if *g == 0 {
+                None
+            } else {
+                acc.checked_add(*g)
+            }
+        });
+        let Some(total) = total else {
+            return Err(fail("group sizes must sum to bodyLength + checksumLength"));
+        };
+        if total != profile.body_length + profile.checksum_length {
+            return Err(fail("group sizes must sum to bodyLength + checksumLength"));
+        }
     }
 
     if let Permutation::FeistelV1 {
@@ -229,6 +321,7 @@ pub(crate) fn prepare_profile(profile: Profile) -> Result<PreparedProfile, HrcEr
     Ok(PreparedProfile {
         checksum_modulus: pow_biguint(modulus_base, profile.checksum_length),
         capacity: pow_biguint(BigUint::from(body_norm.len() as u64), profile.body_length),
+        blocklist,
         body_alphabet_norm: body_norm,
         checksum_alphabet_norm: checksum_norm,
         aliases_norm,

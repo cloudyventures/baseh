@@ -8,7 +8,9 @@ module BaseHuman
   #   profile_id:, body_alphabet:, body_length:, checksum_alphabet:,
   #   checksum_length:, case_sensitive:, separator:, grouping:, aliases:,
   #   permutation: { enabled: true, algorithm: "feistel-v1", key_id:,
-  #                  key_bytes:, rounds: } or { enabled: false }
+  #                  key_bytes:, rounds: } or { enabled: false },
+  #   profanity: { mode: "none" | "no-vowels" | "blocklist",
+  #                words: [...], extra_words: [...] } (optional, spec 18)
   module Profile
     ASCII_ONLY = /\A[\x20-\x7e]*\z/.freeze
 
@@ -17,7 +19,7 @@ module BaseHuman
       attr_reader :profile_id, :body_alphabet, :body_length,
                   :checksum_alphabet, :checksum_length, :case_sensitive,
                   :separator, :grouping, :aliases, :permutation,
-                  :capacity, :checksum_modulus
+                  :capacity, :checksum_modulus, :profanity_mode, :blocklist
 
       def initialize(profile)
         validate_type!(profile)
@@ -31,6 +33,25 @@ module BaseHuman
           profile[:checksum_alphabet], @checksum_length
         )
 
+        # Spec 18: validation happens before the vowel strip so malformed
+        # alphabets are reported as such, then no-vowels strips and
+        # re-validates the result.
+        @profanity_mode = validate_profanity_mode!(profile[:profanity])
+        if @profanity_mode == "no-vowels"
+          @body_alphabet = Profanity.strip_vowels(@body_alphabet)
+          @checksum_alphabet = Profanity.strip_vowels(@checksum_alphabet)
+          validate_stripped!(@body_alphabet, "body")
+          validate_stripped!(@checksum_alphabet, "checksum") if @checksum_length.positive?
+          @body_alphabet.freeze
+          @checksum_alphabet.freeze
+        end
+        @blocklist =
+          if @profanity_mode == "blocklist"
+            Profanity.effective_blocklist(profile[:profanity]).freeze
+          else
+            [].freeze
+          end
+
         @separator = validate_separator!(
           profile[:separator].to_s, @body_alphabet, @checksum_alphabet
         )
@@ -38,7 +59,7 @@ module BaseHuman
           profile[:aliases] || {}, @body_alphabet, @checksum_alphabet, @case_sensitive
         )
         @grouping = validate_grouping!(
-          profile[:grouping], @body_length, @checksum_length
+          profile[:grouping], @separator, @body_length, @checksum_length
         )
         @permutation = validate_permutation!(profile[:permutation] || { enabled: false })
 
@@ -50,11 +71,7 @@ module BaseHuman
       private
 
       def self.fail_profile!(reason)
-        raise HrcError.new("INVALID_PROFILE", "Invalid HRC profile: #{reason}", safe_for_customer: false)
-      end
-
-      def normalize_char(ch)
-        @case_sensitive ? ch : ch.upcase
+        raise BasehError.new("INVALID_PROFILE", "Invalid BaseH profile: #{reason}", safe_for_customer: false)
       end
 
       def ascii_char?(ch)
@@ -125,6 +142,27 @@ module BaseHuman
         normed.freeze
       end
 
+      def validate_profanity_mode!(profanity)
+        mode = "none"
+        if profanity.is_a?(Hash)
+          mode = profanity[:mode].to_s
+        elsif !profanity.nil?
+          self.class.fail_profile!("profanity must be a mapping")
+        end
+        unless Profanity::MODES.include?(mode)
+          self.class.fail_profile!("profanity mode must be none, no-vowels or blocklist")
+        end
+        mode
+      end
+
+      def validate_stripped!(alphabet, label)
+        return if alphabet.length >= 2
+
+        self.class.fail_profile!(
+          "no-vowels mode leaves the #{label} alphabet with fewer than two symbols"
+        )
+      end
+
       def validate_separator!(separator, body_norm, checksum_norm)
         separator.each_char do |ch|
           next unless body_norm.include?(ch) || checksum_norm.include?(ch)
@@ -172,12 +210,21 @@ module BaseHuman
         result.freeze
       end
 
-      def validate_grouping!(grouping, body_length, checksum_length)
-        unless grouping.is_a?(Array) && grouping.all? { |g| g.is_a?(Integer) && g >= 1 }
+      def validate_grouping!(grouping, separator, body_length, checksum_length)
+        unless grouping.is_a?(Array)
           self.class.fail_profile!("group sizes must be positive integers")
         end
-        unless grouping.sum == body_length + checksum_length
-          self.class.fail_profile!("group sizes must sum to bodyLength + checksumLength")
+        if separator.empty?
+          unless grouping.empty?
+            self.class.fail_profile!("grouping must be empty when separator is empty")
+          end
+        else
+          unless grouping.all? { |g| g.is_a?(Integer) && g >= 1 }
+            self.class.fail_profile!("group sizes must be positive integers")
+          end
+          unless grouping.sum == body_length + checksum_length
+            self.class.fail_profile!("group sizes must sum to bodyLength + checksumLength")
+          end
         end
         grouping.dup.freeze
       end
@@ -214,7 +261,7 @@ module BaseHuman
     end
 
     # Validates a profile hash and returns a Prepared instance.
-    # Raises HrcError with code INVALID_PROFILE on any violation.
+    # Raises BasehError with code INVALID_PROFILE on any violation.
     def self.prepare(profile)
       Prepared.new(profile)
     end

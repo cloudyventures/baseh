@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module BaseHuman
-  # Error raised by every HRC failure path. #code is one of the spec error
-  # codes (spec section 12, 13).
-  class HrcError < StandardError
+  # Error raised by every BaseH failure path. #code is one of the spec error
+  # codes (spec sections 12, 13 and 18).
+  class BasehError < StandardError
     CODES = %w[
       INVALID_PROFILE
       OUT_OF_RANGE
@@ -13,6 +13,7 @@ module BaseHuman
       INVALID_CHECKSUM
       AMBIGUOUS_INPUT
       TOO_MANY_CANDIDATES
+      BLOCKED_CODE
     ].freeze
 
     # @return [String] one of CODES
@@ -22,7 +23,7 @@ module BaseHuman
     attr_reader :safe_for_customer
 
     def initialize(code, message, safe_for_customer: true)
-      raise ArgumentError, "unknown HRC error code #{code}" unless CODES.include?(code)
+      raise ArgumentError, "unknown BaseH error code #{code}" unless CODES.include?(code)
 
       super(message)
       @code = code

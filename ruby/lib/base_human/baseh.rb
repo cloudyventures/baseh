@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module BaseHuman
-  # Codec engine, spec sections 8 through 12. Instances wrap one validated
-  # profile and are stateless and safe to share across threads.
-  class Hrc
+  # Codec engine, spec sections 8 through 12 and 18. Instances wrap one
+  # validated profile and are stateless and safe to share across threads.
+  class Baseh
     # Built-in spoken-confusion candidate maps, spec section 3.3.
     # Pairs apply to body symbols only, never to checksum characters.
     CONFUSION_MAPS = {
@@ -34,7 +34,7 @@ module BaseHuman
     attr_reader :profile
 
     # @param profile [Hash] profile definition per spec 2.1 (symbol keys)
-    # @raise [HrcError] INVALID_PROFILE when the profile violates spec 2.2
+    # @raise [BasehError] INVALID_PROFILE when the profile violates spec 2.2
     def initialize(profile)
       @profile = Profile.prepare(profile)
       @body_index = BaseN.alphabet_index(@profile.body_alphabet)
@@ -45,17 +45,17 @@ module BaseHuman
       @profile.capacity
     end
 
-    # Spec section 8.
+    # Spec section 8, with the spec 18.2 blocklist scan over the raw code.
     #
     # @param id [Integer] 0 <= id < capacity
-    # @return [String] canonical, grouped code
-    # @raise [HrcError] OUT_OF_RANGE, PERMUTATION_FAILURE
+    # @return [String] canonical code (grouped only when a separator is set)
+    # @raise [BasehError] OUT_OF_RANGE, PERMUTATION_FAILURE, BLOCKED_CODE
     def encode(id:)
       unless id.is_a?(Integer)
         raise TypeError, "id must be an Integer"
       end
       if id.negative? || id >= @profile.capacity
-        raise HrcError.new("OUT_OF_RANGE", "ID #{id} is outside the profile capacity")
+        raise BasehError.new("OUT_OF_RANGE", "ID #{id} is outside the profile capacity")
       end
 
       value = id
@@ -71,7 +71,9 @@ module BaseHuman
 
       body = BaseN.encode_base_n(value, @profile.body_alphabet, @profile.body_length)
       checksum = Checksum.calculate_checksum(@profile, body, @body_index)
-      format_raw(body + checksum)
+      raw = body + checksum
+      check_blocklist!(raw)
+      format_raw(raw)
     end
 
     # Spec section 9.
@@ -82,12 +84,12 @@ module BaseHuman
     # @param confusion_profile [:none, :light, :medium, :heavy]
     # @param max_corrections [0, 1]
     # @return [DecodeResult]
-    # @raise [HrcError] INVALID_LENGTH, INVALID_CHARACTER, INVALID_CHECKSUM,
-    #   AMBIGUOUS_INPUT, TOO_MANY_CANDIDATES, PERMUTATION_FAILURE
+    # @raise [BasehError] INVALID_LENGTH, INVALID_CHARACTER, INVALID_CHECKSUM,
+    #   AMBIGUOUS_INPUT, TOO_MANY_CANDIDATES, PERMUTATION_FAILURE, BLOCKED_CODE
     def decode(input, accept_spaces: false, try_correction: false,
                confusion_profile: :none, max_corrections: 1)
       unless input.is_a?(String)
-        raise HrcError.new("INVALID_CHARACTER", "Input must be a string")
+        raise BasehError.new("INVALID_CHARACTER", "Input must be a string")
       end
 
       raw = normalize(input, accept_spaces)
@@ -95,15 +97,15 @@ module BaseHuman
       supplied_checksum = raw.slice(@profile.body_length..) || ""
 
       # normalize validates every symbol against the union of the body and
-      # checksum alphabets (spec 3.1 step 6). Body positions are stricter:
-      # a checksum-only symbol in a body slot is INVALID_CHARACTER. A
-      # body-only symbol in the checksum slot survives to the checksum
-      # comparison and fails as INVALID_CHECKSUM; the frozen error vectors
-      # require that exact outcome.
+      # checksum alphabets (spec 3.1 step 6). A checksum-only symbol in a
+      # body slot is INVALID_CHARACTER before any checksum work. A body-only
+      # symbol in the checksum slot survives to the checksum comparison and
+      # fails as INVALID_CHECKSUM; the frozen error vectors require that
+      # exact outcome.
       body.each_char do |ch|
         next if @body_index.key?(ch)
 
-        raise HrcError.new(
+        raise BasehError.new(
           "INVALID_CHARACTER",
           "Symbol #{ch.inspect} cannot appear in the body"
         )
@@ -111,7 +113,7 @@ module BaseHuman
 
       if Checksum.calculate_checksum(@profile, body, @body_index) != supplied_checksum
         unless try_correction && max_corrections != 0
-          raise HrcError.new(
+          raise BasehError.new(
             "INVALID_CHECKSUM",
             "The reference code did not pass validation"
           )
@@ -125,14 +127,14 @@ module BaseHuman
         end
         case valid.size
         when 0
-          raise HrcError.new(
+          raise BasehError.new(
             "INVALID_CHECKSUM",
             "The reference code did not pass validation"
           )
         when 1
           body = valid.keys.first
         else
-          raise HrcError.new(
+          raise BasehError.new(
             "AMBIGUOUS_INPUT",
             "The reference code matches more than one record",
             safe_for_customer: false
@@ -151,8 +153,11 @@ module BaseHuman
         )
       end
 
+      # encode re-scans the blocklist, so decode raises BLOCKED_CODE when
+      # reconstructing a canonical form that could never have been issued
+      # (spec 18.2).
       canonical_code = encode(id: value)
-      corrected = raw != canonical_code.delete(@profile.separator)
+      corrected = raw != canonical_raw(canonical_code)
       DecodeResult.new(id: value, canonical_code: canonical_code, corrected: corrected)
     end
 
@@ -161,7 +166,7 @@ module BaseHuman
     def validate(input, **options)
       result = decode(input, **options)
       ValidateResult.new(valid: true, canonical_code: result.canonical_code)
-    rescue HrcError => e
+    rescue BasehError => e
       ValidateResult.new(valid: false, reason: e.code)
     end
 
@@ -176,7 +181,7 @@ module BaseHuman
       s.each_char do |ch|
         next if @body_index.key?(ch) || @profile.checksum_alphabet.include?(ch)
 
-        raise HrcError.new(
+        raise BasehError.new(
           "INVALID_CHARACTER",
           "Symbol #{ch.inspect} is not accepted"
         )
@@ -184,7 +189,7 @@ module BaseHuman
 
       expected = @profile.body_length + @profile.checksum_length
       if s.length != expected
-        raise HrcError.new(
+        raise BasehError.new(
           "INVALID_LENGTH",
           "Expected #{expected} symbols, got #{s.length}"
         )
@@ -205,7 +210,7 @@ module BaseHuman
           results[candidate.join] = true
           next unless results.size > MAX_CANDIDATES
 
-          raise HrcError.new(
+          raise BasehError.new(
             "TOO_MANY_CANDIDATES",
             "Candidate generation exceeded 64 entries",
             safe_for_customer: false
@@ -216,6 +221,23 @@ module BaseHuman
     end
 
     private
+
+    # Spec 18.2: case-insensitive substring scan over the raw unformatted
+    # code. BLOCKED_CODE is an issuance decision, not an end-user condition.
+    def check_blocklist!(raw)
+      return if @profile.blocklist.empty?
+
+      upper = raw.upcase
+      @profile.blocklist.each do |word|
+        next unless upper.include?(word)
+
+        raise BasehError.new(
+          "BLOCKED_CODE",
+          "The generated reference contains a blocked substring",
+          safe_for_customer: false
+        )
+      end
+    end
 
     def confusion_map(name)
       case name
@@ -238,6 +260,12 @@ module BaseHuman
         offset += size
       end
       parts.join(@profile.separator)
+    end
+
+    def canonical_raw(canonical_code)
+      return canonical_code if @profile.separator.empty?
+
+      canonical_code.delete(@profile.separator)
     end
   end
 end

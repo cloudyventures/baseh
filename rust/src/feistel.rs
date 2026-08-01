@@ -8,9 +8,9 @@ use hmac::{Hmac, Mac};
 use num_bigint::BigUint;
 use sha2::Sha256;
 
-use crate::error::{ErrorCode, HrcError};
+use crate::error::{BasehError, ErrorCode};
 
-const TAG: &[u8] = b"HRC-FEISTEL-V1";
+const TAG: &[u8] = b"BASEH-FEISTEL-V1";
 const MAX_WALKS: u32 = 1000;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -137,7 +137,7 @@ fn walk(
     capacity: &BigUint,
     key: &Key<'_>,
     forward: bool,
-) -> Result<BigUint, HrcError> {
+) -> Result<BigUint, BasehError> {
     let bits = bit_length(capacity);
     let w1 = bits / 2;
     let w0 = bits - w1;
@@ -157,7 +157,7 @@ fn walk(
         }
         v = out;
     }
-    Err(HrcError::new(
+    Err(BasehError::new(
         ErrorCode::PermutationFailure,
         "Feistel cycle walking exceeded 1000 iterations",
         false,
@@ -171,7 +171,7 @@ pub fn permute(
     profile_id: &str,
     key_bytes: &[u8],
     rounds: u32,
-) -> Result<BigUint, HrcError> {
+) -> Result<BigUint, BasehError> {
     walk(
         value,
         capacity,
@@ -191,7 +191,7 @@ pub fn inverse_permute(
     profile_id: &str,
     key_bytes: &[u8],
     rounds: u32,
-) -> Result<BigUint, HrcError> {
+) -> Result<BigUint, BasehError> {
     walk(
         value,
         capacity,

@@ -11,19 +11,19 @@ module BaseHuman
 
     module_function
 
-    # hrc32-v1: 6 body + 1 checksum, feistel-v1 permutation.
+    # baseh32-v1: 6 body + 1 checksum, feistel-v1 permutation, no separator.
     # Assisted-support use; structured single-substitution miss rate about
     # 1.2 percent per position (spec 6.3).
-    def hrc32_v1(key_bytes:, key_id:, rounds: 8)
+    def baseh32_v1(key_bytes:, key_id:, rounds: 8)
       {
-        profile_id: "hrc32-v1",
+        profile_id: "baseh32-v1",
         body_alphabet: BODY_ALPHABET,
         body_length: 6,
         checksum_alphabet: CHECKSUM_ALPHABET,
         checksum_length: 1,
         case_sensitive: false,
-        separator: "-",
-        grouping: [3, 3, 1],
+        separator: "",
+        grouping: [],
         aliases: ALIASES.dup,
         permutation: {
           enabled: true,
@@ -31,16 +31,17 @@ module BaseHuman
           key_id: key_id,
           key_bytes: key_bytes,
           rounds: rounds
-        }
+        },
+        profanity: { mode: "none" }
       }
     end
 
-    # hrc32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
+    # baseh32s-v1: 6 body + 2 checksum, feistel-v1 permutation.
     # Self-service use; provably detects all single-symbol substitutions and
     # all adjacent transpositions (spec 6.3).
-    def hrc32s_v1(key_bytes:, key_id:, rounds: 8)
-      profile = hrc32_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
-      profile.merge(profile_id: "hrc32s-v1", checksum_length: 2, grouping: [3, 3, 2])
+    def baseh32s_v1(key_bytes:, key_id:, rounds: 8)
+      profile = baseh32_v1(key_bytes: key_bytes, key_id: key_id, rounds: rounds)
+      profile.merge(profile_id: "baseh32s-v1", checksum_length: 2)
     end
   end
 end
