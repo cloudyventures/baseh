@@ -605,19 +605,22 @@ describe("expandable calculator mode", async () => {
     assert.equal(r.utilizationStatus, "green");
     assert.ok(r.lifetimeDays !== null && r.lifetimeDays > 0n);
   });
-  it("examples cross the growth boundaries with real round trips", () => {
+  it("examples span the orders of magnitude with real round trips", () => {
     const r = calculate(exp({ permutation: false }));
     const h = new Baseh(calculatorProfile(exp({ permutation: false }))!);
-    assert.equal(r.examples.length, 5);
-    // id 0 and the last of generation 4 are 4 chars bare; the first of
-    // generation 5 is 5; the first of generation 6 carries the hyphen.
+    // 0, 1, a fixed sample under 1M, then 1M, 1B, 1T, 100T.
+    const ids = ["0", "1", "742891", "1000000", "1000000000", "1000000000000", "100000000000000"];
+    assert.equal(r.examples.length, ids.length);
+    assert.deepEqual(r.examples.map((e) => e.id), ids);
     const byId = new Map(r.examples.filter((e) => !e.blocked).map((e) => [e.id, e.code]));
+    // The smallest ids stay at the four-character floor with no separator;
+    // the codes grow as the ids do, and 100T is long enough to hyphenate.
     assert.equal(byId.get("0")!.length, 4);
     assert.ok(!byId.get("0")!.includes("-"));
-    assert.equal(byId.get("39303")!.length, 4);
-    assert.equal(byId.get("39304")!.length, 5);
-    assert.equal(byId.get("1375640")!.length, 7);
-    assert.ok(byId.get("1375640")!.includes("-"));
+    const lengths = r.examples.filter((e) => !e.blocked).map((e) => e.code.length);
+    for (let i = 1; i < lengths.length; i++) assert.ok(lengths[i]! >= lengths[i - 1]!);
+    assert.ok(byId.get("100000000000000")!.includes("-"));
+    assert.ok(byId.get("100000000000000")!.length > byId.get("0")!.length);
     for (const e of r.examples) {
       if (e.blocked) continue;
       assert.equal(h.decode(e.code).id, BigInt(e.id));
