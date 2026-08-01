@@ -84,7 +84,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
-      - run: cargo publish --locked
+      # The first crates.io publish is a manual bootstrap (trusted publishers
+      # can only be configured on an existing crate). That bootstrap lands the
+      # same version the tag run publishes, so an already-published version is
+      # success here, not a failure.
+      - run: |
+          set -o pipefail
+          if cargo publish --locked 2>&1 | tee publish.log; then
+            echo "published ${{ github.ref_name }}"
+          elif grep -qi 'already' publish.log; then
+            echo "version already on crates.io (bootstrap publish), continuing"
+          else
+            exit 1
+          fi
         working-directory: rust
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
