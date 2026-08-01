@@ -37,7 +37,7 @@ jobs:
         run: cd ruby && rake
 
   # Publishing uses OIDC trusted publishing; no long-lived registry tokens.
-  # Each registry must have matellis/base-human + this workflow registered as
+  # Each registry must have matellis/baseh + this workflow registered as
   # a trusted publisher first (see docs/releasing.md).
   publish-npm:
     needs: verify

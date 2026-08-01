@@ -25,7 +25,7 @@ returns, bookings and similar records.
 |---|---|
 | JavaScript / TypeScript | `npm install base-human` |
 | Python | `pip install base-human` |
-| Go | `go get github.com/matellis/base-human/go` |
+| Go | `go get github.com/matellis/baseh/go` |
 | Rust | `cargo add base-human` |
 | Ruby | `gem install base-human` |
 
@@ -62,9 +62,9 @@ application and never shipped in profiles or exports.
 
 Interactive, client-side only:
 
-- [Capacity calculator](https://matellis.github.io/base-human/) - parameters
+- [Capacity calculator](https://matellis.github.io/baseh/) - parameters
   in, exact capacity and operational lifetime out.
-- [Code designer](https://matellis.github.io/base-human/designer.html) -
+- [Code designer](https://matellis.github.io/baseh/designer.html) -
   required capacity in, shortest valid configuration out.
 
 Previews with permutation use a published demo key. Never use demo key
@@ -77,7 +77,7 @@ spec/       normative design documents
 vectors/    frozen cross-language conformance vectors
 js/         TypeScript reference implementation (npm: base-human)
 python/     Python implementation (PyPI: base-human)
-go/         Go implementation (module github.com/matellis/base-human/go)
+go/         Go implementation (module github.com/matellis/baseh/go)
 rust/       Rust implementation (crates.io: base-human)
 ruby/       Ruby implementation (RubyGems: base-human)
 web/        calculator and designer source
