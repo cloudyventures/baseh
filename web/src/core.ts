@@ -10,11 +10,10 @@ export type SafetyLevel = "none" | "light" | "medium" | "heavy";
 export type ProfanityMode = "none" | "no-vowels" | "blocklist";
 
 /**
- * Parse a required-capacity field: plain digits, grouped digits
- * ("60,000,000") or a compact suffix ("6k", "2.5m", "6b", "6t").
- * Returns null for anything that does not parse to an integer >= 1.
+ * Shared scalar parse: plain digits, grouped digits ("60,000,000") or a
+ * compact suffix ("6k", "2.5m", "6b", "6t"). Returns null for junk.
  */
-export function parseRequired(raw: string): bigint | null {
+function parseScaled(raw: string): bigint | null {
   const cleaned = raw.replace(/[,_\s]/g, "");
   const m = cleaned.match(/^(\d+)(?:\.(\d+))?([kmgbt])?$/i);
   if (!m) return null;
@@ -30,8 +29,27 @@ export function parseRequired(raw: string): bigint | null {
     const divisor = 10n ** BigInt(-shift);
     value = (digits + divisor / 2n) / divisor; // round half up
   }
-  if (digits > 0n && value < 1n) value = 1n;
+  return value;
+}
+
+/**
+ * Parse a required-capacity field with {@link parseScaled} syntax.
+ * Returns null for anything that does not parse to an integer >= 1.
+ */
+export function parseRequired(raw: string): bigint | null {
+  const value = parseScaled(raw);
+  if (value === null) return null;
+  if (value < 1n && /[1-9]/.test(raw)) return 1n; // e.g. "0.4k" rounds below 1
   return value < 1n ? null : value;
+}
+
+/**
+ * Parse a convert-box identifier with {@link parseScaled} syntax; zero is a
+ * legitimate identifier here, unlike a required capacity.
+ */
+export function parseIdentifier(raw: string): bigint | null {
+  const value = parseScaled(raw);
+  return value === null || value < 0n ? null : value;
 }
 
 export const SAFE_BODY = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
