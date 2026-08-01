@@ -5,12 +5,15 @@ import { calculate, design, minimumLength, parseRequired, powBigInt, sampleCodes
 function calcInput(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
   return {
     namespace: "",
+    codecMode: "fixed",
     alphabetMode: "alnum",
     customAlphabet: "",
     visualSafety: "none",
     spokenSafety: "none",
     profanity: "none",
     bodyLength: 6,
+    minLength: 4,
+    separatorMinLength: 6,
     checksumLength: 1,
     permutation: false,
     separator: "-",
@@ -398,5 +401,178 @@ describe("trySuggestions", async () => {
   it("without a sample only the substitutions summary remains", () => {
     const items = trySuggestions(mediumProfile(), null);
     assert.deepEqual(items.map((i) => i.label.startsWith("substitutions: ")), [true]);
+  });
+});
+
+describe("expandable derivation (spec 19.2/19.3)", async () => {
+  const { deriveExpandableBodyAlphabet, deriveExpandableChecksumAlphabet } = await import("../src/core.js");
+
+  it("strips 0 and O from the alphanumeric derivation", () => {
+    const body = deriveExpandableBodyAlphabet("alnum", "", "none");
+    assert.equal(body, "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ");
+    assert.equal(body.length, 34);
+  });
+  it("strips 0 from digits and from custom alphabets", () => {
+    assert.equal(deriveExpandableBodyAlphabet("digits", "", "none"), "123456789");
+    assert.equal(deriveExpandableBodyAlphabet("custom", "0O1aB", "none"), "1AB");
+  });
+  it("composes on top of visual, spoken and profanity derivations", () => {
+    // Heavy's 32-symbol set keeps 0 but not O; the zero ban removes the 0.
+    const heavy = deriveExpandableBodyAlphabet("alnum", "", "heavy");
+    assert.equal(heavy.length, 31);
+    assert.ok(!heavy.includes("0") && !heavy.includes("O"));
+    // no-vowels also strips, and the ban still applies after it.
+    const nv = deriveExpandableBodyAlphabet("custom", "AEIOU0123", "none", "none", "no-vowels");
+    assert.equal(nv, "123");
+  });
+  it("checksum alphabet is 0 followed by the body", () => {
+    const body = deriveExpandableBodyAlphabet("alnum", "", "none");
+    assert.equal(deriveExpandableChecksumAlphabet(body), "0" + body);
+    assert.equal(deriveExpandableChecksumAlphabet(body).length, 35);
+  });
+});
+
+describe("expandable generation arithmetic (spec 19.1/19.6)", async () => {
+  const { generationTable, generationForDemand, generationCumulative } = await import("../src/core.js");
+
+  // The spec 17.1 table for the 34-symbol alphabet, checksum length 2, minLength 4.
+  it("matches the frozen tier's generation table", () => {
+    const rows = generationTable(34, 2, 4, 5);
+    const expected: Array<[number, string, string]> = [
+      [4, "1156", "1156"],
+      [5, "39304", "40460"],
+      [6, "1336336", "1376796"],
+      [7, "45435424", "46812220"],
+      [8, "1544804416", "1591616636"]
+    ];
+    for (let i = 0; i < expected.length; i += 1) {
+      assert.equal(rows[i]!.length, expected[i]![0]);
+      assert.equal(rows[i]!.capacity.toString(), expected[i]![1]);
+      assert.equal(rows[i]!.cumulative.toString(), expected[i]![2]);
+    }
+  });
+  it("cumulative equals the sum of the generation capacities", () => {
+    assert.equal(generationCumulative(34, 2, 4, 6).toString(), "1376796");
+  });
+  it("generationForDemand lands on the boundary generations", () => {
+    assert.equal(generationForDemand(34, 2, 4, 0n), 4);
+    assert.equal(generationForDemand(34, 2, 4, 1155n), 4);
+    assert.equal(generationForDemand(34, 2, 4, 1156n), 5);
+    assert.equal(generationForDemand(34, 2, 4, 40460n), 6);
+  });
+});
+
+describe("expandable separator shape (spec 19.5)", async () => {
+  const { expandableDisplayedLength, expandableGroupSizes } = await import("../src/core.js");
+
+  it("is bare below separatorMinLength and hyphenated from it up", () => {
+    assert.equal(expandableDisplayedLength(4, "-", 6), 4);
+    assert.equal(expandableDisplayedLength(5, "-", 6), 5);
+    assert.equal(expandableDisplayedLength(6, "-", 6), 7);
+    assert.equal(expandableDisplayedLength(8, "-", 6), 9);
+  });
+  it("with no separator the length is the raw length", () => {
+    assert.equal(expandableDisplayedLength(9, "", 6), 9);
+  });
+  it("groups right-anchored by the [4, 4] pattern", () => {
+    assert.deepEqual(expandableGroupSizes(6, [4, 4]), [2, 4]);
+    assert.deepEqual(expandableGroupSizes(8, [4, 4]), [4, 4]);
+    assert.deepEqual(expandableGroupSizes(9, [4, 4]), [1, 4, 4]);
+  });
+});
+
+describe("expandable calculator mode", async () => {
+  const { calculate, calculatorProfile } = await import("../src/core.js");
+  const { Baseh } = await import("@cloudyventures/baseh");
+
+  const exp = (overrides: Partial<CalculatorInput> = {}) => calcInput({
+    codecMode: "expandable", visualSafety: "none", checksumLength: 2, separator: "-", ...overrides
+  });
+
+  it("reports a generation table instead of a single capacity", () => {
+    const r = calculate(exp());
+    assert.ok(r.valid);
+    assert.ok(r.generations);
+    assert.equal(r.generations![0]!.capacity.toString(), "1156");
+    assert.equal(r.maxId, null);
+    assert.equal(r.displayedLength, 4);
+  });
+  it("validates minLength against the checksum length", () => {
+    assert.ok(!calculate(exp({ minLength: 2 })).valid);
+    assert.ok(!calculate(exp({ minLength: 0 })).valid);
+    assert.ok(!calculate(exp({ separatorMinLength: -1 })).valid);
+  });
+  it("demand analysis names the generation the demand lands in", () => {
+    // 1000/day x 3650 days x 1.25 x 2 = 9,125,000 required: generation 7.
+    const r = calculate(exp({ recordsPerDay: 1000n, retentionDays: 3650n }));
+    assert.equal(r.requiredGeneration, 7);
+    assert.equal(r.utilizationStatus, "green");
+    assert.ok(r.lifetimeDays !== null && r.lifetimeDays > 0n);
+  });
+  it("examples cross the growth boundaries with real round trips", () => {
+    const r = calculate(exp({ permutation: false }));
+    const h = new Baseh(calculatorProfile(exp({ permutation: false }))!);
+    assert.equal(r.examples.length, 5);
+    // id 0 and the last of generation 4 are 4 chars bare; the first of
+    // generation 5 is 5; the first of generation 6 carries the hyphen.
+    const byId = new Map(r.examples.filter((e) => !e.blocked).map((e) => [e.id, e.code]));
+    assert.equal(byId.get("0")!.length, 4);
+    assert.ok(!byId.get("0")!.includes("-"));
+    assert.equal(byId.get("1155")!.length, 4);
+    assert.equal(byId.get("1156")!.length, 5);
+    assert.equal(byId.get("40460")!.length, 7);
+    assert.ok(byId.get("40460")!.includes("-"));
+    for (const e of r.examples) {
+      if (e.blocked) continue;
+      assert.equal(h.decode(e.code).id, BigInt(e.id));
+      const raw = e.code.replaceAll("-", "");
+      assert.ok(!raw.includes("O"), e.code);
+      assert.ok(!raw.slice(0, raw.length - 2).includes("0"), e.code);
+    }
+  });
+  it("expandable preview codes never contain 0 or O in body positions, even from custom alphabets", () => {
+    const r = calculate(exp({ alphabetMode: "custom", customAlphabet: "0123456789O", checksumLength: 1, minLength: 3 }));
+    assert.ok(r.valid);
+    for (const e of r.examples) {
+      if (e.blocked) continue;
+      const raw = e.code.replaceAll("-", "");
+      assert.ok(!raw.includes("O"), e.code);
+      // The checksum alphabet legitimately contains 0; the body never does.
+      assert.ok(!raw.slice(0, raw.length - 1).includes("0"), e.code);
+    }
+  });
+  it("typed O still decodes through the alias to the checksum-only 0", () => {
+    const r = calculate(exp({ permutation: false }));
+    const h = new Baseh(calculatorProfile(exp({ permutation: false }))!);
+    const sample = r.examples.find((e) => !e.blocked && e.code.includes("0"));
+    if (sample) {
+      assert.equal(h.decode(sample.code.replace("0", "O")).id, BigInt(sample.id));
+    }
+  });
+  it("capacity() stays fixed-only: the expandable preview has no single capacity", () => {
+    const h = new Baseh(calculatorProfile(exp())!);
+    assert.throws(() => h.capacity());
+  });
+});
+
+describe("expandable designer outcome", async () => {
+  const { expandableDesign } = await import("../src/core.js");
+
+  it("derives the frozen-tier shape on the best allowed alphabet", () => {
+    const d = expandableDesign(designInput({ requiredCapacity: 60_000_000n }))!;
+    assert.equal(d.bodyAlphabet.length, 34);
+    assert.equal(d.minLength, 4);
+    assert.equal(d.separatorMinLength, 6);
+    assert.equal(d.startCapacity.toString(), "1156");
+    // 60M ids land in generation 8 (cumulative through 7 is 46,812,220).
+    assert.equal(d.generation, 8);
+    assert.equal(d.cumulativeAtGeneration.toString(), "1591616636");
+  });
+  it("respects the minimum checksum length", () => {
+    assert.equal(expandableDesign(designInput({ minimumChecksumLength: 3 }))!.checksumLength, 3);
+    assert.equal(expandableDesign(designInput({ minimumChecksumLength: 0 }))!.checksumLength, 2);
+  });
+  it("returns null when the delimiter collides with every alphabet", () => {
+    assert.equal(expandableDesign(designInput({ separator: "A", allowDigits: false })), null);
   });
 });
