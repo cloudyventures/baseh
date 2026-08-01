@@ -33,19 +33,19 @@ This implementation gives you total control over length, capacity, checksums and
 ## Quick start
 
 ```typescript
-import { Baseh, baseh32V1 } from "base-human";
+import { Baseh, basehMediumV1 } from "base-human";
 
-const h = new Baseh(baseh32V1());
+const h = new Baseh(basehMediumV1());
 
 const code = h.encode(123456789n);   // e.g. "7KM4Q2H"
 const { id } = h.decode("7km 4q2 h", { acceptSpaces: true });
 console.log(id === 123456789n);        // true
 ```
 
-To hide visible sequence, opt into permutation with your own key:
+To hide visible sequence, use a keyed `-p` tier and supply your own key:
 
 ```typescript
-const h = new Baseh(baseh32V1({ keyBytes: myKey, keyId: "prod-01" }));
+const h = new Baseh(basehMediumPV1({ keyBytes: myKey, keyId: "prod-01" }));
 ```
 
 Every implementation shares one behaviour contract: the vectors in
@@ -54,17 +54,28 @@ fails if any implementation disagrees with them.
 
 ## Profiles
 
-Two frozen profiles ship with the library, both with permutation off.
-Sequence-hiding keys are opt-in: supplied by your application and never
-shipped in profiles or exports.
+Four frozen tiers ship with the library, all running the default profanity
+blocklist and all six characters of body:
 
-- **`baseh32-v1`** (6 body + 1 check, no separators): ~1.07 billion references.
-  For assisted support where a human agent can ask for the code again. The
-  checksum detects ~99% of errors; a structured gap exists for symbol pairs
-  26 values apart (see spec 6.3).
-- **`baseh32s-v1`** (6 body + 2 check, no separators): same capacity,
-  provably detects all single-symbol substitutions and all adjacent
-  transpositions. For unattended self-service lookup.
+| Tier | Symbols | Checksum | Capacity | Use for |
+|---|---|---|---|---|
+| `baseh-minimum-v1` | 36 | none | 2,176,782,336 | Typed contexts, maximum capacity |
+| `baseh-light-v1` | 31 | 1 | 887,503,681 | Typed workflows with light safety |
+| `baseh-medium-v1` | 28 | 1 | 481,890,304 | General use; **the default** |
+| `baseh-heavy-v1` | 26 | 1 | 308,915,776 | Spoken-first workflows |
+
+Each tier also has a keyed `-p` variant (`baseh-minimum-p-v1` through
+`baseh-heavy-p-v1`) that adds Feistel permutation; sequence-hiding keys are
+supplied by your application and never shipped in profiles or exports.
+
+Profile helpers return a fresh profile object on every call, so you can load
+a default and modify it (longer body, custom separator, blocklist off)
+without touching the frozen definition:
+
+```typescript
+const profile = basehMediumV1();
+profile.bodyLength = 7;
+```
 
 ## Tools
 
@@ -98,7 +109,7 @@ permutation as secrecy. See [`spec/README.md`](spec/README.md) and
 
 ## Status and release process
 
-The codec, both frozen profiles and the vector suite are version 1. Releases
+The codec, the four frozen tiers and the vector suite are version 1. Releases
 are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC

@@ -131,17 +131,17 @@ Required test categories:
 - Checksum characters outside alphabet fail.
 - Zero checksum length skips checksum work.
 
-Sampled single-substitution detection test for `baseh32s-v1` (must be total):
+Sampled single-substitution detection sweep for each checksummed frozen tier (Light, Medium and Heavy):
 
 ```text
 For at least 100,000 sampled bodies:
     For every body position:
         For every other canonical symbol:
             Substitute symbol.
-            Assert checksum failure.
+            Record whether the checksum fails.
 ```
 
-For `baseh32-v1`, run the same sweep but measure and publish the detection rate instead of asserting totality. The structured misses (symbol-value deltas that are multiples of 26) must match the spec section 6.3 analysis exactly: 12 undetected cases per 992 per position.
+None of the frozen tiers asserts totality at one checksum symbol; instead the measured miss counts must match the spec section 6.3 analysis exactly per tier (10 undetected cases per 756 per position at Medium, 14 per 930 at Light, 10 per 650 at Heavy). A custom two-symbol profile at Medium or Heavy must assert total detection in the same sweep.
 
 ## 7. Alias tests
 
@@ -313,7 +313,7 @@ Use a shared JSON file:
   "profiles": [],
   "vectors": [
     {
-      "profileId": "baseh32-v1",
+      "profileId": "baseh-medium-v1",
       "id": "0",
       "canonicalCode": "..."
     }

@@ -360,8 +360,8 @@ Each extension requires a new profile or new outer protocol.
 ## 23. Recommended first release
 
 ```yaml
-profile_id: baseh32-v1
-alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+profile_id: baseh-medium-v1
+alphabet: "0123456789ACDEFGHJKMPQRUVXYZ"
 body_length: 6
 checksum_length: 1
 case_sensitive: false
@@ -369,6 +369,9 @@ aliases:
   O: "0"
   I: "1"
   L: "1"
+  T: "P"
+  N: "M"
+  W: "V"
 correction:
   enabled: false
 permutation:

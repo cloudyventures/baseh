@@ -48,23 +48,28 @@ An BaseH is a reference alias. Access control must not depend on its secrecy.
 
 ## Recommended default profile
 
-The initial implementation should ship with this profile:
+The library ships four frozen tiers; `baseh-medium-v1` is the recommended default:
 
 ```yaml
-profile_id: baseh32-v1
-body_alphabet: "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+profile_id: baseh-medium-v1
+body_alphabet: "0123456789ACDEFGHJKMPQRUVXYZ"
 body_length: 6
-checksum_alphabet: "234679ACDEFGHJKMNPQRTUVWXY"
+checksum_alphabet: "234679ACDEFGHJKMPQRUVXY"
 checksum_length: 1
 case_sensitive: false
 grouping: []
 separator: ""
 permutation:
   enabled: false
+profanity:
+  mode: blocklist
 aliases:
   O: "0"
   I: "1"
   L: "1"
+  T: "P"
+  N: "M"
+  W: "V"
 ```
 
 Example rendered shape:
@@ -73,11 +78,13 @@ Example rendered shape:
 7KM4Q2H
 ```
 
-This profile has `32^6 = 1,073,741,824` body combinations. The checksum adds validation but does not add identifier capacity.
+This profile has `28^6 = 481,890,304` body combinations. The checksum adds validation but does not add identifier capacity.
 
-A second frozen profile, `baseh32s-v1`, uses two checksum characters and provably detects all single-symbol substitutions and adjacent transpositions. Use it for unattended self-service lookup.
+The other tiers bracket it: `baseh-minimum-v1` (full 36-symbol alphanumeric, no checksum, hyphen grouped, `36^6 = 2,176,782,336` combinations) for typed contexts, `baseh-light-v1` (31 symbols, 1 checksum, `31^6 = 887,503,681`) for typed workflows with light safety and `baseh-heavy-v1` (26 symbols, 1 checksum, `26^6 = 308,915,776`) for spoken-first workflows. All four run the default profanity blocklist. Each tier also has a `-p` keyed variant with Feistel permutation for sequence hiding.
 
-Permutation is off in both frozen profiles. An application that wants sequence hiding opts in by passing its own key to the frozen-profile constructor; key material is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
+None of the one-checksum tiers provably detects every error class; for unattended self-service lookup, configure a custom profile with `checksumLength` 2 at Medium or Heavy, where detection of single substitutions and adjacent transpositions is provably total (see `IMPLEMENTATION_CODEC.md` section 6.3).
+
+Permutation is off in the plain tiers. An application that wants sequence hiding uses a `-p` variant and passes its own key; key material is never part of a frozen profile and the key holder must store it in a secret manager. See `IMPLEMENTATION_CODEC.md` section 7.
 
 ## Terminology
 
@@ -180,7 +187,7 @@ A reversible short code exposes a bounded identifier space. Applications must:
 7. Add the capacity calculator.
 8. Add the reverse designer.
 9. Run cross-language test vectors.
-10. Freeze `baseh32-v1`.
+10. Freeze the four tiers.
 
 ## Acceptance summary
 

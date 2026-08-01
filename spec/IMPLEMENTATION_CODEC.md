@@ -182,7 +182,7 @@ The checksum must:
 - Be simple enough to implement consistently.
 - Use only the configured safe checksum alphabet.
 
-Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. `baseh32-v1` (`M = 26`) is in the second category; `baseh32s-v1` (`M = 676`) is in the first.
+Detection strength is a property of the checksum modulus, not the profile as such. When the modulus `M` exceeds the maximum symbol-value delta (`bodyAlphabetSize - 1`) and the multiplier is coprime with `M`, all single-symbol substitutions and all adjacent transpositions are provably detected. When `M` is smaller, some structured errors evade detection and the measured rate must be published instead of claimed. All three checksummed frozen tiers (Light, Medium and Heavy, each with `M` between 21 and 24) are in the second category; none of the frozen tiers meets the first, and an application that needs provable total detection raises `checksumLength` in a custom profile rather than reaching for a frozen tier.
 
 ### 6.2 Version 1 checksum
 
@@ -227,10 +227,14 @@ Encode `checksumValue` as a fixed-length base-S string.
 
 A checksum is error detection, not guaranteed correction. With modulus `M`, a random invalid body has approximately a `1/M` chance of matching a checksum. Structured errors can have different behaviour.
 
-For the version 1 checksum, a single substitution at body position `p` changes the checksum value by `delta * 37^k mod M`, where `k` is the number of body positions after `p` and `delta` is the symbol-value change. Since `gcd(37, M) = 1` for both frozen profiles, the substitution evades detection exactly when `delta` is a multiple of `M`.
+For the version 1 checksum, a single substitution at body position `p` changes the checksum value by `delta * 37^k mod M`, where `k` is the number of body positions after `p` and `delta` is the symbol-value change. Since `gcd(37, M) = 1` for every frozen tier, the substitution evades detection exactly when `delta` is a multiple of `M`. An adjacent transposition of values `a` and `b` changes the checksum by `36 * (a - b) * 37^k mod M`.
 
-- `baseh32-v1` (`M = 26`): deltas of `26` modulo 26 evade detection. That is 12 undetected cases out of `32 * 31 = 992` possible single-substitution errors per position, a structured miss rate of about 1.2 percent, plus the random `1/26` rate for other errors. Adjacent transpositions evade detection when the swapped values differ by a multiple of 13. Suitable for assisted support where a human can request the code again.
-- `baseh32s-v1` (`M = 676`): the maximum possible `|delta|` is 31, which is below 676, so detection of single substitutions is total. Adjacent transpositions change the checksum by `36 * (a - b) * 37^k mod 676`; since that is zero only when `a = b` for values below 32, adjacent transpositions are likewise always detected. Random false acceptance is about 0.15 percent. Suitable for unattended self-service lookup.
+- `baseh-minimum-v1`: no checksum. Typo detection is impossible; every displayed string is a valid code.
+- `baseh-light-v1` (`M = 24`, body values 0..30): deltas of `24` evade detection. That is 14 undetected cases out of `31 * 30 = 930` possible single-substitution errors per position, a structured miss rate of about 1.5 percent, plus the random `1/24` rate for other errors. Adjacent transpositions evade detection whenever the swapped values differ by an even number, since `36 * (a - b)` is always divisible by 24 when `a - b` is even. This is the weakest detection posture of the checksummed tiers and is why Light is aimed at typed, not spoken, workflows.
+- `baseh-medium-v1` (`M = 23`, body values 0..27): deltas of `23` evade detection. That is 10 undetected cases out of `28 * 27 = 756` possible single-substitution errors per position, a structured miss rate of about 1.3 percent, plus the random `1/23` rate. Adjacent transpositions evade detection only when the swapped values differ by a multiple of 23, which is rare within a 28-symbol alphabet.
+- `baseh-heavy-v1` (`M = 21`, body values 0..25): deltas of `21` evade detection. That is 10 undetected cases out of `26 * 25 = 650` possible single-substitution errors per position, a structured miss rate of about 1.5 percent, plus the random `1/21` rate. Adjacent transpositions evade detection when the swapped values differ by a multiple of 7.
+
+All three checksummed tiers are suitable for assisted support where a human can ask for the code again after a failure. For unattended self-service lookup, configure a custom profile with `checksumLength` 2: at Medium (`M = 529`) or Heavy (`M = 441`) the modulus exceeds every possible symbol-value delta and adjacent-transposition change, so detection of both classes is provably total. Light at two symbols (`M = 576`) reaches total substitution detection but not total transposition detection, because `gcd(36, 576) = 36` leaves deltas that are multiples of 16 undetected.
 
 ### 6.4 Recommended production choice
 
@@ -456,6 +460,8 @@ Formatted:
 
 The decoder accepts the configured separator at expected positions. A lenient UI may remove separators before calling the codec. The library itself should reject unexpected punctuation unless the caller explicitly enables lenient mode.
 
+The web tools pick `grouping` from the total displayed length (`bodyLength + checksumLength`) with one fixed rule, so a configuration transferred between the tools and a frozen profile keeps the same visual rhythm: no delimiter at 3 or fewer characters; groups of 2 at 4; groups of 3 up to 6; groups of 4 up to 8; groups of 5 beyond that, with any leftover short group trailing. The frozen Minimum tier uses this rule directly: 6 characters with a hyphen, `[3, 3]`.
+
 ## 12. Public API
 
 ### 12.1 Encode
@@ -529,7 +535,7 @@ validate(
   "message": "The reference code did not pass validation.",
   "safeForCustomer": true,
   "details": {
-    "profileId": "baseh32-v1"
+    "profileId": "baseh-medium-v1"
   }
 }
 ```
@@ -572,14 +578,23 @@ Each language implementation must:
 
 ## 17. Reference defaults
 
-Frozen profile for assisted-support references, `baseh32-v1`:
+Four frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all four run the default profanity blocklist (section 18) and keep the typed `O`/`I`/`L` aliases. `baseh-medium-v1` is the documented default.
+
+| Tier | Symbols | Checksum | Delimiter | Capacity | Use for |
+|---|---|---|---|---|---|
+| `baseh-minimum-v1` | 36 | none | hyphen, `[3, 3]` | 2,176,782,336 | Typed contexts where typos are caught downstream |
+| `baseh-light-v1` | 31 | 1 | none | 887,503,681 | Typed workflows with light safety |
+| `baseh-medium-v1` | 28 | 1 | none | 481,890,304 | General use; the default |
+| `baseh-heavy-v1` | 26 | 1 | none | 308,915,776 | Spoken-first workflows |
+
+`baseh-medium-v1`, the default:
 
 ```json
 {
-  "profileId": "baseh32-v1",
-  "bodyAlphabet": "0123456789ABCDEFGHJKMNPQRSTVWXYZ",
+  "profileId": "baseh-medium-v1",
+  "bodyAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
   "bodyLength": 6,
-  "checksumAlphabet": "234679ACDEFGHJKMNPQRTUVWXY",
+  "checksumAlphabet": "234679ACDEFGHJKMPQRUVXY",
   "checksumLength": 1,
   "caseSensitive": false,
   "separator": "",
@@ -587,17 +602,27 @@ Frozen profile for assisted-support references, `baseh32-v1`:
   "aliases": {
     "O": "0",
     "I": "1",
-    "L": "1"
+    "L": "1",
+    "T": "P",
+    "N": "M",
+    "W": "V"
   },
   "permutation": {
     "enabled": false
+  },
+  "profanity": {
+    "mode": "blocklist"
   }
 }
 ```
 
-Frozen profile for unattended self-service lookup, `baseh32s-v1`. Identical to `baseh32-v1` except `checksumLength` is 2 and the checksum modulus is 676, which provably detects all single-symbol substitutions and all adjacent transpositions (section 6.3).
+`baseh-minimum-v1`: `bodyAlphabet` is the full `"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"`, `checksumAlphabet` is empty, `checksumLength` is 0, `separator` is `"-"`, `grouping` is `[3, 3]` and `aliases` is empty, because every alphanumeric symbol is canonical.
 
-Both frozen profiles ship with permutation off. An application opts into Feistel-v1 (section 7) by passing its own key to the frozen-profile constructor; application-specific permutation keys are never part of the frozen profile and each application assigns its own `keyId` and key material. Freeze both profiles' checksum and Feistel test vectors before production use.
+`baseh-light-v1`: `bodyAlphabet` `"0123456789ABCEFGHJKMNPQRSUVWXYZ"`, `checksumAlphabet` `"234679ACEFGHJKMNPQRUVWXY"`, no separator or grouping, aliases adding `"D": "B"` and `"T": "P"` to the `O`/`I`/`L` set.
+
+`baseh-heavy-v1`: `bodyAlphabet` `"0123456789ABCEFHJKMPQRVXYZ"`, `checksumAlphabet` `"234679ACEFHJKMPQRUVXY"`, no separator or grouping, aliases adding `"D": "B"`, `"T": "P"`, `"N": "M"`, `"W": "V"`, `"S": "F"` and `"G": "C"` to the `O`/`I`/`L` set.
+
+Each tier also ships a keyed variant whose `profileId` gains a `-p` segment (`baseh-minimum-p-v1` through `baseh-heavy-p-v1`): identical to the plain tier but with Feistel-v1 permutation enabled, requiring caller-supplied key material (section 7). Application-specific permutation keys are never part of a frozen profile and each application assigns its own `keyId` and key material. Profile helpers return a freshly built, mutable profile object on every call, so an application can load a default and then modify it (longer body, custom separator, no profanity blocklist) without mutating the frozen definition from which it started. Freeze the tiers' checksum and Feistel test vectors before production use.
 
 ## 18. Profanity safety
 
@@ -617,8 +642,8 @@ blocked codes are simply never issued by the encoder.
 
 ### 18.1 Modes
 
-- `none` (default): no filtering. The frozen profiles `baseh32-v1` and
-  `baseh32s-v1` use this mode.
+- `none` (default for custom profiles): no filtering. The four frozen
+  tiers all use `blocklist` instead (section 17).
 - `no-vowels`: before any other profile-derived computation, the vowels
   `A`, `E`, `I`, `O` and `U` (after case normalization) are removed from the
   body alphabet and the checksum alphabet. All downstream rules apply to the
