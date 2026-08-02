@@ -6,6 +6,9 @@ on:
 
 permissions:
   contents: write
+  # The verify job's soak-reuse lookup queries workflow runs via gh; without
+  # actions: read it gets 403 and the gates always run (fail-safe but slow).
+  actions: read
 
 jobs:
   verify:
