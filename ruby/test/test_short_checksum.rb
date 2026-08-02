@@ -53,11 +53,11 @@ class TestShortChecksum < Minitest::Test
 
   # Spec 22.3: capacities follow the effective K.
   def test_generation_capacities_follow_the_effective_k
-    assert_equal 39_304, expandable.generation_capacity(4) # 34^3
-    assert_equal 1_336_336, expandable.generation_capacity(5) # 34^4
-    assert_equal 1_336_336, expandable.generation_capacity(6) # one symbol buys the second checksum
-    assert_equal 45_435_424, expandable.generation_capacity(7)
-    assert_equal 1_544_804_416, expandable.generation_capacity(8)
+    assert_equal 19_683, expandable.generation_capacity(4) # 27^3
+    assert_equal 531_441, expandable.generation_capacity(5) # 27^4
+    assert_equal 531_441, expandable.generation_capacity(6) # one symbol buys the second checksum
+    assert_equal 14_348_907, expandable.generation_capacity(7)
+    assert_equal 387_420_489, expandable.generation_capacity(8)
   end
 
   def test_round_trips_first_and_last_issuable_id_of_generations_4_through_8
@@ -80,8 +80,8 @@ class TestShortChecksum < Minitest::Test
   end
 
   def test_short_normal_boundary
-    last_short = expandable.generation_base(6) - 1 # 1,375,639
-    first_normal = expandable.generation_base(6) # 1,375,640
+    last_short = expandable.generation_base(6) - 1 # 551,123
+    first_normal = expandable.generation_base(6) # 551,124
     a = raw(expandable.encode(id: last_short))
     assert_equal 5, a.length
     assert_equal 4, a.length - 1 # 1 checksum symbol at length 5
@@ -106,7 +106,7 @@ class TestShortChecksum < Minitest::Test
     assert_error("INVALID_CHECKSUM") { expandable.decode(code + check) }
   end
 
-  def test_checksum_values_at_short_generations_use_modulus_35_not_1225
+  def test_checksum_values_at_short_generations_use_modulus_28_not_784
     id = first_issuable(expandable, 0)
     body = raw(expandable.encode(id: id))[0...3]
     short = Baseh::Checksum.calculate_checksum(expandable.profile, body, nil, 1)
@@ -125,25 +125,40 @@ class TestShortChecksum < Minitest::Test
 
   # Spec 22.4: the repetition scan covers body plus the short checksum.
   def test_repetition_scan_covers_the_short_checksum
-    # Probe with the filter off to find an id whose 4-symbol raw code is a
-    # run of 4 (necessarily spanning body and the single checksum symbol),
-    # then confirm the frozen tier blocks it.
-    probe = Baseh::Baseh.new(Baseh.baseh_expandable_v1.merge(max_repetition: 0))
+    # A run of 4 that spans body and the single checksum symbol must be
+    # blocked. The scan rule is profile-independent, so use a small
+    # permutation-free profile where such a code is guaranteed and fast to
+    # find, then confirm the filter blocks it.
+    shape = {
+      profile_id: "short-rep-test",
+      mode: "expandable",
+      body_alphabet: "AB",
+      min_length: 4,
+      checksum_alphabet: "0AB",
+      checksum_length: 2,
+      short_checksum_length: 1,
+      short_checksum_until: 5,
+      case_sensitive: false,
+      separator: "",
+      separator_min_length: 0,
+      grouping: [],
+      aliases: {},
+      permutation: { enabled: false },
+      profanity: { mode: "none" },
+      max_repetition: 0
+    }
+    probe = Baseh::Baseh.new(shape)
     found = nil
-    0.upto(expandable.generation_base(5) - 1) do |id|
-      begin
-        code = probe.encode(id: id)
-      rescue Baseh::BasehError
-        next
+    0.upto(2_000) do |id|
+      r = raw(probe.encode(id: id))
+      if r.length >= 4 && /(.)\1{3}\z/.match?(r)
+        found = id
+        break
       end
-      r = raw(code)
-      next unless r.length == 4 && /(.)\1{3}/.match?(r)
-
-      found = id
-      break
     end
-    refute_nil found, "expected a gen-4 code with a run of 4"
-    assert_error("BLOCKED_CODE") { expandable.encode(id: found) }
+    refute_nil found, "expected a code ending in a run of 4"
+    blocked = Baseh::Baseh.new(shape.merge(max_repetition: 4))
+    assert_error("BLOCKED_CODE") { blocked.encode(id: found) }
   end
 
   # Spec 22.2 validation.
@@ -222,11 +237,11 @@ class TestShortChecksum < Minitest::Test
       Baseh.baseh_expandable_v1.merge(short_checksum_length: 0, short_checksum_until: 0)
     )
     assert_equal 0, off.profile.short_checksum_length
-    assert_equal 1_156, off.generation_capacity(4)
+    assert_equal 729, off.generation_capacity(4)
     assert_equal 2, off.profile.effective_checksum_length(4)
-    code = off.encode(id: 1_155)
+    code = off.encode(id: 100)
     assert_equal 4, raw(code).length
-    assert_equal 1_155, off.decode(code).id
+    assert_equal 100, off.decode(code).id
   end
 
   def test_a_custom_short_checksum_window_round_trips_at_every_generation
@@ -243,9 +258,9 @@ class TestShortChecksum < Minitest::Test
       )
     )
     # Body sizes: 3, 4, 5 through length 6 (K = 1), then L - 2.
-    assert_equal 34**3, h.generation_capacity(4)
-    assert_equal 34**5, h.generation_capacity(6)
-    assert_equal 34**5, h.generation_capacity(7) # K = 2 kicks in
+    assert_equal 27**3, h.generation_capacity(4)
+    assert_equal 27**5, h.generation_capacity(6)
+    assert_equal 27**5, h.generation_capacity(7) # K = 2 kicks in
     assert_operator h.generation_capacity(6), :>, h.generation_capacity(5)
     (4..8).each do |l|
       id = h.generation_base(l) + 7
@@ -278,9 +293,9 @@ class TestShortChecksum < Minitest::Test
   end
 
   def test_zero_window_generations_are_all_body_capacity_is_a_to_the_l
-    assert_equal 34**4, zero_window.generation_capacity(4)
-    assert_equal 34**5, zero_window.generation_capacity(5)
-    assert_equal 34**4, zero_window.generation_capacity(6) # K = 2 above the window
+    assert_equal 27**4, zero_window.generation_capacity(4)
+    assert_equal 27**5, zero_window.generation_capacity(5)
+    assert_equal 27**4, zero_window.generation_capacity(6) # K = 2 above the window
   end
 
   def test_zero_window_round_trips_generations_4_through_6_with_no_checksum_symbols

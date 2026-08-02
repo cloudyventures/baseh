@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 use num_bigint::BigUint;
 
-use crate::codec::{Baseh, DecodeOptions, DecodeResult, InspectResult};
+use crate::codec::{Baseh, DecodeOptions, DecodeResult, InspectResult, ValidateOutcome};
 use crate::error::BasehError;
 use crate::profiles::baseh_expandable_v1;
 
@@ -46,4 +46,13 @@ pub fn decode(code: &str) -> Result<DecodeResult, BasehError> {
 /// profile. Never panics on user input.
 pub fn inspect(input: &str) -> InspectResult {
     default().inspect(input)
+}
+
+/// Validate a code from the default expandable v1 profile.
+///
+/// Never fails on user input, exactly like calling
+/// `Baseh::validate(code, &DecodeOptions::default())` on an instance built
+/// from [`baseh_expandable_v1`].
+pub fn validate(code: &str) -> ValidateOutcome {
+    default().validate(code, &DecodeOptions::default())
 }

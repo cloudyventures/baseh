@@ -30,8 +30,7 @@ fn main() {
     let id = BigUint::from(123456789u64);
     let strict = DecodeOptions::strict();
 
-    // 1. Expandable mode: shipping in the next release; shown here as the new
-    // default. Codes start at 4 characters and grow one character at a time
+    // 1. Expandable mode: shown here as the new default. Codes start at 4 characters and grow one character at a time
     // as the id sequence climbs — old shorter codes keep decoding forever.
     println!("== expandable ==");
     let expandable = Baseh::new(baseh_expandable_v1()).expect("valid profile");

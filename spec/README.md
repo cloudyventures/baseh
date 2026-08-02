@@ -49,10 +49,11 @@ An baseH is a reference alias. Access control must not depend on its secrecy.
 
 ## Recommended default profile
 
-The library ships four frozen tiers; `baseh-medium-v1` is the recommended default:
+The library ships five frozen tiers (four fixed and `baseh-expandable-v1`); `baseh-expandable-v1` is the recommended default for new namespaces, and `baseh-medium-v1` is the default fixed tier, shown below:
 
 ```yaml
 profile_id: baseh-medium-v1
+mode: fixed
 body_alphabet: "0123456789ACDEFGHJKMPQRUVXYZ"
 body_length: 6
 checksum_alphabet: "234679ACDEFGHJKMPQRUVXY"
@@ -68,10 +69,13 @@ permutation:
   rounds: 8
 profanity:
   mode: blocklist
+max_repetition: 4
 aliases:
   O: "0"
   I: "1"
   L: "1"
+  B: "8"
+  S: "5"
   T: "P"
   N: "M"
   W: "V"
@@ -85,7 +89,7 @@ C8XP-8J49
 
 This profile has `28^6 = 481,890,304` body combinations. The checksum adds validation but does not add identifier capacity.
 
-The other tiers bracket it: `baseh-minimum-v1` (full 36-symbol alphanumeric, no checksum, hyphen grouped `[3, 3]`, `36^6 = 2,176,782,336` combinations) for typed contexts, `baseh-light-v1` (31 symbols, 2 checksums, hyphen grouped `[4, 4]`, `31^6 = 887,503,681`) for typed workflows with light safety and `baseh-heavy-v1` (26 symbols, 2 checksums, hyphen grouped `[4, 4]`, `26^6 = 308,915,776`) for spoken-first workflows. All four run the default profanity blocklist and all four permute with the same frozen published key.
+The other fixed tiers bracket it: `baseh-minimum-v1` (full 36-symbol alphanumeric, no checksum, hyphen grouped `[3, 3]`, `36^6 = 2,176,782,336` combinations) for typed contexts, `baseh-light-v1` (31 symbols, 2 checksums, hyphen grouped `[4, 4]`, `31^6 = 887,503,681`) for typed workflows with light safety and `baseh-heavy-v1` (26 symbols, 2 checksums, hyphen grouped `[4, 4]`, `26^6 = 308,915,776`) for spoken-first workflows. All four run the default profanity blocklist and all four permute with the same frozen published key. The fifth tier, `baseh-expandable-v1`, is the recommended default for new namespaces (see Expandable mode below).
 
 With two checksum symbols the checksummed tiers provably detect every single-symbol substitution, and Medium and Heavy detect every adjacent transposition as well (see `IMPLEMENTATION_CODEC.md` section 6.3). That is what makes the frozen tiers suitable for unattended self-service lookup.
 
@@ -95,7 +99,7 @@ Permutation is always on in the plain tiers, keyed with the published frozen key
 
 Profiles carry a `mode`: `"fixed"` (every frozen tier above, unchanged) or `"expandable"`. An expandable profile emits variable-length codes that grow one symbol at a time as the id sequence climbs — short codes while the namespace is small, no re-issue and no migration, and every shorter code keeps decoding. The mechanism (generations, the `0`/`O` body ban that removes any leading zero glyph, the zero-keeping checksum alphabet, per-generation Feistel and threshold-based separators) is normative in `IMPLEMENTATION_CODEC.md` section 19.
 
-One expandable tier ships frozen: `baseh-expandable-v1` (34-symbol body, 2 checksum symbols from a 35-symbol alphabet, minimum length 4, hyphen grouping from 6 characters up, frozen-key per-generation permutation), plus the keyed variant `baseh-expandable-p-v1`. See `IMPLEMENTATION_CODEC.md` section 17.1 for the full definition and capacity table.
+One expandable tier ships frozen: `baseh-expandable-v1` (27-symbol body carrying the medium visual and spoken safety strips plus the `0`/`O` zero ban, a short checksum of one symbol at lengths 4-5 and two beyond, minimum length 4, hyphen grouping from 6 characters up, frozen-key per-generation permutation), plus the keyed variant `baseh-expandable-p-v1`. See `IMPLEMENTATION_CODEC.md` section 17.1 for the full definition and capacity table.
 
 ## Terminology
 

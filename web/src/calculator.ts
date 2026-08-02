@@ -68,7 +68,7 @@ interface Preset {
 // The frozen tiers. Every control stays editable after loading one,
 // so a preset is a starting point you modify, not a locked view.
 const PRESETS: Record<string, Preset> = {
-  expandable: { codecMode: "expandable", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 4, checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 5, separator: "-" },
+  expandable: { codecMode: "expandable", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 4, checksumLength: 2, shortChecksumLength: 1, shortChecksumUntil: 5, separator: "-" },
   minimum: { codecMode: "fixed", mode: "alnum", visual: "none", spoken: "none", profanity: "blocklist", bodyLength: 6, checksumLength: 0, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },
   light: { codecMode: "fixed", mode: "alnum", visual: "light", spoken: "light", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },
   medium: { codecMode: "fixed", mode: "alnum", visual: "medium", spoken: "medium", profanity: "blocklist", bodyLength: 6, checksumLength: 2, shortChecksumLength: 0, shortChecksumUntil: 0, separator: "-" },

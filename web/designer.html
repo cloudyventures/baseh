@@ -54,8 +54,8 @@
         <label for="d-visual">Visual safety<span class="tip" tabindex="0" aria-label="Visual safety details"><span class="i">i</span><span class="tip-body">Applied to every alphabet the solver considers: look-alike symbols are excluded so printed codes are harder to misread. None keeps all symbols. Light drops O, I and L (covered by 0 and 1). Medium also drops B and S. Heavy is not cumulative: every candidate switches outright to the reviewed 32-symbol alphabet, which keeps B and S but drops U. A typed letter that was stripped still decodes without ambiguity: O, I and L read as 0, 1 and 1, B and S as 8 and 5, and U as V, so there is never a wrong choice. Higher safety shrinks the alphabet, so a candidate may need a longer body to reach your required capacity.</span></span></label>
         <select id="d-visual">
           <option value="none">None</option>
-          <option value="light" selected>Light (drop O, I, L)</option>
-          <option value="medium">Medium (also drop B, S)</option>
+          <option value="light">Light (drop O, I, L)</option>
+          <option value="medium" selected>Medium (also drop B, S)</option>
           <option value="heavy">Heavy (safe 32 alphabet)</option>
         </select>
         <div id="d-visual-drops" class="field-note" aria-live="polite"></div>
@@ -64,8 +64,8 @@
         <label for="d-spoken">Spoken safety<span class="tip" tabindex="0" aria-label="Spoken safety details"><span class="i">i</span><span class="tip-body">For codes read out over the phone. For each sound-alike pair, one letter is removed from the alphabet so it can never appear in a new code, and a code that contains it anyway decodes automatically as the kept letter: no ambiguity, no guessing. Light removes D (decodes as B) and T (decodes as P). Medium also removes N (decodes as M) and W (decodes as V). Heavy also removes S (decodes as F) and G (decodes as C). Pairs run from the most common confusions at Light to the least at Heavy. Each removed letter shrinks the alphabet, so higher levels need either a longer body or accept less capacity, and the solver prices that in automatically.</span></span></label>
         <select id="d-spoken">
           <option value="none">None</option>
-          <option value="light" selected>Light (drop D, T)</option>
-          <option value="medium">Medium (also drop N, W)</option>
+          <option value="light">Light (drop D, T)</option>
+          <option value="medium" selected>Medium (also drop N, W)</option>
           <option value="heavy">Heavy (also drop S, G)</option>
         </select>
         <div id="d-spoken-drops" class="field-note" aria-live="polite"></div>

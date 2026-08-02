@@ -52,4 +52,24 @@ class TestFacade < Minitest::Test
     code = Baseh.encode(123_456)
     assert_equal 123_456, Baseh.decode(" #{code} ", accept_spaces: true).id
   end
+
+  def test_validate_returns_the_instance_validate_result
+    result = Baseh.validate(Baseh.encode(123_456))
+    assert_instance_of Baseh::Baseh::ValidateResult, result
+    assert_equal true, result.valid
+    assert_equal Baseh.encode(123_456), result.canonical_code
+    assert_nil result.reason
+  end
+
+  def test_validate_reports_failures_without_raising
+    result = Baseh.validate("!!!!")
+    assert_instance_of Baseh::Baseh::ValidateResult, result
+    assert_equal false, result.valid
+    assert_equal "INVALID_CHARACTER", result.reason
+  end
+
+  def test_validate_passes_keyword_options_through
+    code = Baseh.encode(123_456)
+    assert_equal true, Baseh.validate(" #{code} ", accept_spaces: true).valid
+  end
 end

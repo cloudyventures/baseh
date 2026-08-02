@@ -41,6 +41,9 @@ class PreparedProfile:
     mode: str
     min_length: int
     separator_min_length: int
+    body_alphabet: str
+    checksum_alphabet: str
+    aliases: MappingProxyType
     body_alphabet_norm: str
     checksum_alphabet_norm: str
     body_length: int
@@ -311,6 +314,9 @@ def prepare_profile(profile) -> PreparedProfile:
         mode=mode,
         min_length=min_length,
         separator_min_length=separator_min_length,
+        body_alphabet=body_alphabet,
+        checksum_alphabet=checksum_alphabet,
+        aliases=MappingProxyType(dict(aliases)),
         body_alphabet_norm=body_norm,
         checksum_alphabet_norm=checksum_norm,
         body_length=body_length,

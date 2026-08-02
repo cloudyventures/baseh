@@ -237,7 +237,7 @@ func TestInspectExpandableEmptyAndTyping(t *testing.T) {
 		{"1", "1", 0.25},
 		{"12", "12", 0.5},
 		{"123", "123", 0.75},
-		{"ab", "AB", 0.5}, // below separatorMinLength the typing render is bare
+		{"ab", "A8", 0.5}, // below separatorMinLength the typing render is bare (B aliases to 8)
 		{"O", "0", 0.25},  // alias O -> 0; 0 is a checksum-alphabet symbol
 	}
 	for _, c := range cases {
@@ -250,7 +250,7 @@ func TestInspectExpandableEmptyAndTyping(t *testing.T) {
 
 func TestInspectExpandableGenerationBoundaries(t *testing.T) {
 	expandable := mustCodec(t, ExpandableV1())
-	for _, id := range []int64{0, 39304, 1375640} {
+	for _, id := range []int64{0, 19683, 551124} {
 		code, err := expandable.Encode(big.NewInt(id))
 		if err != nil {
 			t.Fatalf("Encode(%d): %v", id, err)
@@ -309,14 +309,14 @@ func TestInspectExpandableBadCharAndTooLong(t *testing.T) {
 
 func TestInspectExpandableMessyCompleteCode(t *testing.T) {
 	expandable := mustCodec(t, ExpandableV1())
-	code, err := expandable.Encode(big.NewInt(1375640))
+	code, err := expandable.Encode(big.NewInt(551124))
 	if err != nil {
 		t.Fatalf("Encode: %v", err)
 	}
 	raw := strings.ReplaceAll(code, "-", "")
 	r := expandable.Inspect(" " + raw[:3] + " - " + raw[3:])
-	if r.State != InspectValid || r.ID.Cmp(big.NewInt(1375640)) != 0 || r.CanonicalCode != code {
-		t.Errorf("Inspect = %+v, want valid id 1375640 code %q", r, code)
+	if r.State != InspectValid || r.ID.Cmp(big.NewInt(551124)) != 0 || r.CanonicalCode != code {
+		t.Errorf("Inspect = %+v, want valid id 551124 code %q", r, code)
 	}
 }
 

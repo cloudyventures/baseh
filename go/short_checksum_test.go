@@ -28,7 +28,7 @@ func expectCode(t *testing.T, err error, code ErrorCode) {
 	if err == nil {
 		t.Fatalf("expected %s, got nil", code)
 	}
-	var herr *Error
+	var herr *BasehError
 	if !errors.As(err, &herr) || herr.Code != code {
 		t.Fatalf("error = %v, want code %s", err, code)
 	}
@@ -62,7 +62,7 @@ func TestShortChecksumFrozenTierShape(t *testing.T) {
 	for _, e := range []struct {
 		length int
 		want   string
-	}{{4, "39304"}, {5, "1336336"}, {6, "1336336"}, {7, "45435424"}, {8, "1544804416"}} {
+	}{{4, "19683"}, {5, "531441"}, {6, "531441"}, {7, "14348907"}, {8, "387420489"}} {
 		if got := generationCapacity(h.prep, e.length).String(); got != e.want {
 			t.Errorf("generationCapacity(%d) = %s, want %s", e.length, got, e.want)
 		}
@@ -79,7 +79,7 @@ func TestShortChecksumBoundaryRoundTrips(t *testing.T) {
 		for _, id := range []*big.Int{first, last} {
 			code, err := h.Encode(id)
 			if err != nil {
-				var herr *Error
+				var herr *BasehError
 				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 					continue
 				}
@@ -99,8 +99,8 @@ func TestShortChecksumBoundaryRoundTrips(t *testing.T) {
 	}
 
 	// The short/normal boundary: last gen-5 id and first gen-6 id.
-	lastShort := new(big.Int).Sub(generationBase(h.prep, 6), big.NewInt(1)) // 1,375,639
-	firstNormal := generationBase(h.prep, 6)                                // 1,375,640
+	lastShort := new(big.Int).Sub(generationBase(h.prep, 6), big.NewInt(1)) // 551,123
+	firstNormal := generationBase(h.prep, 6)                                // 551,124
 	a := rawCode(mustEncodeBig(t, h, lastShort))
 	if len(a) != 5 {
 		t.Errorf("last short id encoded at length %d, want 5", len(a))
@@ -158,7 +158,7 @@ func TestShortChecksumEffectiveKDecode(t *testing.T) {
 	_, err = h.Decode(code+string(check), nil)
 	expectCode(t, err, INVALID_CHECKSUM)
 
-	// Checksum values at short generations use modulus 35, not 1225.
+	// Checksum values at short generations use modulus 28, not 784.
 	body := code[:3]
 	short, err := calculateChecksum(h.prep, body, 1)
 	if err != nil {
@@ -188,14 +188,34 @@ func TestShortChecksumInteractions(t *testing.T) {
 	}
 
 	// The repetition scan covers body plus the short checksum (spec 22.4).
-	// Probe with the filter off to find an id whose 4-symbol raw code is a
-	// run of 4 (necessarily spanning body and the single checksum symbol),
-	// then confirm the frozen tier blocks it.
-	probeProfile := ExpandableV1()
-	probeProfile.MaxRepetition = 0
-	probe := mustNew(t, probeProfile)
+	// A small permutation-free profile isolates the interaction: body "AB"
+	// (2 symbols), checksum "0AB" (3 symbols), short checksum K=1 through
+	// length 5. Probe with the filter off to find an id whose 4-symbol raw
+	// code is a run of 4 (necessarily spanning body and the single
+	// checksum symbol), then confirm the filtered profile blocks it.
+	repShape := func(maxRep int) Profile {
+		return Profile{
+			ProfileID:           "rep-expandable-test",
+			Mode:                "expandable",
+			BodyAlphabet:        "AB",
+			MinLength:           4,
+			ChecksumAlphabet:    "",
+			ChecksumLength:      2,
+			ShortChecksumLength: 1,
+			ShortChecksumUntil:  5,
+			CaseSensitive:       false,
+			Separator:            "-",
+			SeparatorMinLength:  6,
+			Grouping:            nil,
+			Aliases:             map[string]string{},
+			Permutation:         Permutation{Enabled: false},
+			Profanity:            Profanity{Mode: ProfanityNone},
+			MaxRepetition:        maxRep,
+		}
+	}
+	probe := mustNew(t, repShape(0))
 	var found *big.Int
-	limit := generationBase(h.prep, 5)
+	limit := generationBase(probe.prep, 5)
 	for id := big.NewInt(0); id.Cmp(limit) < 0 && found == nil; id.Add(id, big.NewInt(1)) {
 		c, err := probe.Encode(id)
 		if err != nil {
@@ -209,7 +229,8 @@ func TestShortChecksumInteractions(t *testing.T) {
 	if found == nil {
 		t.Fatalf("expected a gen-4 code with a run of 4")
 	}
-	_, err := h.Encode(found)
+	filtered := mustNew(t, repShape(4))
+	_, err := filtered.Encode(found)
 	expectCode(t, err, BLOCKED_CODE)
 }
 
@@ -304,18 +325,18 @@ func TestShortChecksumValidation(t *testing.T) {
 	if off.prep.profile.ShortChecksumLength != 0 {
 		t.Errorf("ShortChecksumLength = %d, want 0", off.prep.profile.ShortChecksumLength)
 	}
-	if got := generationCapacity(off.prep, 4).String(); got != "1156" {
-		t.Errorf("generationCapacity(4) = %s, want 1156", got)
+	if got := generationCapacity(off.prep, 4).String(); got != "729" {
+		t.Errorf("generationCapacity(4) = %s, want 729", got)
 	}
 	if got := effectiveChecksumLength(off.prep, 4); got != 2 {
 		t.Errorf("effectiveChecksumLength(4) = %d, want 2", got)
 	}
-	code := mustEncode(t, off, 1155)
+	code := mustEncode(t, off, 728)
 	if len(rawCode(code)) != 4 {
-		t.Errorf("id 1155 encoded at length %d, want 4", len(rawCode(code)))
+		t.Errorf("id 728 encoded at length %d, want 4", len(rawCode(code)))
 	}
 	res, err := off.Decode(code, nil)
-	if err != nil || res.ID.Int64() != 1155 {
+	if err != nil || res.ID.Int64() != 728 {
 		t.Errorf("round trip %q -> %+v, %v", code, res, err)
 	}
 }
@@ -341,7 +362,7 @@ func TestShortChecksumCustomWindow(t *testing.T) {
 
 	// Body sizes: 3, 4, 5 through length 6 (K = 1), then L - 2.
 	pow := func(n int64) string {
-		return new(big.Int).Exp(big.NewInt(34), big.NewInt(n), nil).String()
+		return new(big.Int).Exp(big.NewInt(27), big.NewInt(n), nil).String()
 	}
 	for _, e := range []struct {
 		length int
@@ -397,7 +418,7 @@ func TestShortChecksumZeroWindow(t *testing.T) {
 
 	// Window generations are all body: capacity is A^L.
 	pow := func(n int64) string {
-		return new(big.Int).Exp(big.NewInt(34), big.NewInt(n), nil).String()
+		return new(big.Int).Exp(big.NewInt(27), big.NewInt(n), nil).String()
 	}
 	for _, e := range []struct {
 		length int
@@ -416,7 +437,7 @@ func TestShortChecksumZeroWindow(t *testing.T) {
 		for _, id := range []*big.Int{first, last} {
 			code, err := h.Encode(id)
 			if err != nil {
-				var herr *Error
+				var herr *BasehError
 				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 					continue
 				}

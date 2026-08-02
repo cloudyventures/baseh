@@ -163,25 +163,25 @@ export function basehHeavyV1(): BasehProfile {
   return tier(HEAVY, frozenPermutation(), false);
 }
 
-// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the zero
-// ban of section 19.2)". The JSON bodyAlphabet string printed in section
-// 17.1 lists only 32 symbols (it also drops I and L), but the prose, the
-// generation-capacity table (34^(L-2); 1,156 ids at length 4) and the
-// checksum modulus (35^2 = 1,225) are all consistent only with 34, and the
-// zero ban removes exactly 0 and O. The 34-symbol alphabet is the one that
-// satisfies the normative numbers.
-const EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ";
+// Spec 17.1. The expandable recommended default carries the same safety
+// posture as baseh-medium-v1: the medium visual strips (O, I, L, B, S) and
+// the medium spoken strips (T, N, W), so an issued code never emits a
+// visual or spoken confusable. The zero ban of section 19.2 then removes 0
+// (and O, already gone), leaving a 27-symbol body. The checksum alphabet
+// derives as "0" plus the body (28 symbols).
+const EXPANDABLE_BODY = "123456789ACDEFGHJKMPQRUVXYZ";
 
 /**
  * Spec 17.1. The frozen expandable tier: four characters while the namespace
  * is small, gaining one symbol automatically as issuance climbs past each
- * generation's capacity. The body alphabet is the full alphanumeric set
- * minus 0/O (the zero ban, spec 19.2); the checksum alphabet derives as "0"
- * plus the body (35 symbols). The short checksum of spec 22 is on: one
- * checksum symbol through five characters (34^3 = 32,768 ids at length 4,
- * 34^4 = 1,336,336 at length 5), two from six characters up. The hyphen
- * appears from six characters up, split by the balanced grouping rule of
- * spec 19.5.
+ * generation's capacity. The body alphabet is the medium safety set (the
+ * full alphanumeric set minus the visual look-alikes O, I, L, B, S and the
+ * spoken-confusable T, N, W), with the zero ban of spec 19.2 removing 0 (27
+ * symbols); the checksum alphabet derives as "0" plus the body (28 symbols).
+ * The short checksum of spec 22 is on: one checksum symbol through five
+ * characters (27^3 = 19,683 ids at length 4, 27^4 = 531,441 at length 5),
+ * two from six characters up. The hyphen appears from six characters up,
+ * split by the balanced grouping rule of spec 19.5.
  */
 function expandableTier(permutation: BasehProfile["permutation"], pSuffix: boolean): BasehProfile {
   return {
@@ -197,7 +197,7 @@ function expandableTier(permutation: BasehProfile["permutation"], pSuffix: boole
     separator: "-",
     separatorMinLength: 6,
     grouping: [],
-    aliases: { ...OIL_ALIASES, T: "P", N: "M", W: "V" },
+    aliases: { ...OIL_ALIASES, B: "8", S: "5", T: "P", N: "M", W: "V" },
     permutation,
     profanity: { mode: "blocklist" },
     maxRepetition: 4

@@ -243,7 +243,7 @@ mod expandable_mode {
         assert_eq!(
             baseh.inspect("ab"),
             InspectResult::Typing {
-                typed: "AB".to_string(),
+                typed: "A8".to_string(),
                 progress: 0.5
             }
         );
@@ -269,22 +269,22 @@ mod expandable_mode {
                 canonical_code: code4
             }
         );
-        let code5 = baseh.encode(&BigUint::from(39_304u64)).unwrap(); // generation 5
+        let code5 = baseh.encode(&BigUint::from(19_683u64)).unwrap(); // generation 5
         assert_eq!(code5.len(), 5);
         assert_eq!(
             baseh.inspect(&code5),
             InspectResult::Valid {
-                id: BigUint::from(39_304u64),
+                id: BigUint::from(19_683u64),
                 canonical_code: code5
             }
         );
         // first id of generation 6, renders with a hyphen
-        let code6 = baseh.encode(&BigUint::from(1_375_640u64)).unwrap();
+        let code6 = baseh.encode(&BigUint::from(551_124u64)).unwrap();
         assert_eq!(code6.len(), 7);
         assert_eq!(
             baseh.inspect(&code6),
             InspectResult::Valid {
-                id: BigUint::from(1_375_640u64),
+                id: BigUint::from(551_124u64),
                 canonical_code: code6
             }
         );
@@ -331,13 +331,13 @@ mod expandable_mode {
     #[test]
     fn whitespace_and_separators_in_complete_code_still_reach_valid() {
         let baseh = expandable();
-        let code6 = baseh.encode(&BigUint::from(1_375_640u64)).unwrap();
+        let code6 = baseh.encode(&BigUint::from(551_124u64)).unwrap();
         let raw = strip_separators(&code6);
         let messy = format!(" {} - {}", &raw[..3], &raw[3..]);
         assert_eq!(
             baseh.inspect(&messy),
             InspectResult::Valid {
-                id: BigUint::from(1_375_640u64),
+                id: BigUint::from(551_124u64),
                 canonical_code: code6
             }
         );

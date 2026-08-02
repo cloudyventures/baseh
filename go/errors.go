@@ -19,9 +19,9 @@ const (
 	BLOCKED_CODE        ErrorCode = "BLOCKED_CODE"
 )
 
-// Error is the single error type returned by this package. Retrieve it with
-// errors.As and never match on the message text.
-type Error struct {
+// BasehError is the single error type returned by this package. Retrieve it
+// with errors.As and never match on the message text.
+type BasehError struct {
 	Code    ErrorCode
 	Message string
 	// SafeForCustomer is true when Message may be shown to an end user
@@ -29,14 +29,14 @@ type Error struct {
 	SafeForCustomer bool
 }
 
-func (e *Error) Error() string {
+func (e *BasehError) Error() string {
 	return fmt.Sprintf("baseh: %s: %s", e.Code, e.Message)
 }
 
-func newError(code ErrorCode, message string, safe bool) *Error {
-	return &Error{Code: code, Message: message, SafeForCustomer: safe}
+func newError(code ErrorCode, message string, safe bool) *BasehError {
+	return &BasehError{Code: code, Message: message, SafeForCustomer: safe}
 }
 
-func invalidProfile(reason string) *Error {
+func invalidProfile(reason string) *BasehError {
 	return newError(INVALID_PROFILE, "invalid baseH profile: "+reason, false)
 }

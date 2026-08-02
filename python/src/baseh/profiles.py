@@ -149,19 +149,19 @@ def baseh_medium_p_v1(
     return _tier("medium", _keyed_permutation(key_bytes, key_id, rounds), True)
 
 
-_EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+_EXPANDABLE_BODY = "123456789ACDEFGHJKMPQRUVXYZ"
 
 
 def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
     """Spec 17.1. The frozen expandable tier: four characters while the
     namespace is small, gaining one symbol automatically as issuance climbs
-    past each generation's capacity. The body alphabet is the full
-    alphanumeric set minus 0/O (the zero ban, spec 19.2); the checksum
-    alphabet derives as "0" plus the body (35 symbols). The short checksum of
-    spec 22 is on: one checksum symbol through five characters (34^3 = 39,304
-    ids at length 4, 34^4 = 1,336,336 at length 5), two from six characters
-    up. The hyphen appears from six characters up, split by the balanced
-    grouping rule of spec 19.5."""
+    past each generation's capacity. The body alphabet is the medium-safety
+    set (visual plus spoken drops, spec 17) with 0/O also removed (the zero
+    ban, spec 19.2); the checksum alphabet derives as "0" plus the body (28
+    symbols). The short checksum of spec 22 is on: one checksum symbol
+    through five characters (27^3 = 19,683 ids at length 4, 27^4 = 531,441
+    at length 5), two from six characters up. The hyphen appears from six
+    characters up, split by the balanced grouping rule of spec 19.5."""
     return {
         "profileId": "baseh-expandable" + ("-p" if p_suffix else "") + "-v1",
         "mode": "expandable",
@@ -175,7 +175,7 @@ def _expandable_tier(permutation: dict, p_suffix: bool) -> dict:
         "separator": "-",
         "separatorMinLength": 6,
         "grouping": [],
-        "aliases": {**_OIL_ALIASES, "T": "P", "N": "M", "W": "V"},
+        "aliases": {**_OIL_ALIASES, "B": "8", "S": "5", "T": "P", "N": "M", "W": "V"},
         "permutation": permutation,
         "profanity": {"mode": "blocklist"},
         "maxRepetition": 4,

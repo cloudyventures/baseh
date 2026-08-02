@@ -9,8 +9,8 @@ Pages by `.github/workflows/pages.yml`.
 
 ## Coupling to `js/`
 
-`@cloudyventures/baseh` is a `file:../js` dependency (the library is
-unreleased, so it is not on npm). Source-level imports still resolve through
+`@cloudyventures/baseh` is a `file:../js` dependency so the tools track the
+local source instead of the published npm package. Source-level imports still resolve through
 the vite alias and tsconfig `paths` to `../js/src/index.ts`, so reorganizing
 `js/src` breaks this package — update `vite.config.ts` and `tsconfig.json`
 together if that layout changes.

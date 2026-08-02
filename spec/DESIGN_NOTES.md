@@ -201,7 +201,7 @@ Blocklist rejection reduces effective capacity and must be deterministic. It can
 
 Recommendation:
 
-Do not add a blocklist in version 1 unless customer testing shows a real problem.
+Version 2 settled this: every frozen tier ships the deterministic default blocklist (`IMPLEMENTATION_CODEC.md` section 18), with rejection and cycle-walk at encode time.
 
 ## 12. Case
 
@@ -355,9 +355,10 @@ Each extension requires a new profile or new outer protocol.
 - Final public product name.
 - Whether codes are stored or generated.
 - Exact correction telemetry retention.
-- Whether a blocked-string policy is required.
 
 ## 23. Recommended first release
+
+Historical note: this section keeps the original recommendation in the version 1 field names, including a correction block that never shipped; the normative shipped profile is in `IMPLEMENTATION_CODEC.md` section 17.
 
 Version 2 of the frozen tiers shipped as:
 
@@ -505,14 +506,14 @@ this note records the trade-offs.
 The expandable tier's shortest generations are the ones customers type most:
 every namespace starts at four characters, and small namespaces live there
 forever. Two checksum symbols out of four meant half the code was overhead
-and generation 4 held only `34^2 = 1,156` ids — a busy small namespace hit
+and generation 4 held only `27^2 = 729` ids — a busy small namespace hit
 five characters almost immediately. Dropping to one checksum symbol through
-five characters makes generation 4 hold `34^3 = 39,304` ids (34x more) and
-generation 5 `34^4 = 1,336,336`, so the four- and five-character eras cover
+five characters makes generation 4 hold `27^3 = 19,683` ids (27x more) and
+generation 5 `27^4 = 531,441`, so the four- and five-character eras cover
 the namespaces that actually live in them. The cost is real and deliberately
-accepted: one checksum symbol at modulus 35 catches about 97.1% of single
+accepted: one checksum symbol at modulus 28 catches about 96.4% of single
 substitutions and adjacent-transposition detection is no longer total,
-versus provably total detection with two symbols at modulus 1,225 (spec
+versus provably total detection with two symbols at modulus 784 (spec
 6.3). From six characters up nothing changes.
 
 ### Why this is configuration, not an override

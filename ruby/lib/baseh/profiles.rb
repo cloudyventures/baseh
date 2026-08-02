@@ -120,21 +120,25 @@ module Baseh
       tier(:heavy, keyed_permutation(key_bytes, key_id, rounds), true)
     end
 
-    # Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
-    # zero ban of section 19.2)". The alphabet is 34 symbols and keeps I and
-    # L; only 0 and O are dropped. The generation-capacity table (34^(L-2);
-    # 1,156 ids at length 4) and the checksum modulus (35^2 = 1,225) are
-    # consistent only with 34.
-    EXPANDABLE_BODY = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+    # Spec 17.1. The expandable recommended default carries the same safety
+    # posture as baseh-medium-v1: the medium visual strips (O, I, L, B, S) and
+    # the medium spoken strips (T, N, W), so an issued code never emits a
+    # visual or spoken confusable. The zero ban of section 19.2 then removes 0
+    # (and O, already gone), leaving a 27-symbol body. The checksum alphabet
+    # derives as "0" plus the body (28 symbols).
+    EXPANDABLE_BODY = "123456789ACDEFGHJKMPQRUVXYZ"
 
     # The frozen expandable tier; the recommended starting point for new
     # namespaces. Four characters while the namespace is small, gaining one
     # symbol automatically as issuance climbs past each generation's
-    # capacity. The checksum alphabet derives at preparation as "0" plus the
-    # body (35 symbols, modulus 1225); generations 4 and 5 carry the spec 22
-    # short checksum of one symbol (modulus 35), with the full two symbols
-    # from six characters up, where the hyphen also appears, split by the
-    # balanced grouping of spec 19.5.
+    # capacity. The body alphabet is the medium safety set (the full
+    # alphanumeric set minus the visual look-alikes O, I, L, B, S and the
+    # spoken-confusable T, N, W), with the zero ban of spec 19.2 removing 0
+    # (27 symbols); the checksum alphabet derives as "0" plus the body (28
+    # symbols). The short checksum of spec 22 is on: one checksum symbol
+    # through five characters (27^3 = 19,683 ids at length 4, 27^4 = 531,441
+    # at length 5), two from six characters up. The hyphen appears from six
+    # characters up, split by the balanced grouping rule of spec 19.5.
     def baseh_expandable_v1
       expandable_tier(frozen_permutation, false)
     end
@@ -190,7 +194,8 @@ module Baseh
         separator: "-",
         separator_min_length: 6,
         grouping: [],
-        aliases: { **OIL_ALIASES, "T" => "P", "N" => "M", "W" => "V" },
+        aliases: { **OIL_ALIASES, "B" => "8", "S" => "5", "T" => "P",
+                   "N" => "M", "W" => "V" },
         permutation: permutation,
         profanity: { mode: "blocklist" },
         max_repetition: 4

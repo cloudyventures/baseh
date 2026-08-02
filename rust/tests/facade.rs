@@ -12,7 +12,7 @@ fn encode_returns_a_string() {
 
 #[test]
 fn round_trips_a_range_of_ids() {
-    for value in [0u64, 1, 7, 42, 999, 1_156, 4_567_890, u64::MAX] {
+    for value in [0u64, 1, 7, 42, 999, 1_156, 4_567_891, u64::MAX] {
         let id = BigUint::from(value);
         let code = baseh::encode(&id).unwrap();
         let result = baseh::decode(&code).unwrap();
@@ -57,4 +57,35 @@ fn decode_errors_surface_like_the_instance_api() {
     code.replace_range(0..1, "Z");
     let err = baseh::decode(&code).unwrap_err();
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
+}
+
+#[test]
+fn validate_reports_a_valid_code() {
+    let code = baseh::encode(&BigUint::from(42u64)).unwrap();
+    let outcome = baseh::validate(&code);
+    assert!(outcome.valid);
+    assert_eq!(outcome.canonical_code.as_deref(), Some(code.as_str()));
+    assert_eq!(outcome.reason, None);
+}
+
+#[test]
+fn validate_agrees_with_the_instance_api() {
+    let instance = Baseh::new(baseh_expandable_v1()).unwrap();
+    let code = baseh::encode(&BigUint::from(42u64)).unwrap();
+    let expected = instance.validate(&code, &DecodeOptions::default());
+    assert_eq!(baseh::validate(&code), expected);
+
+    let bogus = "!!!!";
+    let outcome = baseh::validate(bogus);
+    assert_eq!(outcome, instance.validate(bogus, &DecodeOptions::default()));
+    assert!(!outcome.valid);
+    assert_eq!(outcome.canonical_code, None);
+    assert_eq!(outcome.reason, Some(ErrorCode::InvalidCharacter));
+
+    // Checksum failure: flip a body character of a valid code.
+    let mut code = code;
+    code.replace_range(0..1, "Z");
+    let outcome = baseh::validate(&code);
+    assert!(!outcome.valid);
+    assert_eq!(outcome.reason, Some(ErrorCode::InvalidChecksum));
 }

@@ -457,12 +457,12 @@ For `baseh-expandable-v1` and at least one custom expandable profile:
   through at least length 8: `generationBase(L)`, `generationBase(L) - 1`,
   `generationBase(L + 1) - 1` and `generationBase(L + 1)`.
 - Assert the encoded total length equals the generation length at every
-  boundary (id `39,303` encodes at 4 characters, id `39,304` at 5, for the
+  boundary (id `19,682` encodes at 4 characters, id `19,683` at 5, for the
   frozen tier with its shipped short checksum, codec spec section 22).
 - Assert every canonical code has a non-zero leading body symbol (the zero
   ban makes this structurally guaranteed; the test pins it).
 - Exhaustively round-trip every id of the smallest generation(s) where
-  practical (`34^3 = 39,304` ids at length 4 for the frozen tier).
+  practical (`27^3 = 19,683` ids at length 4 for the frozen tier).
 
 ### 20.2 Zero-ban rejections
 
@@ -586,14 +586,14 @@ expandable tier ships the feature on (`checksumLength` 2,
   the total length and the effective body/checksum split at each generation
   (3+1 at length 4, 4+1 at length 5, then `L-2` + 2 from 6 up).
 - **Boundary between short and normal.** The last id of generation 5
-  (`1,375,639` on the frozen tier) encodes at 5 characters with one checksum
-  symbol; the first id of generation 6 (`1,375,640`) encodes at 6 characters
+  (`551,123` on the frozen tier) encodes at 5 characters with one checksum
+  symbol; the first id of generation 6 (`551,124`) encodes at 6 characters
   with two. Generations 5 and 6 have equal capacity.
 - **Effective-K decode.** A four-character code validates against exactly
   one checksum symbol, never two: flipping the single checksum symbol fails
   `INVALID_CHECKSUM`, and appending a second checksum symbol presents a
   five-character code whose split moves, so it also fails (section 22.4).
-  Statistical detection rates at modulus 35 are not unit-testable; the wrong
+  Statistical detection rates at modulus 28 are not unit-testable; the wrong
   checksum symbol must deterministically fail.
 - **Validation errors.** Setting either field in fixed mode is
   `INVALID_PROFILE`; `shortChecksumLength` equal to or above

@@ -398,9 +398,9 @@
       "definition": {
         "profileId": "baseh-expandable-v1",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 1,
         "shortChecksumUntil": 5,
@@ -412,6 +412,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -432,27 +434,27 @@
         {
           "length": 4,
           "base": "0",
-          "capacity": "39304"
+          "capacity": "19683"
         },
         {
           "length": 5,
-          "base": "39304",
-          "capacity": "1336336"
+          "base": "19683",
+          "capacity": "531441"
         },
         {
           "length": 6,
-          "base": "1375640",
-          "capacity": "1336336"
+          "base": "551124",
+          "capacity": "531441"
         },
         {
           "length": 7,
-          "base": "2711976",
-          "capacity": "45435424"
+          "base": "1082565",
+          "capacity": "14348907"
         },
         {
           "length": 8,
-          "base": "48147400",
-          "capacity": "1544804416"
+          "base": "15431472",
+          "capacity": "387420489"
         }
       ]
     },
@@ -461,9 +463,9 @@
       "definition": {
         "profileId": "short0-expandable-test",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 0,
         "shortChecksumUntil": 5,
@@ -475,6 +477,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -491,17 +495,17 @@
         {
           "length": 4,
           "base": "0",
-          "capacity": "1336336"
+          "capacity": "531441"
         },
         {
           "length": 5,
-          "base": "1336336",
-          "capacity": "45435424"
+          "base": "531441",
+          "capacity": "14348907"
         },
         {
           "length": 6,
-          "base": "46771760",
-          "capacity": "1336336"
+          "base": "14880348",
+          "capacity": "531441"
         }
       ]
     },
@@ -510,9 +514,9 @@
       "definition": {
         "profileId": "short8-expandable-test",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 1,
         "shortChecksumUntil": 8,
@@ -524,6 +528,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -540,32 +546,32 @@
         {
           "length": 4,
           "base": "0",
-          "capacity": "39304"
+          "capacity": "19683"
         },
         {
           "length": 5,
-          "base": "39304",
-          "capacity": "1336336"
+          "base": "19683",
+          "capacity": "531441"
         },
         {
           "length": 6,
-          "base": "1375640",
-          "capacity": "45435424"
+          "base": "551124",
+          "capacity": "14348907"
         },
         {
           "length": 7,
-          "base": "46811064",
-          "capacity": "1544804416"
+          "base": "14900031",
+          "capacity": "387420489"
         },
         {
           "length": 8,
-          "base": "1591615480",
-          "capacity": "52523350144"
+          "base": "402320520",
+          "capacity": "10460353203"
         },
         {
           "length": 9,
-          "base": "54114965624",
-          "capacity": "52523350144"
+          "base": "10862673723",
+          "capacity": "10460353203"
         }
       ]
     }
@@ -2387,320 +2393,320 @@
     {
       "profileId": "baseh-expandable-v1",
       "id": "0",
-      "canonicalCode": "R59D",
-      "rawBody": "R59",
-      "rawChecksum": "D"
+      "canonicalCode": "9E78",
+      "rawBody": "9E7",
+      "rawChecksum": "8"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "9656",
-      "canonicalCode": "6F3H",
-      "rawBody": "6F3",
-      "rawChecksum": "H"
+      "id": "548",
+      "canonicalCode": "51E2",
+      "rawBody": "51E",
+      "rawChecksum": "2"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "10878",
-      "canonicalCode": "11XY",
-      "rawBody": "11X",
-      "rawChecksum": "Y"
+      "id": "4213",
+      "canonicalCode": "39U6",
+      "rawBody": "39U",
+      "rawChecksum": "6"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "17571",
-      "canonicalCode": "K2BK",
-      "rawBody": "K2B",
-      "rawChecksum": "K"
-    },
-    {
-      "profileId": "baseh-expandable-v1",
-      "id": "22709",
-      "canonicalCode": "TB5U",
-      "rawBody": "TB5",
-      "rawChecksum": "U"
-    },
-    {
-      "profileId": "baseh-expandable-v1",
-      "id": "22919",
-      "canonicalCode": "F3PF",
-      "rawBody": "F3P",
-      "rawChecksum": "F"
-    },
-    {
-      "profileId": "baseh-expandable-v1",
-      "id": "30788",
-      "canonicalCode": "S8CR",
-      "rawBody": "S8C",
+      "id": "6163",
+      "canonicalCode": "28JR",
+      "rawBody": "28J",
       "rawChecksum": "R"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "39303",
-      "canonicalCode": "8JRL",
-      "rawBody": "8JR",
-      "rawChecksum": "L"
+      "id": "12792",
+      "canonicalCode": "Z1V3",
+      "rawBody": "Z1V",
+      "rawChecksum": "3"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "39304",
-      "canonicalCode": "KFGEE",
-      "rawBody": "KFGE",
-      "rawChecksum": "E"
+      "id": "18535",
+      "canonicalCode": "Q39V",
+      "rawBody": "Q39",
+      "rawChecksum": "V"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "415164",
-      "canonicalCode": "AHLRZ",
-      "rawBody": "AHLR",
-      "rawChecksum": "Z"
+      "id": "18545",
+      "canonicalCode": "QKQ3",
+      "rawBody": "QKQ",
+      "rawChecksum": "3"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "561493",
-      "canonicalCode": "54WU0",
-      "rawBody": "54WU",
+      "id": "19682",
+      "canonicalCode": "MH20",
+      "rawBody": "MH2",
       "rawChecksum": "0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "754267",
-      "canonicalCode": "3BQ4A",
-      "rawBody": "3BQ4",
-      "rawChecksum": "A"
+      "id": "19683",
+      "canonicalCode": "96RZ6",
+      "rawBody": "96RZ",
+      "rawChecksum": "6"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "935281",
-      "canonicalCode": "M429N",
-      "rawBody": "M429",
-      "rawChecksum": "N"
+      "id": "134609",
+      "canonicalCode": "A5DFM",
+      "rawBody": "A5DF",
+      "rawChecksum": "M"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "995310",
-      "canonicalCode": "YX9ZH",
-      "rawBody": "YX9Z",
-      "rawChecksum": "H"
+      "id": "159116",
+      "canonicalCode": "MVMMC",
+      "rawBody": "MVMM",
+      "rawChecksum": "C"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1241290",
-      "canonicalCode": "XH3CK",
-      "rawBody": "XH3C",
-      "rawChecksum": "K"
+      "id": "227378",
+      "canonicalCode": "58X95",
+      "rawBody": "58X9",
+      "rawChecksum": "5"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1375639",
-      "canonicalCode": "27ZBB",
-      "rawBody": "27ZB",
-      "rawChecksum": "B"
+      "id": "367890",
+      "canonicalCode": "KEU59",
+      "rawBody": "KEU5",
+      "rawChecksum": "9"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1375640",
-      "canonicalCode": "1EE-53K",
-      "rawBody": "1EE5",
-      "rawChecksum": "3K"
+      "id": "452082",
+      "canonicalCode": "CPAGF",
+      "rawBody": "CPAG",
+      "rawChecksum": "F"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1616546",
-      "canonicalCode": "9DB-CPB",
-      "rawBody": "9DBC",
-      "rawChecksum": "PB"
+      "id": "522469",
+      "canonicalCode": "A5FXP",
+      "rawBody": "A5FX",
+      "rawChecksum": "P"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1644089",
-      "canonicalCode": "YSE-CTK",
-      "rawBody": "YSEC",
-      "rawChecksum": "TK"
+      "id": "551123",
+      "canonicalCode": "H3D3P",
+      "rawBody": "H3D3",
+      "rawChecksum": "P"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1657156",
-      "canonicalCode": "LNY-LQQ",
-      "rawBody": "LNYL",
-      "rawChecksum": "QQ"
+      "id": "551124",
+      "canonicalCode": "5AM-A82",
+      "rawBody": "5AMA",
+      "rawChecksum": "82"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1913967",
-      "canonicalCode": "CLD-6QV",
-      "rawBody": "CLD6",
-      "rawChecksum": "QV"
+      "id": "676887",
+      "canonicalCode": "E85-800",
+      "rawBody": "E858",
+      "rawChecksum": "00"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2446048",
-      "canonicalCode": "VHS-JZP",
-      "rawBody": "VHSJ",
-      "rawChecksum": "ZP"
+      "id": "827959",
+      "canonicalCode": "AAA-9X9",
+      "rawBody": "AAA9",
+      "rawChecksum": "X9"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2702499",
-      "canonicalCode": "RM6-FJ1",
-      "rawBody": "RM6F",
-      "rawChecksum": "J1"
+      "id": "848513",
+      "canonicalCode": "AA4-QJU",
+      "rawBody": "AA4Q",
+      "rawChecksum": "JU"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2711975",
-      "canonicalCode": "JD8-437",
-      "rawBody": "JD84",
-      "rawChecksum": "37"
+      "id": "909946",
+      "canonicalCode": "HRK-9VU",
+      "rawBody": "HRK9",
+      "rawChecksum": "VU"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2711976",
-      "canonicalCode": "BQVG-G49",
-      "rawBody": "BQVGG",
-      "rawChecksum": "49"
+      "id": "939632",
+      "canonicalCode": "MX7-9D2",
+      "rawBody": "MX79",
+      "rawChecksum": "D2"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "3830157",
-      "canonicalCode": "7AJ3-4GN",
-      "rawBody": "7AJ34",
-      "rawChecksum": "GN"
+      "id": "1037286",
+      "canonicalCode": "G45-M6X",
+      "rawBody": "G45M",
+      "rawChecksum": "6X"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "10316312",
-      "canonicalCode": "UEC2-RFE",
-      "rawBody": "UEC2R",
-      "rawChecksum": "FE"
+      "id": "1082564",
+      "canonicalCode": "56P-C9V",
+      "rawBody": "56PC",
+      "rawChecksum": "9V"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "20083638",
-      "canonicalCode": "GRD1-TNB",
-      "rawBody": "GRD1T",
-      "rawChecksum": "NB"
+      "id": "1082565",
+      "canonicalCode": "AAJU-29V",
+      "rawBody": "AAJU2",
+      "rawChecksum": "9V"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "28810001",
-      "canonicalCode": "ACHK-68A",
-      "rawBody": "ACHK6",
-      "rawChecksum": "8A"
+      "id": "3688418",
+      "canonicalCode": "1E7V-94P",
+      "rawBody": "1E7V9",
+      "rawChecksum": "4P"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "28872234",
-      "canonicalCode": "LFKG-PQM",
-      "rawBody": "LFKGP",
-      "rawChecksum": "QM"
+      "id": "4407473",
+      "canonicalCode": "Z23F-48P",
+      "rawBody": "Z23F4",
+      "rawChecksum": "8P"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "34298759",
-      "canonicalCode": "7JHV-G7D",
-      "rawBody": "7JHVG",
-      "rawChecksum": "7D"
+      "id": "7705907",
+      "canonicalCode": "UPE3-A4M",
+      "rawBody": "UPE3A",
+      "rawChecksum": "4M"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "48147399",
-      "canonicalCode": "DL4C-VEG",
-      "rawBody": "DL4CV",
-      "rawChecksum": "EG"
+      "id": "9466674",
+      "canonicalCode": "5G49-7EF",
+      "rawBody": "5G497",
+      "rawChecksum": "EF"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "48147400",
-      "canonicalCode": "LLNZ-CVH2",
-      "rawBody": "LLNZCV",
-      "rawChecksum": "H2"
+      "id": "9485121",
+      "canonicalCode": "G6YR-140",
+      "rawBody": "G6YR1",
+      "rawChecksum": "40"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "438649643",
-      "canonicalCode": "TV48-7L5Q",
-      "rawBody": "TV487L",
-      "rawChecksum": "5Q"
+      "id": "13464768",
+      "canonicalCode": "MA7Y-DK4",
+      "rawBody": "MA7YD",
+      "rawChecksum": "K4"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "718430956",
-      "canonicalCode": "CT1N-62ZL",
-      "rawBody": "CT1N62",
-      "rawChecksum": "ZL"
+      "id": "15431471",
+      "canonicalCode": "CX4Q-K61",
+      "rawBody": "CX4QK",
+      "rawChecksum": "61"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "886241493",
-      "canonicalCode": "97YI-FVGB",
-      "rawBody": "97YIFV",
-      "rawChecksum": "GB"
+      "id": "15431472",
+      "canonicalCode": "FJ57-9RD1",
+      "rawBody": "FJ579R",
+      "rawChecksum": "D1"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1145735008",
-      "canonicalCode": "YCAQ-J2GI",
-      "rawBody": "YCAQJ2",
-      "rawChecksum": "GI"
+      "id": "26081068",
+      "canonicalCode": "313Y-VHPH",
+      "rawBody": "313YVH",
+      "rawChecksum": "PH"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1274747663",
-      "canonicalCode": "45Z5-6IKQ",
-      "rawBody": "45Z56I",
-      "rawChecksum": "KQ"
+      "id": "56736525",
+      "canonicalCode": "3Q6Z-KG71",
+      "rawBody": "3Q6ZKG",
+      "rawChecksum": "71"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1523697470",
-      "canonicalCode": "EJWF-KM8M",
-      "rawBody": "EJWFKM",
-      "rawChecksum": "8M"
+      "id": "89866239",
+      "canonicalCode": "4JFE-QYMR",
+      "rawBody": "4JFEQY",
+      "rawChecksum": "MR"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "1592951815",
-      "canonicalCode": "UC9E-747R",
-      "rawBody": "UC9E74",
-      "rawChecksum": "7R"
+      "id": "190843451",
+      "canonicalCode": "6X5M-U4P1",
+      "rawBody": "6X5MU4",
+      "rawChecksum": "P1"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "2",
-      "canonicalCode": "DCZ0",
-      "rawBody": "DCZ",
+      "id": "326387872",
+      "canonicalCode": "R1AG-GPY6",
+      "rawBody": "R1AGGP",
+      "rawChecksum": "Y6"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "368164610",
+      "canonicalCode": "PX16-6DPJ",
+      "rawBody": "PX166D",
+      "rawChecksum": "PJ"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "402851960",
+      "canonicalCode": "APUH-ZFQJ",
+      "rawBody": "APUHZF",
+      "rawChecksum": "QJ"
+    },
+    {
+      "profileId": "baseh-expandable-v1",
+      "id": "28",
+      "canonicalCode": "2VM0",
+      "rawBody": "2VM",
       "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "17",
-      "canonicalCode": "UZW0",
-      "rawBody": "UZW",
+      "id": "41",
+      "canonicalCode": "C9E0",
+      "rawBody": "C9E",
       "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "32",
-      "canonicalCode": "4DY0",
-      "rawBody": "4DY",
+      "id": "42",
+      "canonicalCode": "3RD0",
+      "rawBody": "3RD",
       "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "id": "35",
-      "canonicalCode": "ZI80",
-      "rawBody": "ZI8",
+      "id": "139",
+      "canonicalCode": "DQP0",
+      "rawBody": "DQP",
       "rawChecksum": "0",
       "note": "checksum contains 0"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "DCZO",
-      "id": "2",
-      "canonicalCode": "DCZ0",
+      "input": "2VMO",
+      "id": "28",
+      "canonicalCode": "2VM0",
       "note": "typed O in checksum position aliases to 0"
     },
     {
@@ -2713,7 +2719,7 @@
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "1336335",
+      "id": "531440",
       "canonicalCode": "ZZZZ",
       "rawBody": "ZZZZ",
       "rawChecksum": "",
@@ -2728,7 +2734,7 @@
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "1336336",
+      "id": "531441",
       "canonicalCode": "11111",
       "rawBody": "11111",
       "rawChecksum": "",
@@ -2736,7 +2742,7 @@
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "46771759",
+      "id": "14880347",
       "canonicalCode": "ZZZZZ",
       "rawBody": "ZZZZZ",
       "rawChecksum": "",
@@ -2744,61 +2750,61 @@
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "1336343",
+      "id": "531448",
       "canonicalCode": "11118",
       "rawBody": "11118",
       "rawChecksum": ""
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "46771760",
-      "canonicalCode": "111-1EE",
+      "id": "14880348",
+      "canonicalCode": "111-127",
       "rawBody": "1111",
-      "rawChecksum": "EE"
+      "rawChecksum": "27"
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "48108095",
-      "canonicalCode": "ZZZ-ZUJ",
+      "id": "15411788",
+      "canonicalCode": "ZZZ-ZGM",
       "rawBody": "ZZZZ",
-      "rawChecksum": "UJ"
+      "rawChecksum": "GM"
     },
     {
       "profileId": "short0-expandable-test",
-      "id": "46771767",
-      "canonicalCode": "111-8EL",
+      "id": "14880355",
+      "canonicalCode": "111-82F",
       "rawBody": "1118",
-      "rawChecksum": "EL"
+      "rawChecksum": "2F"
     },
     {
       "profileId": "short8-expandable-test",
-      "id": "54114965623",
-      "canonicalCode": "ZZZZ-ZZZA",
+      "id": "10862673722",
+      "canonicalCode": "ZZZZ-ZZZ3",
       "rawBody": "ZZZZZZZ",
-      "rawChecksum": "A",
+      "rawChecksum": "3",
       "note": "last id of the until-8 window: one checksum symbol"
     },
     {
       "profileId": "short8-expandable-test",
-      "id": "54114965624",
-      "canonicalCode": "11111-113J",
+      "id": "10862673723",
+      "canonicalCode": "11111-1165",
       "rawBody": "1111111",
-      "rawChecksum": "3J",
+      "rawChecksum": "65",
       "note": "first id above the window: two checksum symbols"
     },
     {
       "profileId": "short8-expandable-test",
-      "id": "1591615491",
-      "canonicalCode": "1111-11CV",
-      "rawBody": "111111C",
-      "rawChecksum": "V"
+      "id": "402320531",
+      "canonicalCode": "1111-11DH",
+      "rawBody": "111111D",
+      "rawChecksum": "H"
     },
     {
       "profileId": "short8-expandable-test",
-      "id": "54114965635",
-      "canonicalCode": "11111-1C3V",
-      "rawBody": "111111C",
-      "rawChecksum": "3V"
+      "id": "10862673734",
+      "canonicalCode": "11111-1D6H",
+      "rawBody": "111111D",
+      "rawChecksum": "6H"
     }
   ],
   "errors": [
@@ -2889,22 +2895,22 @@
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "0HGN",
+      "input": "0ARZ",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "OHGN",
+      "input": "OARZ",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "CH-GN",
+      "input": "8A-RZ",
       "error": "INVALID_CHARACTER"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "CHGNA",
+      "input": "8ARZA",
       "error": "INVALID_CHECKSUM"
     }
   ],
@@ -2967,9 +2973,9 @@
       "definition": {
         "profileId": "bad-until-9",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 1,
         "shortChecksumUntil": 9,
@@ -2981,6 +2987,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -3000,9 +3008,9 @@
       "definition": {
         "profileId": "bad-until-3",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 1,
         "shortChecksumUntil": 3,
@@ -3014,6 +3022,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -3033,9 +3043,9 @@
       "definition": {
         "profileId": "bad-length-no-until",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 1,
         "shortChecksumUntil": 0,
@@ -3047,6 +3057,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -3066,9 +3078,9 @@
       "definition": {
         "profileId": "bad-length-2",
         "mode": "expandable",
-        "bodyAlphabet": "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "bodyAlphabet": "123456789ACDEFGHJKMPQRUVXYZ",
         "minLength": 4,
-        "checksumAlphabet": "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ",
+        "checksumAlphabet": "0123456789ACDEFGHJKMPQRUVXYZ",
         "checksumLength": 2,
         "shortChecksumLength": 2,
         "shortChecksumUntil": 5,
@@ -3080,6 +3092,8 @@
           "O": "0",
           "I": "1",
           "L": "1",
+          "B": "8",
+          "S": "5",
           "T": "P",
           "N": "M",
           "W": "V"
@@ -3285,60 +3299,60 @@
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "R59D",
+      "input": "9E78",
       "state": "valid",
       "id": "0",
-      "canonicalCode": "R59D",
+      "canonicalCode": "9E78",
       "note": "first id: generation 4, the first complete length"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "KFGEE",
+      "input": "96RZ6",
       "state": "valid",
-      "id": "39304",
-      "canonicalCode": "KFGEE",
+      "id": "19683",
+      "canonicalCode": "96RZ6",
       "note": "first id of generation 5"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "1EE-53K",
+      "input": "5AM-A82",
       "state": "valid",
-      "id": "1375640",
-      "canonicalCode": "1EE-53K",
+      "id": "551124",
+      "canonicalCode": "5AM-A82",
       "note": "first id of generation 6, renders with a hyphen"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": " 1EE - 53K",
+      "input": " 5AM - A82",
       "state": "valid",
-      "id": "1375640",
-      "canonicalCode": "1EE-53K",
+      "id": "551124",
+      "canonicalCode": "5AM-A82",
       "note": "whitespace and separators are ignored"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "1EE53",
+      "input": "5AMA8",
       "state": "invalid",
       "reason": "INVALID_CHECKSUM",
       "note": "a prefix of a longer code is a complete shorter code: never typing"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "CHGNA",
+      "input": "8ARZA",
       "state": "invalid",
       "reason": "INVALID_CHECKSUM",
       "note": "wrong-length presentation fails the checksum"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "0HGN",
+      "input": "0ARZ",
       "state": "invalid",
       "reason": "INVALID_CHARACTER",
       "note": "0 in a body position"
     },
     {
       "profileId": "baseh-expandable-v1",
-      "input": "OHGN",
+      "input": "OARZ",
       "state": "invalid",
       "reason": "INVALID_CHARACTER",
       "note": "O aliases to 0, then fails in a body position"

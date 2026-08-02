@@ -146,8 +146,8 @@ describe("inspect: expandable mode (baseh-expandable-v1)", () => {
     assert.deepEqual(expandable.inspect("1"), { state: "typing", typed: "1", progress: 0.25 });
     assert.deepEqual(expandable.inspect("12"), { state: "typing", typed: "12", progress: 0.5 });
     assert.deepEqual(expandable.inspect("123"), { state: "typing", typed: "123", progress: 0.75 });
-    // below separatorMinLength the typing render is bare
-    assert.deepEqual(expandable.inspect("ab"), { state: "typing", typed: "AB", progress: 0.5 });
+    // below separatorMinLength the typing render is bare (B aliases to 8)
+    assert.deepEqual(expandable.inspect("ab"), { state: "typing", typed: "A8", progress: 0.5 });
     // aliases normalize while typing (O -> 0, and 0 is a checksum-alphabet symbol)
     assert.deepEqual(expandable.inspect("O"), { state: "typing", typed: "0", progress: 0.25 });
   });
@@ -156,12 +156,12 @@ describe("inspect: expandable mode (baseh-expandable-v1)", () => {
     const code4 = expandable.encode(0n); // first id, generation 4
     assert.equal(code4.length, 4);
     assert.deepEqual(expandable.inspect(code4), { state: "valid", id: 0n, canonicalCode: code4 });
-    const code5 = expandable.encode(39304n); // first id of generation 5
+    const code5 = expandable.encode(19683n); // first id of generation 5
     assert.equal(code5.length, 5);
-    assert.deepEqual(expandable.inspect(code5), { state: "valid", id: 39304n, canonicalCode: code5 });
-    const code6 = expandable.encode(1375640n); // first id of generation 6, renders with a hyphen
+    assert.deepEqual(expandable.inspect(code5), { state: "valid", id: 19683n, canonicalCode: code5 });
+    const code6 = expandable.encode(551124n); // first id of generation 6, renders with a hyphen
     assert.equal(code6.length, 7);
-    assert.deepEqual(expandable.inspect(code6), { state: "valid", id: 1375640n, canonicalCode: code6 });
+    assert.deepEqual(expandable.inspect(code6), { state: "valid", id: 551124n, canonicalCode: code6 });
   });
 
   it("every length >= minLength is complete: a bad checksum is invalid, not typing", () => {
@@ -191,10 +191,10 @@ describe("inspect: expandable mode (baseh-expandable-v1)", () => {
   });
 
   it("whitespace and separators in a complete code still reach valid", () => {
-    const code6 = expandable.encode(1375640n);
+    const code6 = expandable.encode(551124n);
     const raw = code6.replaceAll("-", "");
     const r = expandable.inspect(" " + raw.slice(0, 3) + " - " + raw.slice(3));
-    assert.deepEqual(r, { state: "valid", id: 1375640n, canonicalCode: code6 });
+    assert.deepEqual(r, { state: "valid", id: 551124n, canonicalCode: code6 });
   });
 });
 

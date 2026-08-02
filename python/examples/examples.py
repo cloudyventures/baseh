@@ -19,8 +19,7 @@ def show(label, fn):
         print(f"{label} -> raises BasehError [{e.code}]: {e}")
 
 
-# 1. Expandable mode: shipping in the next release; shown here as the new
-# default. Codes start at 4 characters and grow automatically as ids climb;
+# 1. Expandable mode: shown here as the new default. Codes start at 4 characters and grow automatically as ids climb;
 # shorter codes keep decoding forever.
 print("== expandable ==")
 expandable = Baseh(baseh_expandable_v1())

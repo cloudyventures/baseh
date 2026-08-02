@@ -220,19 +220,18 @@ func HeavyPV1(keyBytes []byte, keyID string, rounds int) Profile {
 	return buildTier(heavyShape(), keyedPermutation(keyBytes, keyID, rounds), true)
 }
 
-// Spec 17.1: "the full alphanumeric set minus 0 and O (34 symbols; the
-// zero ban of section 19.2)". The prose, the generation-capacity table
-// (34^(L-effectiveK); 39,304 ids at length 4 with the spec-22.5 short
-// checksum) and the checksum modulus (35^2 = 1,225) are all consistent
-// only with 34 symbols.
-const expandableBodyAlphabet = "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+// Spec 17.1: medium visual + spoken drops plus the 0/O zero ban (section
+// 19.2), leaving 27 body symbols. The checksum alphabet derives as "0"
+// plus the body (28 symbols, modulus 784); per spec 22.5 the short
+// checksum drops to a single symbol (modulus 28) through total length 5.
+const expandableBodyAlphabet = "123456789ACDEFGHJKMPQRUVXYZ"
 
 // buildExpandableTier assembles the frozen expandable tier of spec 17.1:
 // four characters while the namespace is small, gaining one symbol
 // automatically as issuance climbs past each generation's capacity. The
-// checksum alphabet derives as "0" plus the body (35 symbols, modulus
-// 1225); per spec 22.5 the short checksum drops to a single symbol
-// (modulus 35) through total length 5. The hyphen appears from six
+// checksum alphabet derives as "0" plus the body (28 symbols, modulus
+// 784); per spec 22.5 the short checksum drops to a single symbol
+// (modulus 28) through total length 5. The hyphen appears from six
 // characters up, with the balanced grouping of spec 19.5 (no configurable
 // pattern; grouping stays empty).
 func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
@@ -253,7 +252,7 @@ func buildExpandableTier(permutation Permutation, pSuffix bool) Profile {
 		Separator:           "-",
 		SeparatorMinLength:  6,
 		Grouping:            nil,
-		Aliases:             tierAliases("T", "P", "N", "M", "W", "V"),
+		Aliases:             tierAliases("B", "8", "S", "5", "T", "P", "N", "M", "W", "V"),
 		Permutation:         permutation,
 		Profanity:           Profanity{Mode: ProfanityBlocklist},
 		MaxRepetition:       4,

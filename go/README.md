@@ -24,12 +24,13 @@ Expandable properties:
   each length's capacity, codes simply become one character longer —
   transparently, with no migration or re-issue. Old shorter codes keep
   decoding forever; the code's length selects the generation at decode.
-- The body alphabet never contains `0` or `O` — the default expandable
-  alphabet is the 34 remaining alphanumeric symbols. A custom alphabet
+- The default expandable body alphabet is the 27 symbols left after the
+  medium visual and spoken safety strips and the `0`/`O` zero ban, so an
+  issued code never emits a visual or spoken confusable. A custom alphabet
   containing `0`/`O` has those symbols silently removed during profile
   preparation. This composes unchanged with the existing visual/spoken
   safety levels, profanity modes and blocklists.
-- The checksum alphabet is the body alphabet plus `0` (35 symbols for the
+- The checksum alphabet is the body alphabet plus `0` (28 symbols for the
   default). The existing input alias `O -> 0` remains, so a typed or
   misread `O` in a checksum position resolves to `0`.
 - There is no left-padding in expandable mode (fixed mode keeps its
@@ -160,8 +161,8 @@ the frozen published key. Each tier also has a `-p` variant that permutes
 with caller-supplied key material instead: `MinimumPV1`,
 `LightPV1`, `MediumPV1` and `HeavyPV1`, each taking
 `keyBytes []byte, keyID string, rounds int`, plus `ExpandablePV1` for
-the keyed private-mapping expandable variant (`baseh-expandable-p-v1`,
-shipping in the next release). Key bytes are required; an
+the keyed private-mapping expandable variant (`baseh-expandable-p-v1`).
+Key bytes are required; an
 empty key id defaults to `"default"` and zero rounds to 8. Key material
 is application-specific and never part of the frozen profile.
 
@@ -172,7 +173,7 @@ h, err := baseh.New(baseh.MediumPV1(key, "prod-01", 8))
 
 ## Errors
 
-Errors are always `*baseh.Error` with a stable `Code` field (one of
+Errors are always `*baseh.BasehError` with a stable `Code` field (one of
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,
 `INVALID_CHARACTER`, `INVALID_CHECKSUM`, `AMBIGUOUS_INPUT`,
 `TOO_MANY_CANDIDATES` and `BLOCKED_CODE`), retrievable with `errors.As`.

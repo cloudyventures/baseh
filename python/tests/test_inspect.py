@@ -174,7 +174,7 @@ class TestInspectExpandable(unittest.TestCase):
         )
         # Below separatorMinLength the typing render is bare.
         self.assertEqual(
-            exp.inspect("ab"), InspectResult(state="typing", typed="AB", progress=0.5)
+            exp.inspect("ab"), InspectResult(state="typing", typed="A8", progress=0.5)
         )
         # Aliases normalize while typing (O -> 0, and 0 is a checksum symbol).
         self.assertEqual(
@@ -189,17 +189,17 @@ class TestInspectExpandable(unittest.TestCase):
             exp.inspect(code4),
             InspectResult(state="valid", id=0, canonical_code=code4),
         )
-        code5 = exp.encode(39304)  # first id of generation 5
+        code5 = exp.encode(19683)  # first id of generation 5
         self.assertEqual(len(code5), 5)
         self.assertEqual(
             exp.inspect(code5),
-            InspectResult(state="valid", id=39304, canonical_code=code5),
+            InspectResult(state="valid", id=19683, canonical_code=code5),
         )
-        code6 = exp.encode(1375640)  # first id of generation 6, hyphenated
+        code6 = exp.encode(551124)  # first id of generation 6, hyphenated
         self.assertEqual(len(code6), 7)
         self.assertEqual(
             exp.inspect(code6),
-            InspectResult(state="valid", id=1375640, canonical_code=code6),
+            InspectResult(state="valid", id=551124, canonical_code=code6),
         )
 
     def test_every_length_at_min_length_is_complete_bad_checksum_is_invalid(self):
@@ -227,12 +227,12 @@ class TestInspectExpandable(unittest.TestCase):
         self.assertEqual(exp.inspect("A" * 32).state, "invalid")
 
     def test_whitespace_and_separators_in_complete_code_still_reach_valid(self):
-        code6 = self.expandable.encode(1375640)
+        code6 = self.expandable.encode(551124)
         raw = code6.replace("-", "")
         result = self.expandable.inspect(" " + raw[:3] + " - " + raw[3:])
         self.assertEqual(
             result,
-            InspectResult(state="valid", id=1375640, canonical_code=code6),
+            InspectResult(state="valid", id=551124, canonical_code=code6),
         )
 
 

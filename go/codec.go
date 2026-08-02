@@ -212,7 +212,7 @@ func (h *Codec) checkBlocklist(raw string) error {
 	return nil
 }
 
-// Decode implements spec 9. All returned errors are *Error.
+// Decode implements spec 9. All returned errors are *BasehError.
 func (h *Codec) Decode(input string, opts *DecodeOptions) (*DecodeResult, error) {
 	o := DecodeOptions{ConfusionProfile: "none"}
 	maxCorrections := 1
@@ -351,11 +351,11 @@ func (h *Codec) Validate(input string, opts *DecodeOptions) ValidateResult {
 	if err == nil {
 		return ValidateResult{Valid: true, CanonicalCode: result.CanonicalCode}
 	}
-	var herr *Error
+	var herr *BasehError
 	if errors.As(err, &herr) {
 		return ValidateResult{Valid: false, Reason: herr.Code}
 	}
-	// Decode only produces *Error, so this is unreachable in practice.
+	// Decode only produces *BasehError, so this is unreachable in practice.
 	return ValidateResult{Valid: false, Reason: INVALID_PROFILE}
 }
 

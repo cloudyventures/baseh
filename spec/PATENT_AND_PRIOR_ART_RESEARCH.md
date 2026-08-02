@@ -225,7 +225,7 @@ Build a small profile-driven wrapper around standard primitives. Reuse cryptogra
 
 ## 9. Trademark and naming
 
-The working name `Human Reference Code` is descriptive. Descriptive names may be difficult to protect and may conflict with existing uses.
+The working name `baseH` is descriptive. Descriptive names may be difficult to protect and may conflict with existing uses.
 
 Before public launch:
 

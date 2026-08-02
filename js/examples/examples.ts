@@ -17,8 +17,7 @@ function show(label: string, fn: () => unknown): void {
   }
 }
 
-// 0. Expandable mode: shipping in the next release; shown here as the new
-// default. Codes start at 4 characters and grow automatically as ids climb
+// 0. Expandable mode: shown here as the new default. Codes start at 4 characters and grow automatically as ids climb
 // past each length's capacity. No `0`/`O` in the body, no left-padding, and
 // no separator until codes reach 6 characters. Shorter codes already issued
 // keep decoding forever.

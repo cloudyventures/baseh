@@ -69,12 +69,12 @@ class TestFrozenTierShape(unittest.TestCase):
 
     def test_generation_capacities_follow_effective_k(self):
         profile = self.codec.profile
-        self.assertEqual(generation_capacity(profile, 4), 39304)  # 34^3
-        self.assertEqual(generation_capacity(profile, 5), 1336336)  # 34^4
+        self.assertEqual(generation_capacity(profile, 4), 19683)  # 27^3
+        self.assertEqual(generation_capacity(profile, 5), 531441)  # 27^4
         # one symbol buys the second checksum
-        self.assertEqual(generation_capacity(profile, 6), 1336336)
-        self.assertEqual(generation_capacity(profile, 7), 45435424)
-        self.assertEqual(generation_capacity(profile, 8), 1544804416)
+        self.assertEqual(generation_capacity(profile, 6), 531441)
+        self.assertEqual(generation_capacity(profile, 7), 14348907)
+        self.assertEqual(generation_capacity(profile, 8), 387420489)
 
 
 class TestRoundTripsAndBoundaries(unittest.TestCase):
@@ -101,10 +101,10 @@ class TestRoundTripsAndBoundaries(unittest.TestCase):
 
     def test_short_normal_boundary(self):
         profile = self.codec.profile
-        last_short = generation_base(profile, 6) - 1  # 1,375,639
-        first_normal = generation_base(profile, 6)  # 1,375,640
-        self.assertEqual(last_short, 1375639)
-        self.assertEqual(first_normal, 1375640)
+        last_short = generation_base(profile, 6) - 1  # 551,123
+        first_normal = generation_base(profile, 6)  # 551,124
+        self.assertEqual(last_short, 551123)
+        self.assertEqual(first_normal, 551124)
         a = _raw(self.codec.encode(last_short))
         self.assertEqual(len(a), 5)
         self.assertEqual(len(a) - 1, 4)  # 1 checksum symbol at length 5
@@ -152,22 +152,38 @@ class TestRoundTripsAndBoundaries(unittest.TestCase):
         self.assertRegex(code, r"^...-...$")
 
     def test_repetition_scan_covers_short_checksum(self):
-        # Probe with the filter off to find an id whose 4-symbol raw code is
-        # a run of 4 (necessarily spanning body and the single checksum
-        # symbol), then confirm the frozen tier blocks it.
-        probe = Baseh({**baseh_expandable_v1(), "maxRepetition": 0})
+        # A run of 4 that spans body and the single checksum symbol must be
+        # blocked. The scan rule is profile-independent, so use a small
+        # permutation-free profile where such a code is guaranteed and fast
+        # to find, then confirm the filter blocks it.
+        shape = {
+            "profileId": "short-rep-test",
+            "mode": "expandable",
+            "bodyAlphabet": "AB",
+            "minLength": 4,
+            "checksumAlphabet": "0AB",
+            "checksumLength": 2,
+            "shortChecksumLength": 1,
+            "shortChecksumUntil": 5,
+            "caseSensitive": False,
+            "separator": "",
+            "separatorMinLength": 0,
+            "grouping": [],
+            "aliases": {},
+            "permutation": {"enabled": False},
+            "profanity": {"mode": "none"},
+            "maxRepetition": 0,
+        }
+        probe = Baseh(shape)
         found = None
-        for id in range(0, generation_base(self.codec.profile, 5)):
-            try:
-                code = probe.encode(id)
-            except BasehError:
-                continue
-            raw = _raw(code)
-            if len(raw) == 4 and re.search(r"(.)\1{3}", raw):
+        for id in range(0, 2000):
+            raw = _raw(probe.encode(id))
+            if len(raw) >= 4 and re.search(r"(.)\1{3}$", raw):
                 found = id
                 break
-        self.assertIsNotNone(found, "expected a gen-4 code with a run of 4")
-        _expect_error(lambda: self.codec.encode(found), "BLOCKED_CODE")
+        self.assertIsNotNone(found, "expected a code ending in a run of 4")
+        blocked = Baseh({**shape, "maxRepetition": 4})
+        _expect_error(lambda: blocked.encode(found), "BLOCKED_CODE")
 
 
 class TestValidation(unittest.TestCase):
@@ -264,11 +280,11 @@ class TestValidation(unittest.TestCase):
             {**self.base, "shortChecksumLength": 0, "shortChecksumUntil": 0}
         )
         self.assertEqual(off.profile.short_checksum_length, 0)
-        self.assertEqual(generation_capacity(off.profile, 4), 1156)
+        self.assertEqual(generation_capacity(off.profile, 4), 729)
         self.assertEqual(effective_checksum_length(off.profile, 4), 2)
-        code = off.encode(1155)
+        code = off.encode(100)
         self.assertEqual(len(_raw(code)), 4)
-        self.assertEqual(off.decode(code).id, 1155)
+        self.assertEqual(off.decode(code).id, 100)
 
     def test_custom_window_round_trips_every_generation(self):
         profile = {
@@ -284,9 +300,9 @@ class TestValidation(unittest.TestCase):
         }
         codec = Baseh(profile)
         # Body sizes: 3, 4, 5 through length 6 (K = 1), then L - 2.
-        self.assertEqual(generation_capacity(codec.profile, 4), 34**3)
-        self.assertEqual(generation_capacity(codec.profile, 6), 34**5)
-        self.assertEqual(generation_capacity(codec.profile, 7), 34**5)  # K = 2
+        self.assertEqual(generation_capacity(codec.profile, 4), 27**3)
+        self.assertEqual(generation_capacity(codec.profile, 6), 27**5)
+        self.assertEqual(generation_capacity(codec.profile, 7), 27**5)  # K = 2
         self.assertGreater(
             generation_capacity(codec.profile, 6),
             generation_capacity(codec.profile, 5),
@@ -326,9 +342,9 @@ class TestZeroChecksumWindow(unittest.TestCase):
 
     def test_window_generations_are_all_body(self):
         profile = self.codec.profile
-        self.assertEqual(generation_capacity(profile, 4), 34**4)
-        self.assertEqual(generation_capacity(profile, 5), 34**5)
-        self.assertEqual(generation_capacity(profile, 6), 34**4)  # K = 2 above
+        self.assertEqual(generation_capacity(profile, 4), 27**4)
+        self.assertEqual(generation_capacity(profile, 5), 27**5)
+        self.assertEqual(generation_capacity(profile, 6), 27**4)  # K = 2 above
 
     def test_round_trips_generations_4_to_6(self):
         profile = self.codec.profile

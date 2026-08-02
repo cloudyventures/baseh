@@ -163,10 +163,10 @@ class TestInspect < Minitest::Test
     assert_equal "123", r.typed
     assert_in_delta 0.75, r.progress, 1e-9
 
-    # below separatorMinLength the typing render is bare
+    # below separatorMinLength the typing render is bare (B aliases to 8)
     r = expandable.inspect("ab")
     assert_equal "typing", r.state
-    assert_equal "AB", r.typed
+    assert_equal "A8", r.typed
     assert_in_delta 0.5, r.progress, 1e-9
 
     # aliases normalize while typing (O -> 0, a checksum-alphabet symbol)
@@ -184,18 +184,18 @@ class TestInspect < Minitest::Test
     assert_equal 0, r.id
     assert_equal code4, r.canonical_code
 
-    code5 = expandable.encode(id: 39_304) # first id of generation 5
+    code5 = expandable.encode(id: 19_683) # first id of generation 5
     assert_equal 5, code5.length
     r = expandable.inspect(code5)
     assert_equal "valid", r.state
-    assert_equal 39_304, r.id
+    assert_equal 19_683, r.id
     assert_equal code5, r.canonical_code
 
-    code6 = expandable.encode(id: 1_375_640) # generation 6, renders with a hyphen
+    code6 = expandable.encode(id: 551_124) # generation 6, renders with a hyphen
     assert_equal 7, code6.length
     r = expandable.inspect(code6)
     assert_equal "valid", r.state
-    assert_equal 1_375_640, r.id
+    assert_equal 551_124, r.id
     assert_equal code6, r.canonical_code
   end
 
@@ -225,11 +225,11 @@ class TestInspect < Minitest::Test
   end
 
   def test_expandable_whitespace_and_separators_in_complete_code_reach_valid
-    code6 = expandable.encode(id: 1_375_640)
+    code6 = expandable.encode(id: 551_124)
     raw = code6.delete("-")
     r = expandable.inspect(" #{raw.slice(0, 3)} - #{raw.slice(3..)}")
     assert_equal "valid", r.state
-    assert_equal 1_375_640, r.id
+    assert_equal 551_124, r.id
     assert_equal code6, r.canonical_code
   end
 

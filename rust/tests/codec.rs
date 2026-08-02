@@ -550,6 +550,22 @@ fn correction_light_medium_heavy() {
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
 }
 
+#[test]
+fn default_decode_options_correct_one_edit() {
+    // max_corrections defaults to 1, so try_correction alone is enough to
+    // repair a single spoken confusion. Only an explicit 0 disables it.
+    assert_eq!(DecodeOptions::default().max_corrections, 1);
+    let baseh = Baseh::new(no_perm()).unwrap();
+    let options = DecodeOptions {
+        try_correction: true,
+        confusion_profile: ConfusionProfile::Light,
+        ..DecodeOptions::default()
+    };
+    let result = baseh.decode("0000TBC", &options).unwrap();
+    assert_eq!(result.canonical_code, "0000PBC");
+    assert!(result.corrected);
+}
+
 /// Search ids upward for the first whose encoded medium code contains `sym`,
 /// skipping blocklist-reserved ids (they are never issued).
 fn first_medium_code_with(baseh: &Baseh, sym: char) -> (BigUint, String) {

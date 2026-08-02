@@ -89,17 +89,20 @@ The `baseh-expandable-v1` tier is the recommended starting point:
   field `minLength`). When the id sequence outgrows a length, codes become
   one symbol longer — transparently, with no re-issue and no migration.
   Shorter codes decode forever.
-- **No `0` or `O` in the body, ever**: the default body alphabet is the 34
-  remaining alphanumerics, and a custom alphabet has `0`/`O` removed during
-  profile preparation (tooling always displays the derived alphabet). No
-  code can start with a zero glyph, so there is nothing to mis-drop and no
+- **Medium safety plus the zero ban**: the default body alphabet is the 27
+  symbols left after the medium visual strips (`I`, `L`, `B`, `S` and `O`)
+  and the medium spoken strips (`T`, `N`, `W`), with `0` also removed by the
+  expandable zero ban, so an issued code never emits a visual or spoken
+  confusable. A custom alphabet has `0`/`O` removed during profile
+  preparation (tooling always displays the derived alphabet). No code can
+  start with a zero glyph, so there is nothing to mis-drop and no
   left-padding anywhere.
 - **Checksum keeps the zero**: the checksum alphabet is the body alphabet
   plus `0`, and the `O -> 0` input alias still applies, so a misread `O` in
   a checksum position resolves correctly.
 - **Short checksum on by default**: the shortest, most-typed codes carry one
-  checksum symbol instead of two — one through five characters, two beyond —
-  so generation 4 holds 39,304 ids instead of 1,156 (spec section 22;
+  checksum symbol instead of two, one through five characters, two beyond,
+  so generation 4 holds 19,683 ids instead of 729 (spec section 22;
   configurable via `shortChecksumLength`/`shortChecksumUntil`,
   `shortChecksumUntil: 0` turns it off).
 - **Permuted per length**: the Feistel permutation runs within each code
@@ -199,10 +202,10 @@ of each package.
 
 ## Status and release process
 
-The codec, the four frozen tiers and the vector suite are version 2.
-Expandable mode is implemented in all five languages and is the headline of
-the next release; the `baseh-expandable-v1` helpers will not exist in
-published packages until that release is cut. Releases are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
+The codec, the five frozen tiers and the vector suite are version 2.
+Expandable mode is implemented in all five languages; only the
+published-package timing is pending, since v2.0.0 is not yet tagged, so the
+`baseh-expandable-v1` helpers do not exist in published packages yet. Releases are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC
 trusted publishing with no stored tokens; setup is in

@@ -1,7 +1,8 @@
-"""Zero-config facade: package-level encode/decode backed by a lazily-built
-shared Baseh instance on the frozen expandable v1 tier, the recommended
-starting point for new namespaces. Both functions mirror the instance API
-exactly, including its error conventions (BasehError with a stable .code)."""
+"""Zero-config facade: package-level encode/decode/validate backed by a
+lazily-built shared Baseh instance on the frozen expandable v1 tier, the
+recommended starting point for new namespaces. Both functions mirror the
+instance API exactly, including its error conventions (BasehError with a
+stable .code)."""
 
 from __future__ import annotations
 
@@ -45,3 +46,22 @@ def inspect(code: str) -> InspectResult:
     """Live as-you-type inspection (spec 12.5) with the shared
     baseh-expandable-v1 codec. Never raises on user input."""
     return _default_codec().inspect(code)
+
+
+def validate(
+    code: str,
+    *,
+    accept_spaces: bool = False,
+    try_correction: bool = False,
+    confusion_profile: str = "none",
+    max_corrections: int = 1,
+) -> dict:
+    """Validate with the shared baseh-expandable-v1 codec. Never raises on
+    user input; returns the same result dict as Baseh.validate."""
+    return _default_codec().validate(
+        code,
+        accept_spaces=accept_spaces,
+        try_correction=try_correction,
+        confusion_profile=confusion_profile,
+        max_corrections=max_corrections,
+    )

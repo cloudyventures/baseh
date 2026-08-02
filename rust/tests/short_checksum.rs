@@ -64,11 +64,11 @@ fn effective_checksum_length_per_generation() {
 #[test]
 fn generation_capacities_follow_the_effective_k() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    assert_eq!(h.generation_capacity(4), big(39304)); // 34^3
-    assert_eq!(h.generation_capacity(5), big(1336336)); // 34^4
-    assert_eq!(h.generation_capacity(6), big(1336336)); // one symbol buys the second checksum
-    assert_eq!(h.generation_capacity(7), big(45435424));
-    assert_eq!(h.generation_capacity(8), big(1544804416));
+    assert_eq!(h.generation_capacity(4), big(19683)); // 27^3
+    assert_eq!(h.generation_capacity(5), big(531441)); // 27^4
+    assert_eq!(h.generation_capacity(6), big(531441)); // one symbol buys the second checksum
+    assert_eq!(h.generation_capacity(7), big(14348907));
+    assert_eq!(h.generation_capacity(8), big(387420489));
 }
 
 #[test]
@@ -96,10 +96,10 @@ fn round_trips_generations_four_through_eight() {
 #[test]
 fn pins_the_short_normal_boundary() {
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    let last_short = h.generation_base(6) - 1u64; // 1,375,639
-    let first_normal = h.generation_base(6); // 1,375,640
-    assert_eq!(last_short, big(1375639));
-    assert_eq!(first_normal, big(1375640));
+    let last_short = h.generation_base(6) - 1u64; // 551,123
+    let first_normal = h.generation_base(6); // 551,124
+    assert_eq!(last_short, big(551123));
+    assert_eq!(first_normal, big(551124));
     let a = raw(&h.encode(&last_short).unwrap());
     assert_eq!(a.len(), 5);
     assert_eq!(a.len() - 1, 4); // 1 checksum symbol at length 5
@@ -128,14 +128,14 @@ fn a_four_character_code_validates_against_exactly_one_checksum_symbol() {
 }
 
 #[test]
-fn short_generations_use_modulus_35_not_1225() {
-    // Exactly one of the 35 checksum-alphabet symbols closes a gen-4 body:
-    // the modulus is 35, so every symbol is a distinct residue.
+fn short_generations_use_modulus_28_not_784() {
+    // Exactly one of the 28 checksum-alphabet symbols closes a gen-4 body:
+    // the modulus is 28, so every symbol is a distinct residue.
     let h = Baseh::new(baseh_expandable_v1()).unwrap();
     let id = first_issuable(&h, &big(0));
     let code = raw(&h.encode(&id).unwrap());
     let body = &code[..3];
-    let alphabet: String = format!("0{}", "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ");
+    let alphabet: String = format!("0{}", "123456789ACDEFGHJKMPQRUVXYZ");
     let mut hits = 0u32;
     for c in alphabet.chars() {
         if h.decode(&format!("{body}{c}"), &strict()).is_ok() {
@@ -163,30 +163,45 @@ fn separator_threshold_is_still_a_function_of_total_length() {
 
 #[test]
 fn repetition_scan_covers_body_plus_the_short_checksum() {
-    // Probe with the filter off to find an id whose 4-symbol raw code is a
-    // run of 4 (necessarily spanning body and the single checksum symbol),
-    // then confirm the frozen tier blocks it.
-    let probe = Baseh::new(Profile {
-        max_repetition: 0,
-        ..baseh_expandable_v1()
-    })
-    .unwrap();
-    let h = Baseh::new(baseh_expandable_v1()).unwrap();
-    let gen5 = h.generation_base(5);
-    let mut found = None;
-    let mut id = big(0);
-    while id < gen5 {
-        if let Ok(code) = probe.encode(&id) {
-            let r: Vec<char> = raw(&code).chars().collect();
-            if r.len() == 4 && r.windows(4).any(|w| w.iter().all(|c| *c == w[0])) {
-                found = Some(id.clone());
-                break;
-            }
-        }
-        id += 1u64;
-    }
-    let found = found.expect("expected a gen-4 code with a run of 4");
-    expect_error(h.encode(&found), ErrorCode::BlockedCode);
+    // The frozen tier's 27-symbol body and modulus-28 checksum no longer
+    // produce a gen-4 code that is a run of 4 (the polynomial checksum value
+    // for a uniform 3-symbol body never lands on the matching checksum
+    // symbol under the "baseh-expandable-v1" profile id). Use a small
+    // permutation-free custom profile where id 0 is exactly such a code
+    // (body "AB", checksum "0AB": id 0 encodes AAAA, a run of 4 spanning the
+    // three body A's and the single short-checksum A), and confirm the filter
+    // blocks it.
+    let make = |max_rep: usize| {
+        Baseh::new(Profile {
+            profile_id: "run-test".to_string(),
+            mode: Mode::Expandable,
+            body_alphabet: "AB".to_string(),
+            body_length: 0,
+            min_length: Some(4),
+            checksum_alphabet: String::new(),
+            checksum_length: 2,
+            short_checksum_length: 1,
+            short_checksum_until: 5,
+            case_sensitive: false,
+            separator: String::new(),
+            separator_min_length: 0,
+            grouping: Vec::new(),
+            aliases: Vec::new(),
+            permutation: Permutation::Disabled,
+            profanity: None,
+            max_repetition: max_rep,
+        })
+        .unwrap()
+    };
+    let probe = make(0);
+    let h = make(4);
+    let code = probe.encode(&big(0)).unwrap();
+    let r: Vec<char> = raw(&code).chars().collect();
+    assert!(
+        r.len() == 4 && r.windows(4).all(|w| w.iter().all(|c| *c == w[0])),
+        "code is a run of 4: {code}"
+    );
+    expect_error(h.encode(&big(0)), ErrorCode::BlockedCode);
 }
 
 #[test]
@@ -306,11 +321,11 @@ fn zero_turns_the_feature_off_and_keeps_the_old_shape() {
     })
     .unwrap();
     assert_eq!(off.profile().short_checksum_length, 0);
-    assert_eq!(off.generation_capacity(4), big(1156));
+    assert_eq!(off.generation_capacity(4), big(729));
     assert_eq!(off.effective_checksum_length(4), 2);
-    let code = off.encode(&big(1155)).unwrap();
+    let code = off.encode(&big(728)).unwrap();
     assert_eq!(raw(&code).len(), 4);
-    assert_eq!(off.decode(&code, &strict()).unwrap().id, big(1155));
+    assert_eq!(off.decode(&code, &strict()).unwrap().id, big(728));
 }
 
 #[test]
@@ -329,9 +344,9 @@ fn custom_short_checksum_window_round_trips_at_every_generation() {
     })
     .unwrap();
     // Body sizes: 3, 4, 5 through length 6 (K = 1), then L - 2.
-    assert_eq!(h.generation_capacity(4), big(34u64.pow(3)));
-    assert_eq!(h.generation_capacity(6), big(34u64.pow(5)));
-    assert_eq!(h.generation_capacity(7), big(34u64.pow(5))); // K = 2 kicks in
+    assert_eq!(h.generation_capacity(4), big(27u64.pow(3)));
+    assert_eq!(h.generation_capacity(6), big(27u64.pow(5)));
+    assert_eq!(h.generation_capacity(7), big(27u64.pow(5))); // K = 2 kicks in
     assert!(h.generation_capacity(6) > h.generation_capacity(5));
     for l in 4..=8usize {
         let id = h.generation_base(l) + 7u64;
@@ -368,9 +383,9 @@ fn zero_window_resolves_effective_k_of_zero_inside_checksum_length_above() {
 #[test]
 fn zero_window_generations_are_all_body_capacity_is_a_to_the_l() {
     let h = Baseh::new(zero_window_profile()).unwrap();
-    assert_eq!(h.generation_capacity(4), big(34u64.pow(4)));
-    assert_eq!(h.generation_capacity(5), big(34u64.pow(5)));
-    assert_eq!(h.generation_capacity(6), big(34u64.pow(4))); // K = 2 above the window
+    assert_eq!(h.generation_capacity(4), big(27u64.pow(4)));
+    assert_eq!(h.generation_capacity(5), big(27u64.pow(5)));
+    assert_eq!(h.generation_capacity(6), big(27u64.pow(4))); // K = 2 above the window
 }
 
 #[test]
@@ -395,7 +410,7 @@ fn zero_window_checksum_of_zero_symbols_is_the_empty_string() {
     assert_eq!(code.len(), 4);
     assert!(code
         .chars()
-        .all(|c| "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ".contains(c)));
+        .all(|c| "123456789ACDEFGHJKMPQRUVXYZ".contains(c)));
 }
 
 #[test]

@@ -30,7 +30,7 @@ from .errors import (
     TOO_MANY_CANDIDATES,
     BasehError,
 )
-from .facade import decode, encode, inspect
+from .facade import decode, encode, inspect, validate
 from .profile import effective_checksum_length
 from .profiles import (
     FROZEN_KEY_BYTES,
@@ -61,6 +61,7 @@ __all__ = [
     "encode",
     "decode",
     "inspect",
+    "validate",
     "FROZEN_KEY_BYTES",
     "baseh_expandable_v1",
     "baseh_expandable_p_v1",

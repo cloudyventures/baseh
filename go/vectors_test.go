@@ -200,9 +200,9 @@ func TestConformanceErrors(t *testing.T) {
 			if err == nil {
 				t.Fatalf("decode %q succeeded, want %s", e.Input, e.Error)
 			}
-			var herr *Error
+			var herr *BasehError
 			if !errors.As(err, &herr) {
-				t.Fatalf("error type %T, want *Error", err)
+				t.Fatalf("error type %T, want *BasehError", err)
 			}
 			if string(herr.Code) != e.Error {
 				t.Errorf("code = %s, want %s", herr.Code, e.Error)
@@ -222,9 +222,9 @@ func TestConformanceEncodeErrors(t *testing.T) {
 			if err == nil {
 				t.Fatalf("encode %s succeeded, want %s", e.ID, e.Error)
 			}
-			var herr *Error
+			var herr *BasehError
 			if !errors.As(err, &herr) {
-				t.Fatalf("error type %T, want *Error", err)
+				t.Fatalf("error type %T, want *BasehError", err)
 			}
 			if string(herr.Code) != e.Error {
 				t.Errorf("code = %s, want %s", herr.Code, e.Error)
@@ -246,7 +246,7 @@ func TestConformanceProfileErrors(t *testing.T) {
 			if err == nil {
 				t.Fatalf("profile accepted, want %s", e.Error)
 			}
-			var herr *Error
+			var herr *BasehError
 			if !errors.As(err, &herr) || string(herr.Code) != e.Error {
 				t.Errorf("error = %v, want code %s", err, e.Error)
 			}
@@ -271,7 +271,7 @@ func TestConformanceCorrection(t *testing.T) {
 				if err == nil {
 					t.Fatalf("decode succeeded, want %s", c.Error)
 				}
-				var herr *Error
+				var herr *BasehError
 				if !errors.As(err, &herr) || string(herr.Code) != c.Error {
 					t.Errorf("error = %v, want code %s", err, c.Error)
 				}

@@ -63,15 +63,28 @@ impl ConfusionProfile {
 }
 
 /// Decode options (spec 12.2). Defaults: strict input, no correction.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodeOptions {
     /// Remove ASCII spaces during normalization in addition to separators.
     pub accept_spaces: bool,
     /// Attempt single-symbol spoken-confusion correction after a checksum failure.
     pub try_correction: bool,
     pub confusion_profile: ConfusionProfile,
-    /// 0 or 1 in version 1. Anything above 1 is treated as 1.
+    /// 0 or 1 in version 1. Anything above 1 is treated as 1. Defaults to 1,
+    /// matching the other ports; set it to 0 to disable correction
+    /// explicitly when try_correction is on.
     pub max_corrections: u32,
+}
+
+impl Default for DecodeOptions {
+    fn default() -> Self {
+        DecodeOptions {
+            accept_spaces: false,
+            try_correction: false,
+            confusion_profile: ConfusionProfile::None,
+            max_corrections: 1,
+        }
+    }
 }
 
 impl DecodeOptions {
