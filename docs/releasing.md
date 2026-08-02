@@ -55,3 +55,36 @@ a fallback, not the default.
 - If the verify job fails, fix the implementations and re-tag; do not bypass.
 - The Go module has no registry step at all; `go/vX.Y.Z` tags are created by
   the workflow and require no setup.
+- Before tagging, confirm `scripts/check-versions.sh` is green (ci runs it
+  as the release-preflight job on every push). It exists because the v2.0.1
+  rubygems publish failed on a stale Gemfile.lock pin. After any version
+  bump, re-bundle (`cd ruby && bundle install`) and refresh the JS locks
+  (`npm install --package-lock-only` in js/ and web/); `cargo check`
+  refreshes rust/Cargo.lock.
+
+## Lessons from the first releases (v2.0.0 to v2.0.2)
+
+The release workflow had never executed until v2.0.0, so its tag-only bugs
+surfaced one per release:
+
+- v2.0.0: publish-crates wrote its log inside rust/, so cargo publish
+  refused a dirty tree. The go tag push was rejected because the Actions
+  token cannot push a ref whose tree touches .github/workflows (fix:
+  tolerate that rejection and push the go tag manually with SSH).
+- v2.0.1: publish-rubygems failed because Gemfile.lock still pinned the
+  previous baseh version and bundler runs frozen in CI (fix:
+  scripts/check-versions.sh as a CI gate).
+
+The publish jobs run in parallel and independently, so one registry's
+failure never blocks the others. Only the GitHub Release job requires all
+of them, which is deliberate: a skipped GitHub Release is the signal that a
+release is partial. Recover by fixing the cause, bumping the patch version
+everywhere and tagging again; already-published registries treat the repeat
+version as success (skip-existing or the equivalent guard in each step).
+
+Offline rehearsal is only partial: `cargo publish --dry-run`,
+`npm publish --dry-run` and `gem build` catch packaging errors, but the
+failures above were environmental (lockfile freshness, token scope, a dirty
+tree inside the crate) and only appear in the CI sandbox. The preflight
+check plus the publish jobs' already-published tolerance are the safety
+net; a failed release is always recoverable by tagging the next patch.

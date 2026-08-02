@@ -6,6 +6,14 @@ on:
   pull_request:
 
 jobs:
+  release-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Every manifest and generated lockfile must agree on one version;
+      # a stale Gemfile.lock is what broke the v2.0.1 rubygems publish.
+      - run: scripts/check-versions.sh
+
   js:
     runs-on: ubuntu-latest
     steps:
