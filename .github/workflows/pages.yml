@@ -28,6 +28,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
+      # The web tests import js/src directly, so js dependencies must be
+      # installed first (same fix as the web job in ci.yml).
+      - run: npm ci
+        working-directory: js
       # vite build strips types without checking them, so the deploy runs the
       # same gate as local development: tests, then tsc, then the build.
       - run: npm ci && npm test && npx tsc --noEmit && npm run build
