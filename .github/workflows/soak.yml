@@ -8,6 +8,9 @@ on:
     - cron: "17 3 * * *"
   workflow_dispatch:
 
+permissions:
+  issues: write
+
 jobs:
   soak:
     runs-on: ubuntu-latest
@@ -56,3 +59,18 @@ jobs:
       - if: steps.gate.outputs.skip == 'false'
         name: go fuzz decode (5m time-box)
         run: cd go && go test -fuzz=FuzzDecode -fuzztime=5m .
+      # Notify on failure by opening one deduped issue; the user watches the
+      # repo, so this lands where they will see it without gating main.
+      - if: failure()
+        name: open an issue on soak failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          open=$(gh issue list --repo ${{ github.repository }} --label soak-failure --state open --json number --jq 'length')
+          if [ "$open" = "0" ]; then
+            gh issue create --repo ${{ github.repository }} --label soak-failure \
+              --title "Nightly soak failed on $(git log -1 --format=%h)" \
+              --body "The nightly soak failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            echo "an open soak-failure issue already exists, not opening another"
+          fi
