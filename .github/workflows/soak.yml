@@ -1,0 +1,58 @@
+name: soak
+
+# Nightly full soak, but only when main received commits since the last run.
+# The release workflow still runs the same gates on every tag; this job gives
+# early warning so a tag run is a confirmation, not a discovery.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: skip when main is unchanged
+        id: gate
+        # fetch-depth 1 is fine: only HEAD's timestamp is read.
+        run: |
+          head_ts=$(git log -1 --format=%ct)
+          cutoff=$(( $(date +%s) - 26 * 3600 ))
+          if [ "$head_ts" -lt "$cutoff" ]; then
+            echo "no commits to main in the last 26h, skipping soak"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - if: steps.gate.outputs.skip == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - if: steps.gate.outputs.skip == 'false'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.skip == 'false'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      # Same full 100,000-sampled-body sweeps and fuzz as the release gates;
+      # see release.yml for the canonical comments.
+      - if: steps.gate.outputs.skip == 'false'
+        name: python full checksum sweep
+        run: cd python && BASEH_SOAK=1 PYTHONPATH=src python tests/test_checksum_sweep.py TestChecksumSweepFull
+      - if: steps.gate.outputs.skip == 'false'
+        name: go full checksum sweep
+        run: cd go && BASEH_SOAK=1 go test -run TestChecksumSweepFull -v .
+      - if: steps.gate.outputs.skip == 'false'
+        name: rust full checksum sweep
+        run: cd rust && BASEH_SOAK=1 cargo test --release --test checksum_sweep -- --ignored single_substitution_sweep_full --nocapture
+      - if: steps.gate.outputs.skip == 'false'
+        name: ruby full checksum sweep
+        run: cd ruby && BASEH_SOAK=1 ruby -Ilib -Itest test/test_checksum_sweep.rb -n test_single_substitution_sweep_soak
+      - if: steps.gate.outputs.skip == 'false'
+        name: go fuzz decode (5m time-box)
+        run: cd go && go test -fuzz=FuzzDecode -fuzztime=5m .
