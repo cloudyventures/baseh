@@ -6,6 +6,8 @@ name: pages
 on:
   push:
     tags: ["v*"]
+  # Manual redeploy, for example when a tag predates a pages.yml fix.
+  workflow_dispatch:
 
 permissions:
   pages: write
