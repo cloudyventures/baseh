@@ -124,9 +124,11 @@ jobs:
       # success here, not a failure.
       - run: |
           set -o pipefail
-          if cargo publish --locked 2>&1 | tee publish.log; then
+          # The log must live outside the crate directory: an untracked
+          # publish.log in rust/ makes cargo publish refuse a dirty tree.
+          if cargo publish --locked 2>&1 | tee /tmp/publish.log; then
             echo "published ${{ github.ref_name }}"
-          elif grep -qi 'already' publish.log; then
+          elif grep -qi 'already' /tmp/publish.log; then
             echo "version already on crates.io (bootstrap publish), continuing"
           else
             exit 1
@@ -179,7 +181,19 @@ jobs:
             exit 0
           fi
           git tag "go/${TAG}"
-          git push origin "go/${TAG}"
+          # The Actions token cannot push a ref whose tree touches
+          # .github/workflows (no workflows scope on GITHUB_TOKEN). That
+          # rejection is tolerated with a warning; push the go tag manually
+          # with an SSH key instead (see docs/releasing.md).
+          if out=$(git push origin "go/${TAG}" 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "workflows"; then
+            echo "$out"
+            echo "::warning::go/${TAG} push rejected (workflows scope); push it manually: git push origin go/${TAG}"
+          else
+            echo "$out"
+            exit 1
+          fi
 
   # The GitHub Release marks a fully-green release: it only runs once every
   # registry publish and the Go tag have succeeded.
