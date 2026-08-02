@@ -213,6 +213,4 @@ trusted publishing with no stored tokens; setup is in
 
 ## License
 
-AGPL-3.0 (see [`LICENSE`](LICENSE)). Free for any project whose own source
-is also released under the AGPL. Proprietary use, for example a closed SaaS
-product, requires a commercial license: see [`COMMERCIAL.md`](COMMERCIAL.md).
+Apache-2.0 (see [`LICENSE`](LICENSE)).

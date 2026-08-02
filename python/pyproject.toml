@@ -8,7 +8,7 @@ version = "2.0.2"
 description = "baseH codec: checksumed, optionally permuted human-readable identifiers"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "AGPL-3.0-only" }
+license = { text = "Apache-2.0" }
 dependencies = []
 classifiers = [
     "Development Status :: 4 - Beta",

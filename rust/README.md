@@ -189,4 +189,4 @@ Also gated on `cargo clippy --all-targets` (clean) and `cargo fmt --check`.
 
 ## License
 
-AGPL-3.0-only
+Apache-2.0

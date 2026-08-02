@@ -164,5 +164,4 @@ input.
 
 ## License
 
-AGPL-3.0. Commercial licensing available; see
-[COMMERCIAL.md](https://github.com/cloudyventures/baseh/blob/main/COMMERCIAL.md).
+Apache-2.0.
