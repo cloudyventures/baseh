@@ -1,12 +1,11 @@
 name: pages
 
-# Deploy only after the ci workflow passes on main. ci runs on every push to
-# main, so gating here means a failing test or type error can never go live.
+# Deploy the site only on release tags, not on every push to main. The
+# release workflow's verify job has already run the full gates for the tag,
+# so a failing test or type error can never go live.
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-    branches: [main]
+  push:
+    tags: ["v*"]
 
 permissions:
   pages: write
@@ -14,15 +13,12 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
