@@ -264,7 +264,7 @@ def prepare_profile(profile) -> PreparedProfile:
         aliases_norm[s_norm] = t_norm
 
     grouping = profile.get("grouping")
-    if not isinstance(grouping, (list, tuple)):
+    if not isinstance(grouping, list | tuple):
         _fail("grouping must be a list of group sizes")
     if separator == "":
         if len(grouping) != 0:
@@ -294,7 +294,7 @@ def prepare_profile(profile) -> PreparedProfile:
         if not isinstance(key_id, str) or len(key_id) == 0:
             _fail("permutation requires a keyId")
         key_bytes = permutation.get("keyBytes")
-        if not isinstance(key_bytes, (bytes, bytearray)) or len(key_bytes) == 0:
+        if not isinstance(key_bytes, bytes | bytearray) or len(key_bytes) == 0:
             _fail("permutation requires key material")
         rounds = permutation.get("rounds")
         if not _is_int(rounds) or rounds < 4 or rounds > 16 or rounds % 2 != 0:
