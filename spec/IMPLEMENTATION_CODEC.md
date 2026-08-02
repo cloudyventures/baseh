@@ -138,7 +138,7 @@ B -> 8
 S -> 5
 ```
 
-An alias must never map two distinct canonical symbols into one value. Aliases expand accepted input but do not change canonical output.
+An alias must never map two distinct canonical symbols into one value. Aliases expand accepted input but do not change canonical output. In expandable mode the active alias set is the medium one (section 19).
 
 ### 3.3 Confusion candidates
 
@@ -421,7 +421,7 @@ Cycle walking inverts identically: apply the inverse round sequence repeatedly u
 
 ### 7.5 The frozen published key
 
-The four frozen tiers (section 17) all permute with a published key so the zero-argument profile helpers work without key provisioning:
+The five frozen tiers (section 17) all permute with a published key so the zero-argument profile helpers work without key provisioning:
 
 ```text
 FROZEN_KEY_BYTES = ASCII("baseh-frozen-key-v1")
@@ -709,7 +709,7 @@ Each language implementation must:
 
 ## 17. Reference defaults
 
-Four frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all four run the default profanity blocklist (section 18) and keep their typed aliases. `baseh-medium-v1` is the documented default.
+Five frozen tiers ship with the library. Each is the full alphanumeric set with cumulative visual and spoken strips applied exactly as the web tools derive them; all five run the default profanity blocklist (section 18) and keep their typed aliases. `baseh-medium-v1` is the documented default.
 
 Every frozen tier — fixed and expandable, plain and `-p` — ships `maxRepetition: 4` (section 21.4): a run of four or more identical symbols blocks the code at encode time.
 
@@ -1158,6 +1158,10 @@ definition must declare `mode` explicitly once implementations support it,
 and a decoder must not guess the mode from the presented input. Profiles
 constructed programmatically without a mode are treated as `"fixed"`
 (section 2.2).
+
+## 20. Reserved
+
+Section number 20 is intentionally reserved; later sections keep their existing numbers.
 
 ## 21. Repetition filter
 

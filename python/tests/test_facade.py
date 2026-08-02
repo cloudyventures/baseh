@@ -13,6 +13,7 @@ from baseh import (
     baseh_expandable_v1,
     decode,
     encode,
+    validate,
 )
 
 
@@ -48,6 +49,23 @@ class TestFacade(unittest.TestCase):
         with self.assertRaises(BasehError) as ctx:
             encode(-1)
         self.assertEqual(ctx.exception.code, OUT_OF_RANGE)
+
+    def test_validate_accepts_valid_code(self):
+        code = encode(42)
+        self.assertEqual(validate(code), {"valid": True, "canonical_code": code})
+
+    def test_validate_rejects_invalid_code_without_raising(self):
+        code = encode(5)
+        bad = code[:-1] + ("0" if code[-1] != "0" else "1")
+        result = validate(bad)
+        self.assertEqual(result["valid"], False)
+        self.assertEqual(result["reason"], INVALID_CHECKSUM)
+
+    def test_validate_agrees_with_manual_instance(self):
+        codec = Baseh(baseh_expandable_v1())
+        code = encode(99)
+        for candidate in (code, code.lower()):
+            self.assertEqual(validate(candidate), codec.validate(candidate))
 
 
 if __name__ == "__main__":

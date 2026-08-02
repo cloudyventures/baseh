@@ -7,7 +7,7 @@ import (
 )
 
 // FuzzDecode hammers decode/validate with arbitrary input: no panic is
-// allowed, and every failure must surface as *Error (never an internal id
+// allowed and every failure must surface as *BasehError (never an internal id
 // or a non-baseh error). Run briefly in `go test`; run for real with
 // `go test -fuzz=FuzzDecode -fuzztime=...`.
 func FuzzDecode(f *testing.F) {
@@ -32,15 +32,15 @@ func FuzzDecode(f *testing.F) {
 		opts := &DecodeOptions{AcceptSpaces: true, TryCorrection: true, ConfusionProfile: "medium"}
 		for name, h := range codecs {
 			if _, err := h.Decode(input, nil); err != nil {
-				var herr *Error
+				var herr *BasehError
 				if !errors.As(err, &herr) {
-					t.Fatalf("codec=%s input=%q: non-*Error from Decode: %T %v", name, input, err, err)
+					t.Fatalf("codec=%s input=%q: non-*BasehError from Decode: %T %v", name, input, err, err)
 				}
 			}
 			if _, err := h.Decode(input, opts); err != nil {
-				var herr *Error
+				var herr *BasehError
 				if !errors.As(err, &herr) {
-					t.Fatalf("codec=%s input=%q: non-*Error from correcting Decode: %T %v", name, input, err, err)
+					t.Fatalf("codec=%s input=%q: non-*BasehError from correcting Decode: %T %v", name, input, err, err)
 				}
 			}
 			// Validate must never panic or expose an internal id; by

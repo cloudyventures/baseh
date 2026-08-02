@@ -312,12 +312,18 @@ fn checksum_detects_substitutions_and_transpositions() {
                 }
             }
         }
-        assert_eq!(sub_misses, 0, "generation {l} had {sub_misses} substitution misses");
+        assert_eq!(
+            sub_misses, 0,
+            "generation {l} had {sub_misses} substitution misses"
+        );
         // The short checksum (modulus 28) cannot detect all transpositions;
         // only assert total transposition detection for the full checksum.
         let k = h.effective_checksum_length(l);
         if k == h.profile().checksum_length {
-            assert_eq!(trans_misses, 0, "generation {l} had {trans_misses} transposition misses");
+            assert_eq!(
+                trans_misses, 0,
+                "generation {l} had {trans_misses} transposition misses"
+            );
         }
     }
 }

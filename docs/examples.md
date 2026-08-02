@@ -39,7 +39,7 @@ also a runnable file that prints exactly the output shown:
 npm install @cloudyventures/baseh
 ```
 
-### Expandable mode (shipping in the next release)
+### Expandable mode
 
 ```typescript
 import { Baseh, basehExpandableV1 } from "@cloudyventures/baseh";
@@ -160,7 +160,7 @@ codec.decode("ZZZZ-ZZZZ");           // throws BasehError [INVALID_CHECKSUM]
 pip install baseh
 ```
 
-### Expandable mode (shipping in the next release)
+### Expandable mode
 
 ```python
 from baseh import Baseh, baseh_expandable_v1
@@ -266,7 +266,7 @@ codec.decode("ZZZZ-ZZZZ")           # raises BasehError [INVALID_CHECKSUM]
 go get github.com/cloudyventures/baseh/go/v2
 ```
 
-### Expandable mode (shipping in the next release)
+### Expandable mode
 
 ```go
 // Codes start at 4 characters and grow automatically as ids climb past
@@ -385,7 +385,7 @@ helper.Decode("ZZZZ-ZZZZ", nil)                  // nil, *Error [INVALID_CHECKSU
 cargo add baseh
 ```
 
-### Expandable mode (shipping in the next release)
+### Expandable mode
 
 ```rust
 use baseh::{baseh_expandable_v1, Baseh, DecodeOptions};
@@ -486,7 +486,7 @@ helper.decode("ZZZZ-ZZZZ", &strict)                        // Err([InvalidChecks
 gem install baseh
 ```
 
-### Expandable mode (shipping in the next release)
+### Expandable mode
 
 ```ruby
 # Codes start short and grow one character as the id sequence climbs.

@@ -58,3 +58,34 @@ fn decode_errors_surface_like_the_instance_api() {
     let err = baseh::decode(&code).unwrap_err();
     assert_eq!(err.code, ErrorCode::InvalidChecksum);
 }
+
+#[test]
+fn validate_reports_a_valid_code() {
+    let code = baseh::encode(&BigUint::from(42u64)).unwrap();
+    let outcome = baseh::validate(&code);
+    assert!(outcome.valid);
+    assert_eq!(outcome.canonical_code.as_deref(), Some(code.as_str()));
+    assert_eq!(outcome.reason, None);
+}
+
+#[test]
+fn validate_agrees_with_the_instance_api() {
+    let instance = Baseh::new(baseh_expandable_v1()).unwrap();
+    let code = baseh::encode(&BigUint::from(42u64)).unwrap();
+    let expected = instance.validate(&code, &DecodeOptions::default());
+    assert_eq!(baseh::validate(&code), expected);
+
+    let bogus = "!!!!";
+    let outcome = baseh::validate(bogus);
+    assert_eq!(outcome, instance.validate(bogus, &DecodeOptions::default()));
+    assert!(!outcome.valid);
+    assert_eq!(outcome.canonical_code, None);
+    assert_eq!(outcome.reason, Some(ErrorCode::InvalidCharacter));
+
+    // Checksum failure: flip a body character of a valid code.
+    let mut code = code;
+    code.replace_range(0..1, "Z");
+    let outcome = baseh::validate(&code);
+    assert!(!outcome.valid);
+    assert_eq!(outcome.reason, Some(ErrorCode::InvalidChecksum));
+}

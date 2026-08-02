@@ -4,7 +4,14 @@
 
 1. Push a version tag, for example `git tag v1.0.0 && git push origin v1.0.0`.
 2. The `release` workflow runs every test suite of all five implementations
-   against the frozen vectors. Any disagreement stops the release.
+   against the frozen vectors, then the release gates: the full
+   100,000-sampled-body checksum sweep under `BASEH_SOAK=1` for Python, Go,
+   Rust and Ruby (`cd python && BASEH_SOAK=1 python tests/test_checksum_sweep.py TestChecksumSweepFull`,
+   `cd go && BASEH_SOAK=1 go test -run TestChecksumSweepFull -v .`,
+   `cd rust && BASEH_SOAK=1 cargo test --release --test checksum_sweep -- --ignored single_substitution_sweep_full --nocapture`,
+   `cd ruby && BASEH_SOAK=1 ruby -Ilib -Itest test/test_checksum_sweep.rb -n test_single_substitution_sweep_soak`)
+   plus a five-minute Go fuzz run (`cd go && go test -fuzz=FuzzDecode -fuzztime=5m .`).
+   Any disagreement stops the release.
 3. On green, it publishes to npm, PyPI, crates.io and RubyGems and creates
    the `go/vX.Y.Z` tag for the Go module.
 4. Once every publish and the Go tag succeed, it creates a GitHub Release

@@ -28,7 +28,7 @@ func expectCode(t *testing.T, err error, code ErrorCode) {
 	if err == nil {
 		t.Fatalf("expected %s, got nil", code)
 	}
-	var herr *Error
+	var herr *BasehError
 	if !errors.As(err, &herr) || herr.Code != code {
 		t.Fatalf("error = %v, want code %s", err, code)
 	}
@@ -79,7 +79,7 @@ func TestShortChecksumBoundaryRoundTrips(t *testing.T) {
 		for _, id := range []*big.Int{first, last} {
 			code, err := h.Encode(id)
 			if err != nil {
-				var herr *Error
+				var herr *BasehError
 				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 					continue
 				}
@@ -437,7 +437,7 @@ func TestShortChecksumZeroWindow(t *testing.T) {
 		for _, id := range []*big.Int{first, last} {
 			code, err := h.Encode(id)
 			if err != nil {
-				var herr *Error
+				var herr *BasehError
 				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 					continue
 				}

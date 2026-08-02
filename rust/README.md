@@ -9,7 +9,7 @@ conformance vectors live in `../vectors/`.
 
 ## Usage
 
-Expandable mode (shipping in the next release) is the recommended default for
+Expandable mode is the recommended default for
 new users: codes start at 4 characters and grow one character at a time as
 ids climb past each length's capacity — transparently, with no migration and
 no re-issue. Old shorter codes keep decoding forever.

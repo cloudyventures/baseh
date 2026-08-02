@@ -43,7 +43,7 @@ func encodeOrSkip(t *testing.T, h *Codec, id *big.Int) (string, bool) {
 	t.Helper()
 	code, err := h.Encode(id)
 	if err != nil {
-		var herr *Error
+		var herr *BasehError
 		if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 			return "", false
 		}

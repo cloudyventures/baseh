@@ -161,8 +161,8 @@ the frozen published key. Each tier also has a `-p` variant that permutes
 with caller-supplied key material instead: `MinimumPV1`,
 `LightPV1`, `MediumPV1` and `HeavyPV1`, each taking
 `keyBytes []byte, keyID string, rounds int`, plus `ExpandablePV1` for
-the keyed private-mapping expandable variant (`baseh-expandable-p-v1`,
-shipping in the next release). Key bytes are required; an
+the keyed private-mapping expandable variant (`baseh-expandable-p-v1`).
+Key bytes are required; an
 empty key id defaults to `"default"` and zero rounds to 8. Key material
 is application-specific and never part of the frozen profile.
 
@@ -173,7 +173,7 @@ h, err := baseh.New(baseh.MediumPV1(key, "prod-01", 8))
 
 ## Errors
 
-Errors are always `*baseh.Error` with a stable `Code` field (one of
+Errors are always `*baseh.BasehError` with a stable `Code` field (one of
 `INVALID_PROFILE`, `OUT_OF_RANGE`, `PERMUTATION_FAILURE`, `INVALID_LENGTH`,
 `INVALID_CHARACTER`, `INVALID_CHECKSUM`, `AMBIGUOUS_INPUT`,
 `TOO_MANY_CANDIDATES` and `BLOCKED_CODE`), retrievable with `errors.As`.

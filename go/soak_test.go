@@ -89,7 +89,7 @@ func soakSweepBound(t *testing.T, h *Codec) int64 {
 }
 
 func isBlocked(err error) bool {
-	var e *Error
+	var e *BasehError
 	return errors.As(err, &e) && e.Code == BLOCKED_CODE
 }
 

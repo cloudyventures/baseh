@@ -65,9 +65,9 @@ func TestFacadeMatchesInstanceAPI(t *testing.T) {
 
 func TestFacadeDecodeErrorSurfacesAsError(t *testing.T) {
 	_, err := Decode("!!!!", nil)
-	var herr *Error
+	var herr *BasehError
 	if !errors.As(err, &herr) {
-		t.Fatalf("Decode returned %T, want *Error", err)
+		t.Fatalf("Decode returned %T, want *BasehError", err)
 	}
 	if herr.Code != INVALID_CHARACTER {
 		t.Fatalf("Decode error code = %s, want %s", herr.Code, INVALID_CHARACTER)

@@ -31,7 +31,7 @@ pub use codec::{
     expandable_grouping, Baseh, ConfusionProfile, DecodeOptions, DecodeResult, ValidateOutcome,
 };
 pub use error::{BasehError, ErrorCode};
-pub use facade::{decode, encode};
+pub use facade::{decode, encode, validate};
 pub use profile::{Mode, Permutation, Profanity, ProfanityMode, Profile, DEFAULT_BLOCKLIST};
 pub use profiles::{
     baseh_expandable_p_v1, baseh_expandable_v1, baseh_heavy_p_v1, baseh_heavy_v1, baseh_light_p_v1,

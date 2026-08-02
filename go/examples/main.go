@@ -13,7 +13,7 @@ import (
 )
 
 func describeErr(err error) string {
-	var be *baseh.Error
+	var be *baseh.BasehError
 	if errors.As(err, &be) {
 		return fmt.Sprintf("baseh error [%s]: %s (SafeForCustomer=%t)", be.Code, be.Message, be.SafeForCustomer)
 	}
@@ -40,7 +40,7 @@ func showID(label string, fn func() (*big.Int, error)) {
 
 func main() {
 	// 1. Expandable mode (recommended default for new users).
-	// Expandable mode: shipping in the next release; shown here as the new default.
+	// Expandable mode: shown here as the new default.
 	// Codes start at 4 characters and grow automatically as ids climb past
 	// each length's capacity — no migration, and old short codes keep decoding.
 	fmt.Println("== expandable ==")

@@ -83,14 +83,16 @@ module Baseh
 
     # Zero-config facade over the frozen baseh-expandable-v1 profile, the
     # recommended default for new namespaces. Most applications never need a
-    # profile object at all: these two methods share one lazily constructed,
+    # profile object at all: these methods share one lazily constructed,
     # stateless codec instance (thread-safe once built, per Baseh::Baseh).
     #
     #   Baseh.encode(123456)        -> String canonical code
     #   Baseh.decode(code).id       -> 123456
+    #   Baseh.validate(code).valid  -> true/false
     #
-    # decode returns the full DecodeResult (id, canonical_code, corrected),
-    # exactly as the instance API does.
+    # decode returns the full DecodeResult (id, canonical_code, corrected)
+    # and validate returns the full ValidateResult (valid, canonical_code,
+    # reason), exactly as the instance API does.
 
     # Encode an identifier with the default expandable profile.
     #
@@ -110,6 +112,16 @@ module Baseh
     # @raise [BasehError] same codes as the instance decode
     def decode(input, **options)
       default.decode(input, **options)
+    end
+
+    # Validate a code against the default expandable profile without raising.
+    #
+    # @param input [String]
+    # @param options keyword options of Baseh::Baseh#validate (the same
+    #   keyword options decode accepts)
+    # @return [Baseh::Baseh::ValidateResult]
+    def validate(input, **options)
+      default.validate(input, **options)
     end
 
     # The shared default-profile codec, built on first use.

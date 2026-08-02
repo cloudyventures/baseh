@@ -64,9 +64,9 @@ func mustCapacity(t *testing.T, h *Codec) *big.Int {
 
 func assertCode(t *testing.T, err error, want ErrorCode) {
 	t.Helper()
-	var herr *Error
+	var herr *BasehError
 	if !errors.As(err, &herr) {
-		t.Fatalf("error type %T, want *Error", err)
+		t.Fatalf("error type %T, want *BasehError", err)
 	}
 	if herr.Code != want {
 		t.Fatalf("code = %s, want %s", herr.Code, want)
@@ -442,7 +442,7 @@ func TestMediumLookalikeAliases(t *testing.T) {
 			code, err := medium.Encode(big.NewInt(id))
 			if err != nil {
 				// Blocklisted identifiers are reserved and never issued.
-				var herr *Error
+				var herr *BasehError
 				if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 					continue
 				}
@@ -489,7 +489,7 @@ func TestMediumLookalikeAliases(t *testing.T) {
 	for i := int64(0); i < 5000; i++ {
 		code, err := medium.Encode(big.NewInt(i))
 		if err != nil {
-			var herr *Error
+			var herr *BasehError
 			if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 				continue
 			}
@@ -512,7 +512,7 @@ func TestCorrectionFilterRegression(t *testing.T) {
 	for id := int64(1); id < 1000000; id++ {
 		c, err := medium.Encode(big.NewInt(id))
 		if err != nil {
-			var herr *Error
+			var herr *BasehError
 			if errors.As(err, &herr) && herr.Code == BLOCKED_CODE {
 				continue
 			}
@@ -553,7 +553,7 @@ func TestProfanityBlocklist(t *testing.T) {
 		t.Fatalf("blocked id encoded")
 	} else {
 		assertCode(t, err, BLOCKED_CODE)
-		var herr *Error
+		var herr *BasehError
 		errors.As(err, &herr)
 		if herr.SafeForCustomer {
 			t.Errorf("BLOCKED_CODE must not be safe for customer")
@@ -749,9 +749,9 @@ func TestFuzzSmoke(t *testing.T) {
 			TryCorrection: rng.Intn(2) == 0,
 		})
 		if err != nil {
-			var herr *Error
+			var herr *BasehError
 			if !errors.As(err, &herr) {
-				t.Fatalf("non-*Error error %T for %q: %v", err, input, err)
+				t.Fatalf("non-*BasehError error %T for %q: %v", err, input, err)
 			}
 			continue
 		}

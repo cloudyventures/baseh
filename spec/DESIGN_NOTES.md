@@ -201,7 +201,7 @@ Blocklist rejection reduces effective capacity and must be deterministic. It can
 
 Recommendation:
 
-Do not add a blocklist in version 1 unless customer testing shows a real problem.
+Version 2 settled this: every frozen tier ships the deterministic default blocklist (`IMPLEMENTATION_CODEC.md` section 18), with rejection and cycle-walk at encode time.
 
 ## 12. Case
 
@@ -355,9 +355,10 @@ Each extension requires a new profile or new outer protocol.
 - Final public product name.
 - Whether codes are stored or generated.
 - Exact correction telemetry retention.
-- Whether a blocked-string policy is required.
 
 ## 23. Recommended first release
+
+Historical note: this section keeps the original recommendation in the version 1 field names, including a correction block that never shipped; the normative shipped profile is in `IMPLEMENTATION_CODEC.md` section 17.
 
 Version 2 of the frozen tiers shipped as:
 

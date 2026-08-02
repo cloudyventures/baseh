@@ -10,6 +10,12 @@ Zero runtime dependencies. HMAC-SHA-256 comes from the standard library.
 ## Install
 
 ```bash
+pip install baseh
+```
+
+or from a local checkout:
+
+```bash
 pip install ./python
 ```
 

@@ -7,16 +7,22 @@ permutation on every tier and profanity safety. The normative spec is
 
 ## Install
 
+```sh
+gem install baseh
+```
+
+or in a Gemfile:
+
 ```ruby
 # Gemfile
 gem "baseh", path: "ruby"
 ```
 
-or
+or from a local build:
 
 ```sh
 gem build baseh.gemspec
-gem install ./baseh-1.0.0.gem
+gem install ./baseh-2.0.0.gem
 ```
 
 Zero runtime dependencies. Only `openssl` and `json` from the standard

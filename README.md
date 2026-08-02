@@ -202,10 +202,10 @@ of each package.
 
 ## Status and release process
 
-The codec, the four frozen tiers and the vector suite are version 2.
-Expandable mode is implemented in all five languages and is the headline of
-the next release; the `baseh-expandable-v1` helpers will not exist in
-published packages until that release is cut. Releases are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
+The codec, the five frozen tiers and the vector suite are version 2.
+Expandable mode is implemented in all five languages; only the
+published-package timing is pending, since v2.0.0 is not yet tagged, so the
+`baseh-expandable-v1` helpers do not exist in published packages yet. Releases are cut with a git tag (`vX.Y.Z`); CI verifies all five implementations
 against the frozen vectors, then publishes to npm, PyPI, crates.io and
 RubyGems and tags `go/vX.Y.Z` for the Go module. Publishing uses OIDC
 trusted publishing with no stored tokens; setup is in
