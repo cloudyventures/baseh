@@ -50,6 +50,11 @@ scoped publish token for that registry only, record it in 1Password first,
 then add it as the GitHub secret that registry's step expects. Treat this as
 a fallback, not the default.
 
+The `github-pages` environment needs a deployment policy for tag `v*`, not
+just branches: pages.yml deploys on release tags, and without the tag rule
+the deploy job is rejected before its first step (repo Settings,
+Environments, github-pages, deployment branches and tags).
+
 ## Rules
 
 - Never commit a registry token to this repository.
