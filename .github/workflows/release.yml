@@ -28,7 +28,7 @@ jobs:
       - name: js vectors
         run: cd js && npm ci && npm test
       - name: python vectors
-        run: cd python && python -m unittest discover -s tests
+        run: cd python && PYTHONPATH=src python -m unittest discover -s tests
       - name: go vectors
         run: cd go && go test ./...
       - name: rust vectors
@@ -45,7 +45,7 @@ jobs:
       # JS has no full-sweep gate: its sweep lives in the normal codec tests
       # with no BASEH_SOAK variant, so there is no JS step here.
       - name: python full checksum sweep
-        run: cd python && BASEH_SOAK=1 python tests/test_checksum_sweep.py TestChecksumSweepFull
+        run: cd python && BASEH_SOAK=1 PYTHONPATH=src python tests/test_checksum_sweep.py TestChecksumSweepFull
       - name: go full checksum sweep
         run: cd go && BASEH_SOAK=1 go test -run TestChecksumSweepFull -v .
       - name: rust full checksum sweep
