@@ -11,7 +11,9 @@
    `cd rust && BASEH_SOAK=1 cargo test --release --test checksum_sweep -- --ignored single_substitution_sweep_full --nocapture`,
    `cd ruby && BASEH_SOAK=1 ruby -Ilib -Itest test/test_checksum_sweep.rb -n test_single_substitution_sweep_soak`)
    plus a five-minute Go fuzz run (`cd go && go test -fuzz=FuzzDecode -fuzztime=5m .`).
-   Any disagreement stops the release.
+   Any disagreement stops the release. If the nightly `soak` workflow has
+   already passed for the exact tag commit, these gates are skipped and its
+   result is reused; any doubt (no run, failed run, API error) runs them.
 3. On green, it publishes to npm, PyPI, crates.io and RubyGems and creates
    the `go/vX.Y.Z` tag for the Go module.
 4. Once every publish and the Go tag succeed, it creates a GitHub Release

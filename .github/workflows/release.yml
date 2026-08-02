@@ -36,6 +36,24 @@ jobs:
       - name: ruby vectors
         run: cd ruby && rake
 
+      # The nightly soak workflow runs these same gates on main. If it has
+      # already passed for this exact tag commit, reuse that result instead
+      # of repeating an hour of sweeps. Fail-safe: any doubt (API error,
+      # missing or failed run, different SHA) runs the soak here.
+      - name: check for a passing soak on this commit
+        id: soaked
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh run list --repo ${{ github.repository }} --workflow soak.yml \
+               --commit "$GITHUB_SHA" --status completed --limit 1 \
+               --json conclusion --jq -e '.[0].conclusion == "success"' >/dev/null 2>&1; then
+            echo "soak already green for $GITHUB_SHA, skipping soak gates"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no passing soak run for $GITHUB_SHA, running soak gates"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       # Release gates: full 100,000-sampled-body checksum sweep (spec
       # IMPLEMENTATION_TEST_SUITE.md sections 6.3 and 19) plus a time-boxed
       # Go fuzz run. BASEH_SOAK=1 selects the full sweep; body-count
@@ -44,15 +62,20 @@ jobs:
       # defaults so the spec's 100k count applies.
       # JS has no full-sweep gate: its sweep lives in the normal codec tests
       # with no BASEH_SOAK variant, so there is no JS step here.
-      - name: python full checksum sweep
+      - if: steps.soaked.outputs.skip == 'false'
+        name: python full checksum sweep
         run: cd python && BASEH_SOAK=1 PYTHONPATH=src python tests/test_checksum_sweep.py TestChecksumSweepFull
-      - name: go full checksum sweep
+      - if: steps.soaked.outputs.skip == 'false'
+        name: go full checksum sweep
         run: cd go && BASEH_SOAK=1 go test -run TestChecksumSweepFull -v .
-      - name: rust full checksum sweep
+      - if: steps.soaked.outputs.skip == 'false'
+        name: rust full checksum sweep
         run: cd rust && BASEH_SOAK=1 cargo test --release --test checksum_sweep -- --ignored single_substitution_sweep_full --nocapture
-      - name: ruby full checksum sweep
+      - if: steps.soaked.outputs.skip == 'false'
+        name: ruby full checksum sweep
         run: cd ruby && BASEH_SOAK=1 ruby -Ilib -Itest test/test_checksum_sweep.rb -n test_single_substitution_sweep_soak
-      - name: go fuzz decode (5m time-box)
+      - if: steps.soaked.outputs.skip == 'false'
+        name: go fuzz decode (5m time-box)
         run: cd go && go test -fuzz=FuzzDecode -fuzztime=5m .
 
   # Publishing uses OIDC trusted publishing; no long-lived registry tokens.
