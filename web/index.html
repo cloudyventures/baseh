@@ -138,28 +138,50 @@
       </fieldset>
     </section>
 
-    <section aria-labelledby="live" aria-live="polite">
-      <h2 id="live">Live preview</h2>
-      <div id="summary" class="card"></div>
-      <h3>Alphabet (<span id="alpha-size"></span> symbols)</h3>
-      <code id="alpha-view" class="block"></code>
-      <h3>Deterministic examples</h3>
-      <table id="examples">
-        <thead><tr><th>ID</th><th>Code</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <h3>Convert</h3>
+    <div class="stack">
+    <section class="highlight" aria-labelledby="test" aria-live="polite">
+      <h2 id="test">Test</h2>
+      <p class="lede">baseH turns a long number into a short code a person can read out, write down and type back. Type a number to get its code, or paste a code to get the number, under the configuration on the left.</p>
       <div class="field">
-        <label for="conv-id">Identifier<span class="tip" tabindex="0" aria-label="Convert identifier details"><span class="i">i</span><span class="tip-body">Type any identifier from 0 up to the capacity minus one to see the exact code this configuration would issue for it. Compact suffixes work too: 6k, 2.5M, 6B, 6T. Blocklisted identifiers report as blocked instead.</span></span></label>
+        <label for="conv-id">Identifier<span class="tip" tabindex="0" aria-label="Test identifier details"><span class="i">i</span><span class="tip-body">Type any identifier from 0 up to the capacity minus one to see the exact code this configuration would issue for it. Compact suffixes work too: 6k, 2.5M, 6B, 6T. Blocklisted identifiers report as blocked instead.</span></span></label>
         <input id="conv-id" type="text" inputmode="numeric" placeholder="1.5M or 1500000" />
         <div id="conv-id-out" class="field-note" aria-live="polite"></div>
       </div>
       <div class="field">
-        <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Convert code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
+        <label for="conv-code">Code<span class="tip" tabindex="0" aria-label="Test code details"><span class="i">i</span><span class="tip-body">Type or paste a code to see the identifier it decodes to. Lowercase, typed O/I/L aliases and stray spaces are accepted; anything that fails validation reports the reason.</span></span></label>
         <input id="conv-code" type="text" placeholder="C8XP-8J49" />
         <div id="conv-code-out" class="field-note" aria-live="polite"></div>
       </div>
       <div id="conv-try" class="field-note try-list"></div>
+    </section>
+
+    <section aria-labelledby="share-h" aria-live="polite">
+      <h2 id="share-h">Share</h2>
+      <div class="row">
+        <button id="copy-json" type="button">Copy profile JSON</button>
+        <button id="copy-url" type="button">Copy URL</button>
+        <button id="reset" type="button">Reset to preset</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="alpha-h" aria-live="polite">
+      <h2 id="alpha-h">Alphabet (<span id="alpha-size"></span> symbols)</h2>
+      <code id="alpha-view" class="block"></code>
+    </section>
+
+    <section aria-labelledby="examples-h" aria-live="polite">
+      <h2 id="examples-h">Deterministic examples</h2>
+      <table id="examples">
+        <thead><tr><th>ID</th><th>Code</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    </div>
+
+    <div class="stack">
+    <section aria-labelledby="live" aria-live="polite">
+      <h2 id="live">Live preview</h2>
+      <div id="summary" class="card"></div>
     </section>
 
     <section aria-labelledby="fit">
@@ -183,13 +205,8 @@
       </div>
       <div id="fit-out" class="card"></div>
       <div id="problems" role="alert"></div>
-      <h3>Share</h3>
-      <div class="row">
-        <button id="copy-json" type="button">Copy profile JSON</button>
-        <button id="copy-url" type="button">Copy URL</button>
-        <button id="reset" type="button">Reset to preset</button>
-      </div>
     </section>
+    </div>
   </main>
   <script type="module" src="/src/calculator.ts"></script>
 </body>

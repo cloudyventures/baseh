@@ -1,5 +1,30 @@
 # baseH
 
+**Try it now (client-side only, nothing is sent anywhere):**
+[Capacity Calculator](https://cloudyventures.github.io/baseh/) (parameters in,
+exact capacity and operational lifetime out) and
+[Code Designer](https://cloudyventures.github.io/baseh/designer.html)
+(required capacity in, shortest valid configuration out).
+
+baseH converts a long number into a short string of characters that a person
+can read, type and say out loud, then converts it back to exactly the same
+number. Under the default expandable tier:
+
+| Identifier | Code |
+|---|---|
+| 1 | `PE84` |
+| 12,345 | `KYV3` |
+| 83,753 | `GFPVU` |
+| 1,000,000 | `FMA-R1Z` |
+| 10,000,000,000 | `YGRG4-4UKF` |
+
+Codes stay short while the namespace is small and gain one character at a time
+as it fills, so a ten-billion-id namespace still issues four-character codes on
+day one. Every code carries a checksum, so a mistyped one is rejected rather
+than silently resolving to the wrong record.
+
+## Rationale
+
 Communicating identifiers with humans has been a challenge: you either end up with a long string of numbers or a mix of letters and numbers like an airline reservation. You're forced to choose between the benefits of hard to confuse, easy to say over the phone but easily to mis-transcribe and too long against the opposite. 
 
 baseH is designed to give you the best of both worlds: short, clear codes that are easily to copy and to say. It's base36 reworked for humans: a reversible, checksummed encoding of non-negative integers into short references that people can read, type and dictate over the phone. The alphabet drops the symbols that cause transcription errors and a checksum catches the rest. It's intended to be used for order numbers, support tickets, returns, bookings and similar records.
@@ -21,15 +46,6 @@ This implementation gives you total control over length, capacity, checksums and
   access control.
 - **Correction with abstention**: checksum-guided substitution suggestions
   that return `AMBIGUOUS_INPUT` instead of guessing.
-
-## Demo & Tools
-
-Interactive, client-side only:
-
-- [Capacity Calculator](https://cloudyventures.github.io/baseh/) - parameters
-  in, exact capacity and operational lifetime out.
-- [Code Designer](https://cloudyventures.github.io/baseh/designer.html) -
-  required capacity in, shortest valid configuration out.
 
 ## Install
 
@@ -77,8 +93,8 @@ fails if any implementation disagrees with them.
 ## Profiles
 
 Profiles carry a `mode`: `"expandable"` (the default for new profiles) or
-`"fixed"`. Every existing option — visual and spoken safety levels, custom
-alphabets, profanity modes, blocklists, separators — composes with either
+`"fixed"`. Every existing option (visual and spoken safety levels, custom
+alphabets, profanity modes, blocklists, separators) composes with either
 mode unchanged.
 
 ### Expandable mode (default)
@@ -87,7 +103,7 @@ The `baseh-expandable-v1` tier is the recommended starting point:
 
 - **Starts short, grows on its own**: minimum four characters (the profile
   field `minLength`). When the id sequence outgrows a length, codes become
-  one symbol longer — transparently, with no re-issue and no migration.
+  one symbol longer, transparently, with no re-issue and no migration.
   Shorter codes decode forever.
 - **Medium safety plus the zero ban**: the default body alphabet is the 27
   symbols left after the medium visual strips (`I`, `L`, `B`, `S` and `O`)
@@ -110,8 +126,8 @@ The `baseh-expandable-v1` tier is the recommended starting point:
   look random at every size even though issuance is sequential.
 - **Separator on a threshold**: the shipped tier introduces the hyphen at
   six characters (the profile field `separatorMinLength`); shorter codes
-  print bare. The split is a balanced function of the code length —
-  `XXX-XXX` at six, `XXXX-XXX` at seven, `XXXX-XXXX` at eight — so there
+  print bare. The split is a balanced function of the code length
+  (`XXX-XXX` at six, `XXXX-XXX` at seven, `XXXX-XXXX` at eight), so there
   is no grouping to configure in expandable mode.
 - **Repetition filter on**: like every frozen tier, the expandable tier
   ships `maxRepetition: 4`, so codes with a run of four or more identical
@@ -125,7 +141,7 @@ mapping, like the other `-p` tiers.
 
 Four frozen tiers ship with the library, all `mode: "fixed"`, all running
 the default profanity blocklist, all blocking runs of four or more identical
-symbols (the repetition filter, `maxRepetition: 4` — configurable to any
+symbols (the repetition filter, `maxRepetition: 4`, configurable to any
 floor of 3 or more, or 0 to turn it off), all six characters of body, all
 hyphen-delimited and all permuting with the published frozen key:
 
