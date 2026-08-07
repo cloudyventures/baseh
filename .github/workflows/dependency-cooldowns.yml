@@ -9,6 +9,8 @@
 #   4. No Dockerfile hardcodes a bundler version (derive from the lockfile)
 #
 # Pure bash + grep/sed/awk: no actions, no images, no network. Runs in seconds.
+# Version comparison uses Ruby's Gem::Version when ruby is on PATH (always true
+# on GitHub-hosted runners) and falls back to a numeric awk compare otherwise.
 # Tune thresholds via the env vars below. The script block also works standalone:
 # paste it into any CI (GitLab `script:`, a pre-push hook, an agent PreToolUse hook).
 name: dependency-cooldowns
@@ -38,7 +40,13 @@ jobs:
           MIN_YARN="${MIN_YARN:-4.10.0}"         # first yarn with npmMinimalAgeGate
           ERRORS="$(mktemp)"
           err() { echo "$*" >> "$ERRORS"; }
-          lt() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]; }
+          lt() {
+            if command -v ruby >/dev/null 2>&1; then
+              ruby -e 'exit(Gem::Version.new(ARGV[0]) < Gem::Version.new(ARGV[1]) ? 0 : 1)' "$1" "$2" 2>/dev/null
+            else
+              awk -v a="$1" -v b="$2" 'BEGIN{ na=split(a,A,"."); nb=split(b,B,"."); n=(na>nb?na:nb); for(i=1;i<=n;i++){ x=(i in A?A[i]:0)+0; y=(i in B?B[i]:0)+0; if(x<y) exit 0; if(x>y) exit 1 } exit 1 }'
+            fi
+          }
           PRUNE='\( -name .git -o -name .claude -o -name node_modules -o -name vendor \) -prune -o'
 
           # 1. Gemfile: every `source` line must carry cooldown: N (N >= MIN_DAYS)
