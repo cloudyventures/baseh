@@ -1,0 +1,98 @@
+# Dependency cooldown check — drop into .github/workflows/ of any repo.
+#
+# Enforces the supply-chain hardening policy:
+#   1. Every Gemfile `source` line carries `cooldown: 7` (bundler >= 4.0.13 feature)
+#   2. Every Gemfile.lock `BUNDLED WITH` is >= MIN_BUNDLER
+#   3. Every yarn project has .yarnrc.yml with `npmMinimalAgeGate` >= 7d,
+#      and does not pin yarn < 4.10 (package.json `packageManager` or
+#      .yarnrc.yml `yarnPath`)
+#   4. No Dockerfile hardcodes a bundler version (derive from the lockfile)
+#
+# Pure bash + grep/sed/awk: no actions, no images, no network. Runs in seconds.
+# Tune thresholds via the env vars below. The script block also works standalone:
+# paste it into any CI (GitLab `script:`, a pre-push hook, an agent PreToolUse hook).
+name: dependency-cooldowns
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, stage, staging, aws-stage]
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      MIN_BUNDLER: "4.0.13"   # first bundler with source cooldown support
+      MIN_DAYS: "7"           # cooldown / age-gate floor in days
+      MIN_YARN: "4.10.0"      # first yarn with npmMinimalAgeGate
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check dependency cooldowns
+        shell: bash
+        run: |
+          set -u
+          MIN_BUNDLER="${MIN_BUNDLER:-4.0.13}"   # first bundler with source cooldown support
+          MIN_DAYS="${MIN_DAYS:-7}"              # cooldown / age-gate floor in days
+          MIN_YARN="${MIN_YARN:-4.10.0}"         # first yarn with npmMinimalAgeGate
+          ERRORS="$(mktemp)"
+          err() { echo "$*" >> "$ERRORS"; }
+          lt() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]; }
+          PRUNE='\( -name .git -o -name .claude -o -name node_modules -o -name vendor \) -prune -o'
+
+          # 1. Gemfile: every `source` line must carry cooldown: N (N >= MIN_DAYS)
+          eval "find . $PRUNE -type f -name Gemfile -print" |
+          while read -r gf; do
+            grep -nE '^[[:space:]]*source[[:space:]]' "$gf" | while IFS= read -r m; do
+              if [[ "$m" =~ cooldown:[[:space:]]*([0-9]+) ]]; then
+                [ "${BASH_REMATCH[1]}" -ge "$MIN_DAYS" ] || err "$gf:${m%%:*} — source cooldown ${BASH_REMATCH[1]}d is under ${MIN_DAYS}d"
+              else
+                err "$gf:${m%%:*} — source line missing 'cooldown: $MIN_DAYS'"
+              fi
+            done
+          done
+
+          # 2. Gemfile.lock: BUNDLED WITH must be >= MIN_BUNDLER
+          eval "find . $PRUNE -type f -name Gemfile.lock -print" |
+          while read -r lock; do
+            v=$(awk '/^BUNDLED WITH/{getline; gsub(/[[:space:]]/,""); print}' "$lock")
+            if [ -z "$v" ]; then
+              err "$lock — no BUNDLED WITH section"
+            elif lt "$v" "$MIN_BUNDLER"; then
+              err "$lock — BUNDLED WITH $v is under $MIN_BUNDLER (fix: bundle update --bundler)"
+            fi
+          done
+
+          # 3. Yarn projects (found via yarn.lock): .yarnrc.yml must gate fresh packages
+          eval "find . $PRUNE -type f -name yarn.lock -print" |
+          while read -r lock; do
+            dir=$(dirname "$lock"); yrc="$dir/.yarnrc.yml"
+            if [ ! -f "$yrc" ]; then
+              err "$dir — yarn project without .yarnrc.yml (add: npmMinimalAgeGate: ${MIN_DAYS}d)"; continue
+            fi
+            gate=$(sed -n 's/^npmMinimalAgeGate:[[:space:]]*//p' "$yrc" | tr -d "\"'")
+            if   [[ "$gate" =~ ^([0-9]+)d$ ]]; then days="${BASH_REMATCH[1]}"
+            elif [[ "$gate" =~ ^[0-9]+$ ]];   then days=$(( gate / 1440 ))
+            else days=0; fi
+            [ "$days" -ge "$MIN_DAYS" ] || err "$yrc — npmMinimalAgeGate '${gate:-missing}' is under ${MIN_DAYS}d"
+            # Pinned yarn must be new enough to enforce the gate (two pinning styles)
+            pkg="$dir/package.json"
+            [ -f "$pkg" ] && yv=$(sed -n 's/.*"packageManager":[[:space:]]*"yarn@\([0-9][0-9.]*\).*/\1/p' "$pkg")
+            [ -z "${yv:-}" ] && yv=$(sed -n 's/^yarnPath:[[:space:]]*.*yarn-\([0-9][0-9.]*\)\.cjs.*/\1/p' "$yrc")
+            [ -n "${yv:-}" ] && lt "$yv" "$MIN_YARN" && err "$dir — pins yarn@$yv (< $MIN_YARN): the age gate will not be enforced"
+          done
+
+          # 4. Dockerfiles: no hardcoded bundler pin (derive from the lockfile instead)
+          eval "find . $PRUNE -type f -name 'Dockerfile*' -print" |
+          while read -r df; do
+            hits=$(grep -n 'BUNDLER_VERSION' "$df" | cut -d: -f1 | tr '\n' ',')
+            [ -n "$hits" ] && err "$df (lines ${hits%,}) — hardcoded bundler pin; derive it: gem install bundler:\"\$(grep -A 1 'BUNDLED WITH' Gemfile.lock | tail -1 | awk '{ print \$1 }')\""
+          done
+
+          if [ -s "$ERRORS" ]; then
+            echo "Dependency cooldown check FAILED:"
+            sed 's/^/  FAIL /' "$ERRORS"
+            exit 1
+          fi
+          echo "Dependency cooldown check passed (bundler >= $MIN_BUNDLER, cooldowns >= ${MIN_DAYS}d, yarn gate >= ${MIN_DAYS}d)."
